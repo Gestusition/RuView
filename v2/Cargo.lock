@@ -10659,6 +10659,7 @@ dependencies = [
  "wifi-densepose-bfld",
  "wifi-densepose-core",
  "wifi-densepose-geo",
+ "wifi-densepose-ruvector",
  "wifi-densepose-signal",
  "wifi-densepose-worldgraph",
 ]

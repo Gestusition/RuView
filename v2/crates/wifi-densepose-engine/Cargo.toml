@@ -11,6 +11,7 @@ repository.workspace = true
 # Composed building blocks (ADR-135..146).
 wifi-densepose-core = { version = "0.3.0", path = "../wifi-densepose-core" }
 wifi-densepose-signal = { version = "0.3.1", path = "../wifi-densepose-signal", default-features = false }
+wifi-densepose-ruvector = { version = "0.3.0", path = "../wifi-densepose-ruvector", default-features = false }
 # bfld is no_std by default; the privacy CONTROL PLANE (PrivacyModeRegistry) is
 # std-gated, so request std explicitly even under a workspace --no-default-features build.
 wifi-densepose-bfld = { version = "0.3.0", path = "../wifi-densepose-bfld", features = ["std"] }
