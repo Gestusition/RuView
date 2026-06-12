@@ -196,7 +196,8 @@ fields are **never read** for verification (only ever set to `None` in tests).
 re-doc'd **"(P4 — not yet enforced, ADR-161/B5)"** — parsed and round-tripped,
 but no integrity/signature check happens before a plugin runs. No verification
 code was added (that is P4); the doc now matches the code.
-**Grade: doc-honesty (no behavior change).**
+**Grade: doc-honesty (no behavior change).** *(Superseded by ADR-162 §P4:
+the hash/signature gate is now implemented and enforced.)*
 
 ## Negative Results (NO-ACTION positives — audited, found correct, cited not edited)
 
@@ -213,17 +214,23 @@ touched:
 
 ## Deferred Backlog (Nothing Dropped)
 
-- **Plugin authority-isolation (P5)** — `homecore_permissions` claims are parsed
-  but not enforced at the host-call boundary. **ACCEPTED-FUTURE.**
-- **Plugin signature/hash verification (P4)** — implement the
+- **Plugin authority-isolation (P5)** — ~~`homecore_permissions` claims are parsed
+  but not enforced at the host-call boundary.~~ **DONE — ADR-162 §P5.**
+  `hc_state_set` now consults a `PermissionSet` distilled from the manifest;
+  an undeclared write returns a typed `-3` to the guest.
+- **Plugin signature/hash verification (P4)** — ~~implement the
   `wasm_module_hash`/`wasm_module_sig`/`publisher_key` gate that B5 now honestly
-  says is absent. **ACCEPTED-FUTURE.**
+  says is absent.~~ **DONE — ADR-162 §P4.** `WasmtimeRuntime::load_plugin` now
+  SHA-256-checks the module, Ed25519-verifies the signature against
+  `publisher_key`, and enforces a `PluginPolicy` trust allowlist
+  (secure-default rejects unsigned/untrusted/tampered modules).
 - **HAP real pairing (P2)** — SRP/HKDF pairing + encrypted sessions; current
   bridge is an accessory-mapping surface. **ACCEPTED-FUTURE (honestly stubbed).**
-- **`RunMode::Queued`/`Restart`/`max` ordering** — `Single`/`Parallel` are
+- **`RunMode::Queued`/`Restart`/`max` ordering** — ~~`Single`/`Parallel` are
   honored; bounded queueing, restart-kill, and `max` concurrency are not yet
-  wired (every non-Single mode is parallel). **ACCEPTED-FUTURE** — the
-  `engine.rs` doc states exactly this, no over-claim.
+  wired (every non-Single mode is parallel).~~ **DONE — ADR-162 §A5.** Restart
+  aborts the in-flight task, Queued serializes via a per-automation async mutex,
+  and `max: N` caps concurrency via a per-automation semaphore.
 - **Automation YAML load-at-boot** — the engine starts empty; a YAML loader is
   P-next. The bin log states "0 automations registered" honestly.
 

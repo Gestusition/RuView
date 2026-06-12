@@ -3,14 +3,15 @@
 //!
 //! ADR-129 §2 design: one Tokio task per running automation instance.
 //!
-//! ## Run modes (ADR-161, HC-WS-05)
+//! ## Run modes (ADR-161 §A5 → completed in ADR-162)
 //!
-//! `RunMode::Single` is enforced via a per-automation `AtomicBool`
-//! guard: while an instance is executing, a second trigger is skipped.
-//! `Parallel` (and the as-yet-unbounded `Restart`/`Queued`) spawn a
-//! fresh instance on every trigger. (Before this fix the doc claimed
-//! AtomicBool enforcement but every trigger spawned unbounded parallel
-//! tasks regardless of `mode`.)
+//! Each registered automation owns a [`RunState`] that implements its
+//! `RunMode`: `Single`/`IgnoreFirst` skip re-entrant triggers, `Restart`
+//! aborts the in-flight run and starts a fresh one, `Queued` serializes
+//! runs in arrival order (nothing dropped), `Parallel` spawns on every
+//! trigger, and `max: N` caps concurrency via a per-automation semaphore.
+//! (ADR-161 only honored Single/Parallel; Restart/Queued/max were
+//! honestly documented as unbounded-parallel until ADR-162.)
 //!
 //! ## Time triggers (ADR-161, HC-WS-04)
 //!
@@ -26,7 +27,6 @@
 //! `EvalContext::with_templates`), so `template:` conditions evaluate
 //! against live state instead of always returning false.
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use chrono::{Local, Timelike};
@@ -34,18 +34,18 @@ use tokio::sync::broadcast;
 
 use homecore::HomeCore;
 
-use crate::action::ExecutionContext;
-use crate::automation::{Automation, RunMode};
+use crate::automation::Automation;
 use crate::condition::EvalContext;
+use crate::runmode::RunState;
 use crate::template::TemplateEnvironment;
 use crate::trigger::{Trigger, TriggerContext};
 
 /// An automation registered with the engine, plus its runtime run-state.
 struct Registered {
     auto: Arc<Automation>,
-    /// `true` while a `Single`-mode instance is executing. Used to
-    /// skip re-entrant triggers (HC-WS-05).
-    running: Arc<AtomicBool>,
+    /// Run-mode machinery (re-entrancy guard / restart abort handle /
+    /// queue mutex / concurrency semaphore) for this automation.
+    run_state: RunState,
 }
 
 /// The automation engine. Holds a HOMECORE handle and a list of registered
@@ -69,9 +69,10 @@ impl AutomationEngine {
 
     /// Register an automation. Can be called before or after `start()`.
     pub fn register(&self, automation: Automation) {
+        let run_state = RunState::new(&automation);
         self.automations.lock().unwrap().push(Registered {
             auto: Arc::new(automation),
-            running: Arc::new(AtomicBool::new(false)),
+            run_state,
         });
     }
 
@@ -118,13 +119,13 @@ impl AutomationEngine {
             loop {
                 match rx.recv().await {
                     Ok(event) => {
-                        let snapshot: Vec<(Arc<Automation>, Arc<AtomicBool>)> = automations
+                        let snapshot: Vec<(Arc<Automation>, RunState)> = automations
                             .lock()
                             .unwrap()
                             .iter()
-                            .map(|r| (Arc::clone(&r.auto), Arc::clone(&r.running)))
+                            .map(|r| (Arc::clone(&r.auto), r.run_state.clone()))
                             .collect();
-                        for (automation, running) in snapshot {
+                        for (automation, run_state) in snapshot {
                             if !automation.enabled {
                                 continue;
                             }
@@ -148,7 +149,7 @@ impl AutomationEngine {
                             if !conditions_pass(&automation, &eval_ctx).await {
                                 continue;
                             }
-                            spawn_run(&hc, automation, running);
+                            run_state.dispatch(&hc, automation);
                         }
                     }
                     Err(broadcast::error::RecvError::Closed) => break,
@@ -183,14 +184,14 @@ impl AutomationEngine {
                         if last_fired_sec.as_deref() == Some(hhmmss.as_str()) {
                             continue;
                         }
-                        let snapshot: Vec<(Arc<Automation>, Arc<AtomicBool>)> = automations
+                        let snapshot: Vec<(Arc<Automation>, RunState)> = automations
                             .lock()
                             .unwrap()
                             .iter()
-                            .map(|r| (Arc::clone(&r.auto), Arc::clone(&r.running)))
+                            .map(|r| (Arc::clone(&r.auto), r.run_state.clone()))
                             .collect();
                         let mut fired_any = false;
-                        for (automation, running) in snapshot {
+                        for (automation, run_state) in snapshot {
                             if !automation.enabled {
                                 continue;
                             }
@@ -208,7 +209,7 @@ impl AutomationEngine {
                             if !conditions_pass(&automation, &eval_ctx).await {
                                 continue;
                             }
-                            spawn_run(&hc, automation, running);
+                            run_state.dispatch(&hc, automation);
                             fired_any = true;
                         }
                         if fired_any {
@@ -231,15 +232,15 @@ impl AutomationEngine {
     /// wall-clock second to roll over. Returns the number of automations
     /// that fired (passed conditions and were spawned).
     pub async fn fire_time_for_test(&self, hhmmss: &str) -> usize {
-        let snapshot: Vec<(Arc<Automation>, Arc<AtomicBool>)> = self
+        let snapshot: Vec<(Arc<Automation>, RunState)> = self
             .automations
             .lock()
             .unwrap()
             .iter()
-            .map(|r| (Arc::clone(&r.auto), Arc::clone(&r.running)))
+            .map(|r| (Arc::clone(&r.auto), r.run_state.clone()))
             .collect();
         let mut fired = 0usize;
-        for (automation, running) in snapshot {
+        for (automation, run_state) in snapshot {
             if !automation.enabled {
                 continue;
             }
@@ -254,7 +255,7 @@ impl AutomationEngine {
             if !conditions_pass(&automation, &eval_ctx).await {
                 continue;
             }
-            spawn_run(&self.hc, automation, running);
+            run_state.dispatch(&self.hc, automation);
             fired += 1;
         }
         fired
@@ -279,36 +280,6 @@ fn time_at_matches(at: &str, hhmmss: &str) -> bool {
         _ => at.to_string(),
     };
     normalized == hhmmss
-}
-
-/// Spawn an automation run, honoring `RunMode::Single` re-entrancy
-/// guard (HC-WS-05). For `Single`/`IgnoreFirst` modes a run already in
-/// flight causes the new trigger to be skipped; the `running` flag is
-/// cleared when the run finishes.
-fn spawn_run(hc: &HomeCore, automation: Arc<Automation>, running: Arc<AtomicBool>) {
-    let single = matches!(automation.mode, RunMode::Single | RunMode::IgnoreFirst);
-    if single {
-        // Try to claim the running slot; if already running, skip.
-        if running
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_err()
-        {
-            return;
-        }
-    }
-    let hc_clone = hc.clone();
-    tokio::spawn(async move {
-        let mut exec_ctx = ExecutionContext::new(hc_clone, automation.id.clone());
-        for action in &automation.action {
-            if let Err(e) = action.execute(&mut exec_ctx).await {
-                eprintln!("[homecore-automation] action error in {}: {e}", automation.id);
-                break;
-            }
-        }
-        if single {
-            running.store(false, Ordering::SeqCst);
-        }
-    });
 }
 
 #[cfg(test)]
