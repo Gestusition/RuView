@@ -114,7 +114,14 @@
         <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button id="calBtn" class="btn">calibrate baseline (10 s)</button>
           <button id="recalBtn" class="ghost btn">recalibrate</button>
+          <label class="note" style="margin:0">get-ready countdown
+            <input id="calReady" type="number" value="5" min="3" max="15" style="width:64px"> s</label>
         </div>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button id="calCamBtn" class="ghost btn">enable camera (to confirm room empty)</button>
+          <select id="calCamSel" style="display:none"></select>
+        </div>
+        <div id="calCamStatus" class="note" style="margin-top:6px">camera: off</div>
       </div>
       <div class="card stats">
         <div class="label">baseline</div>
@@ -144,6 +151,7 @@
         <canvas id="capCv" width="420" height="480"></canvas>
         <div id="prompt">stand still</div>
         <div id="countdown">—</div>
+        <div style="margin-top:6px"><div class="bar"><i id="capProg"></i></div></div>
         <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button id="camBtn" class="btn">enable laptop camera</button>
           <select id="camSel" style="display:none"></select>
@@ -155,11 +163,29 @@
         <div class="row"><span class="k">CSI source</span><span class="v" id="capSrc">—</span></div>
         <div class="row"><span class="k">CSI nodes</span><span class="v" id="capNodes">—</span></div>
         <div class="row"><span class="k">pose visibility</span><span class="v" id="capVis">—</span></div>
+        <div class="row"><span class="k">pass / activity</span><span class="v" id="capPass">— / —</span></div>
+        <div class="row"><span class="k">this activity samples</span><span class="v" id="capActN">0</span></div>
         <div class="row"><span class="k">total samples</span><span class="v green" id="capN">0</span></div>
+        <div class="row"><span class="k">est. time / samples</span><span class="v" id="capEst">—</span></div>
         <div class="row"><span class="k">last skip reason</span><span class="v" id="capSkip">—</span></div>
+        <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <label class="note" style="margin:0">passes
+            <input id="capPasses" type="number" value="3" min="1" max="8" style="width:56px"></label>
+          <label class="note" style="margin:0">sec / activity
+            <input id="capSecs" type="number" value="12" min="4" max="40" style="width:56px"></label>
+          <label class="note" style="margin:0">get-ready
+            <input id="capReady" type="number" value="3" min="0" max="10" style="width:56px"> s</label>
+        </div>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
           <button id="recBtn" class="btn" disabled>● start guided recording</button>
+          <button id="pauseBtn" class="ghost btn" disabled>pause</button>
+          <button id="skipBtn" class="ghost btn" disabled>skip activity ⏭</button>
           <button id="clrBtn" class="ghost btn">clear dataset</button>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+          <button id="expBtn" class="ghost btn">export dataset (JSON)</button>
+          <button id="impBtn" class="ghost btn">import dataset</button>
+          <input id="impFile" type="file" accept="application/json,.json" style="display:none">
         </div>
         <div class="label" style="margin-top:16px">per-pose coverage (balance the dataset)</div>
         <div id="cov" class="cov"></div>
@@ -167,8 +193,9 @@
           A pair is recorded <b>only</b> when BOTH (a) a confident MediaPipe pose
           (mean visibility &gt; 0.5) AND (b) a fresh <b>live</b> CSI frame (<code>source==esp32</code>)
           exist. We store the <b>baseline-normalized</b> CSI + the 17 keypoints, mirrored to
-          IndexedDB so a refresh keeps them. Follow the prompt so every pose bucket fills up —
-          a balanced set beats 2 000 frames of standing.
+          IndexedDB so a refresh keeps them. The routine runs <b>multiple interleaved passes</b>
+          through every activity, so a chronological held-out split contains the same activity mix
+          as training (fixes the OOD split). Follow the prompt so every pose bucket fills up.
         </div>
       </div>
     </div>
@@ -190,7 +217,8 @@
         <div class="row"><span class="k">mean-pose baseline PCK@0.10</span><span class="v red" id="trBase">—</span></div>
         <div style="margin-top:8px"><div class="bar"><i id="trBar"></i></div></div>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <label class="note" style="margin:0">epochs <input id="trEpochs" type="number" value="200" min="20" max="600" style="width:80px"></label>
+          <label class="note" style="margin:0">epochs <input id="trEpochs" type="number" value="200" min="20" max="600" style="width:74px"></label>
+          <label class="note" style="margin:0">patience <input id="trPatience" type="number" value="30" min="5" max="200" style="width:64px"></label>
           <button id="trainBtn" class="btn" disabled>train model</button>
           <button id="trStop" class="ghost btn" disabled>stop</button>
         </div>
@@ -218,8 +246,11 @@
         <canvas id="infCv" width="420" height="560"></canvas>
         <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <label class="note" style="margin:0"><input type="checkbox" id="hideCam"> hide camera (skeleton on black)</label>
-          <span class="note" id="infModelState" style="margin:0">no model loaded</span>
+          <button id="infCamBtn" class="ghost btn">enable camera</button>
+          <select id="infCamSel" style="display:none"></select>
         </div>
+        <div id="infCamStatus" class="note" style="margin-top:6px">camera: off</div>
+        <div style="margin-top:6px"><span class="note" id="infModelState">no model loaded</span></div>
       </div>
       <div class="card stats">
         <div class="label">live inference</div>
@@ -251,8 +282,9 @@
 // ============================================================================
 //  Constants & shared state
 // ============================================================================
+// wss when served over https (mobile/secure-context safe), else ws; ?ws= overrides
 const CSI_WS = (new URLSearchParams(location.search)).get('ws')
-             || `ws://${location.hostname || 'localhost'}:8765/ws/sensing`;
+             || `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.hostname || 'localhost'}:8765/ws/sensing`;
 const NODE_IDS = [9, 13];          // per-node features in this fixed order (matches Python pipeline)
 const FIELD_LEN = 400;             // signal_field.values padded/truncated to 400
 const CSI_DIM = 4 + NODE_IDS.length * 3 + FIELD_LEN;  // 4 + 6 + 400 = 410
@@ -397,34 +429,70 @@ function onPoseResults(res){
   latestKps = kps; latestVis = visSum / N_KP;
 }
 
+// ONE camera shared across all stages. Each stage has its own <select> + status line,
+// but they all drive the same hidden <video> (camEl) that captureLoop/inferLoop drawImage from.
+// Selected deviceId is persisted in localStorage and restored on load.
+const CAM_KEY = 'wiflow-cam-device';
+let camStatusTimer = null;
+const CAM_SELECTORS = ['camSel','calCamSel','infCamSel'];   // ids of every stage's camera <select>
+const CAM_STATUSES  = ['camStatus','calCamStatus','infCamStatus'];
+const CAM_BTNS      = ['camBtn','calCamBtn','infCamBtn'];
+
+function setAllCamStatus(txt){
+  for (const id of CAM_STATUSES){ const el = $(id); if (el) el.textContent = txt; }
+}
+function populateCamSelectors(devs, currentId){
+  const opts = devs.map((d,i)=>`<option value="${d.deviceId}">${d.label || ('camera '+(i+1))}</option>`).join('');
+  for (const id of CAM_SELECTORS){
+    const sel = $(id); if (!sel) continue;
+    sel.style.display = devs.length > 1 ? 'inline-block' : 'none';
+    sel.innerHTML = opts;
+    if (currentId) sel.value = currentId;
+  }
+}
+
 async function startCam(deviceId){
+  // remember an explicit choice (so it survives reloads + applies to every stage)
+  if (deviceId){ try{ localStorage.setItem(CAM_KEY, deviceId); }catch(e){} }
   if (camStream) camStream.getTracks().forEach(t => t.stop());
   const constraints = deviceId ? { video:{ deviceId:{ exact:deviceId } } } : { video:true };
-  const st = $('camStatus');
   try{
-    st.textContent = 'camera: requesting…';
+    setAllCamStatus('camera: requesting…');
     camStream = await navigator.mediaDevices.getUserMedia(constraints);
     camEl.srcObject = camStream;
     await camEl.play().catch(()=>{});
     const tr = camStream.getVideoTracks()[0];
-    const tick = ()=>{ st.textContent =
-      `camera: "${tr.label}" ${camEl.videoWidth}x${camEl.videoHeight} ${tr.readyState} ${camEl.paused?'PAUSED':'playing'}`; };
-    tick(); setInterval(tick, 1000);
-    $('camBtn').textContent = 'switch camera ↻';
+    const tick = ()=>{ setAllCamStatus(
+      `camera: "${tr.label || '?'}" ${camEl.videoWidth}x${camEl.videoHeight} ${tr.readyState} ${camEl.paused?'PAUSED':'playing'}`); };
+    tick();
+    if (camStatusTimer) clearInterval(camStatusTimer);
+    camStatusTimer = setInterval(tick, 1000);
+    for (const id of CAM_BTNS){ const b = $(id); if (b) b.textContent = 'switch camera ↻'; }
     $('recBtn').disabled = !baseline;   // still gated on a baseline
+    // labels are only populated AFTER permission is granted — enumerate now
     const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
-    const sel = $('camSel'); sel.style.display = devs.length > 1 ? 'inline-block' : 'none';
-    sel.innerHTML = devs.map((d,i)=>`<option value="${d.deviceId}">${d.label || ('camera '+(i+1))}</option>`).join('');
-    const cur = tr.getSettings().deviceId; if (cur) sel.value = cur;
+    const cur = (tr.getSettings && tr.getSettings().deviceId) || deviceId || null;
+    if (cur){ try{ localStorage.setItem(CAM_KEY, cur); }catch(e){} }
+    populateCamSelectors(devs, cur);
     initPose();
+    refreshGates();
   }catch(e){
-    $('camBtn').textContent = 'camera error: ' + e.name +
-      (e.name === 'NotReadableError' ? ' (in use by Zoom/Teams?)' : '');
+    // NotReadableError = camera held by Zoom/Teams/IR cam; let the user pick another in any stage
+    const msg = 'camera error: ' + e.name +
+      (e.name === 'NotReadableError' ? ' (in use by Zoom/Teams? pick another)' : '');
+    for (const id of CAM_BTNS){ const b = $(id); if (b) b.textContent = msg; }
+    setAllCamStatus(msg);
     console.error('getUserMedia', e);
+    // still try to list devices so the user can switch (labels may be blank without a live stream)
+    try{
+      const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+      populateCamSelectors(devs, null);
+    }catch(_){}
   }
 }
-$('camBtn').addEventListener('click', ()=> startCam());
-$('camSel').addEventListener('change', e => startCam(e.target.value));
+// every stage's enable button + selector drives the same camera
+for (const id of CAM_BTNS){ const b = $(id); if (b) b.addEventListener('click', ()=> startCam(localStorage.getItem(CAM_KEY) || undefined)); }
+for (const id of CAM_SELECTORS){ const s = $(id); if (s) s.addEventListener('change', e => startCam(e.target.value)); }
 
 // ============================================================================
 //  Drawing helpers
@@ -486,14 +554,26 @@ document.querySelectorAll('.step').forEach(s => s.addEventListener('click', ()=>
 // ============================================================================
 const calCtx = $('calCv').getContext('2d');
 let calibrating = false;
+let calReadyUntil = 0;     // wall-clock (performance.now) when the get-ready countdown ends; 0 = not in get-ready
 let cw = null;   // welford accumulators { n, mean:Float64Array, m2:Float64Array, t0 }
 
+function calReadySecs(){ return Math.max(0, Math.min(15, parseInt($('calReady').value) || 5)); }
+
+// Click → "STEP OUT" + a get-ready countdown so the user can leave the field,
+// THEN the actual baseline recording begins (cw allocated at that moment).
 function startCalibration(){
-  if (calibrating) return;
+  if (calibrating || calReadyUntil) return;
+  $('calBtn').disabled = true;
+  const ready = calReadySecs();
+  $('calStatus').textContent = 'GET READY — STEP OUT…'; $('calStatus').className = 'v';
+  if (ready <= 0){ beginBaselineRecording(); return; }
+  calReadyUntil = performance.now() + ready * 1000;
+}
+function beginBaselineRecording(){
+  calReadyUntil = 0;
   cw = { n:0, mean:new Float64Array(CSI_DIM), m2:new Float64Array(CSI_DIM), t0:performance.now() };
   calibrating = true;
   $('calStatus').textContent = 'CALIBRATING…'; $('calStatus').className = 'v';
-  $('calBtn').disabled = true;
 }
 function welfordUpdate(vec){
   cw.n++;
@@ -533,14 +613,26 @@ function calibrateLoop(){
     const ageS = Math.round((Date.now() - baseline.ts)/1000);
     $('calAge').textContent = ageS < 60 ? ageS+' s ago' : Math.round(ageS/60)+' min ago';
   }
-  if (calibrating){
+  if (calReadyUntil){
+    // GET-READY phase: big "STEP OUT" prompt + countdown BEFORE recording starts
+    const remain = Math.max(0, (calReadyUntil - performance.now())/1000);
+    $('calBar').style.width = '0%';
+    calCtx.fillStyle = '#ffb840'; calCtx.font = 'bold 24px monospace'; calCtx.textAlign='center';
+    calCtx.fillText('STEP OUT OF THE ROOM', W/2, H/2-16);
+    calCtx.fillStyle = '#46e08a'; calCtx.font = 'bold 40px monospace';
+    calCtx.fillText(Math.ceil(remain)+'', W/2, H/2+26);
+    calCtx.fillStyle = '#7d8796'; calCtx.font = '13px monospace';
+    calCtx.fillText('baseline recording starts after the countdown', W/2, H/2+54);
+    calCtx.textAlign='start';
+    if (remain <= 0) beginBaselineRecording();
+  } else if (calibrating){
     const el = (performance.now() - cw.t0) / 1000;
     $('calBar').style.width = Math.min(100, 100*el/BASELINE_SECONDS) + '%';
     // accumulate only fresh live frames; ignore sim so the baseline is real
     if (freshLiveCSI() && latestCSI.vec){ welfordUpdate(latestCSI.vec); $('calN').textContent = cw.n; }
-    // draw a centered "STEP OUT" reminder + countdown
+    // draw a centered "STEP OUT" reminder + progress
     calCtx.fillStyle = '#ffb840'; calCtx.font = 'bold 22px monospace'; calCtx.textAlign='center';
-    calCtx.fillText('STEP OUT OF THE SPACE', W/2, H/2-10);
+    calCtx.fillText('STAY OUT — CAPTURING BASELINE', W/2, H/2-10);
     calCtx.fillStyle = '#7d8796'; calCtx.font = '14px monospace';
     calCtx.fillText('baseline: '+Math.max(0,Math.ceil(BASELINE_SECONDS-el))+' s · '+cw.n+' frames', W/2, H/2+18);
     calCtx.textAlign='start';
@@ -561,13 +653,39 @@ function calibrateLoop(){
 //  STAGE 1 · GUIDED CAPTURE — balanced buckets + coverage meter
 // ============================================================================
 const capCtx = $('capCv').getContext('2d');
-let recording = false;
-// pose buckets (the guided routine cycles through these)
-const BUCKETS = ['stand still','turn left','turn right','walk left','walk right',
+let recording = false, paused = false;
+// pose buckets — each activity is its own labeled bucket
+const BUCKETS = ['stand still','turn','walk left','walk right',
                  'arms up','arms down','crouch','sit','reach'];
-const SECS_PER_BUCKET = 12;
-let bucketIx = 0, bucketT0 = performance.now();
+// guided routine state. The routine runs `passes` full INTERLEAVED passes through the
+// activity list: pass1[all activities] → pass2[all activities] → … This spreads every
+// activity across the WHOLE time-ordered session, so the chronological 80/20 held-out split
+// contains the same activity mix as training (the fix for the -6pp OOD held-out).
+let passIx = 0, actIx = 0;          // current pass index, current activity index within the pass
+let segReadyUntil = 0;              // get-ready countdown end for the current segment (0 = recording)
+let segT0 = performance.now();      // start of the recording portion of the current segment
+let actSampleN = 0;                 // samples recorded in the current activity segment
 let covCounts = new Array(BUCKETS.length).fill(0);
+
+function capPasses(){ return Math.max(1, Math.min(8, parseInt($('capPasses').value) || 3)); }
+function capSecs(){ return Math.max(4, Math.min(40, parseInt($('capSecs').value) || 12)); }
+function capReadySecs(){ return Math.max(0, Math.min(10, parseInt($('capReady').value) || 3)); }
+function totalSegments(){ return capPasses() * BUCKETS.length; }
+// begin the get-ready countdown for the segment at (passIx, actIx)
+function startSegment(){
+  const ready = capReadySecs();
+  actSampleN = 0; $('capActN').textContent = '0';
+  if (ready <= 0){ segReadyUntil = 0; segT0 = performance.now(); }
+  else { segReadyUntil = performance.now() + ready * 1000; }
+}
+// advance to the next segment in the interleaved routine; returns false when the routine is done
+function nextSegment(){
+  actIx++;
+  if (actIx >= BUCKETS.length){ actIx = 0; passIx++; }
+  if (passIx >= capPasses()) return false;
+  startSegment();
+  return true;
+}
 
 function renderCoverage(){
   const max = Math.max(1, ...covCounts);
@@ -576,24 +694,94 @@ function renderCoverage(){
     `<span class="bar"><i style="width:${Math.round(100*covCounts[i]/max)}%"></i></span>`+
     `<span class="ct">${covCounts[i]}</span></div>`).join('');
 }
+let pausedAt = 0;   // performance.now() captured at the moment of pause (used to rebase clocks on resume)
+function setCapControls(){
+  const live = recording;
+  $('recBtn').textContent = live ? '◼ stop recording' : '● start guided recording';
+  $('recBtn').classList.toggle('ghost', live);
+  $('pauseBtn').disabled = !live; $('skipBtn').disabled = !live;
+  $('pauseBtn').textContent = paused ? 'resume' : 'pause';
+}
 $('recBtn').addEventListener('click', ()=>{
-  if (!baseline || !camStream) return;
+  if (!baseline || !camStream){ return; }
   recording = !recording;
-  $('recBtn').textContent = recording ? '◼ stop recording' : '● start guided recording';
-  $('recBtn').classList.toggle('ghost', recording);
-  if (recording){ bucketT0 = performance.now(); }
+  if (recording){
+    paused = false; passIx = 0; actIx = 0;
+    startSegment();           // begins with a get-ready countdown for pass1/activity1
+  }
+  setCapControls();
+});
+$('pauseBtn').addEventListener('click', ()=>{
+  if (!recording) return;
+  paused = !paused;
+  // when pausing mid-segment, freeze the clocks so no time is lost; on resume, rebase them
+  if (!paused){
+    if (segReadyUntil) segReadyUntil = performance.now() + (segReadyUntil - pausedAt);
+    else segT0 = performance.now() - (pausedAt - segT0);
+  } else { pausedAt = performance.now(); }
+  setCapControls();
+});
+$('skipBtn').addEventListener('click', ()=>{
+  if (!recording) return;
+  if (!nextSegment()){ recording = false; paused = false; setCapControls(); }
 });
 $('clrBtn').addEventListener('click', async ()=>{
   SAMPLES = []; covCounts = new Array(BUCKETS.length).fill(0);
   await idbPut('samples', []);
-  $('capN').textContent = '0'; $('trN').textContent = '0'; renderCoverage(); refreshGates();
+  $('capN').textContent = '0'; $('trN').textContent = '0'; $('capActN').textContent = '0';
+  renderCoverage(); refreshGates();
 });
+
+// ---- Export / Import dataset (so multiple sessions accumulate, and data can be analyzed offline) ----
+$('expBtn').addEventListener('click', ()=>{
+  const out = {
+    format: 'wiflow-browser-dataset', version: 1, exported: new Date().toISOString(),
+    csi_dim: CSI_DIM, out_dim: OUT_DIM, buckets: BUCKETS,
+    note: 'csi is baseline-normalized (ADR-151 deviation-from-baseline); kps are 17 COCO keypoints in [0,1] image coords',
+    samples: SAMPLES.map((s,i)=>({ csi: Array.from(s.csi), kps: Array.from(s.kps), bucket: s.bucket, t: (s.t!=null?s.t:i) }))
+  };
+  const blob = new Blob([JSON.stringify(out)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `wiflow-dataset-${SAMPLES.length}samples-${Date.now()}.json`;
+  a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+});
+$('impBtn').addEventListener('click', ()=> $('impFile').click());
+$('impFile').addEventListener('change', async (e)=>{
+  const file = e.target.files && e.target.files[0]; if (!file) return;
+  try{
+    const txt = await file.text();
+    const data = JSON.parse(txt);
+    const arr = Array.isArray(data) ? data : (data.samples || []);
+    let merged = 0;
+    for (const s of arr){
+      if (!s || !s.csi || !s.kps) continue;
+      if (s.csi.length !== CSI_DIM || s.kps.length !== OUT_DIM) continue;   // dim guard — never fabricate
+      SAMPLES.push({ csi: Float32Array.from(s.csi), kps: Float32Array.from(s.kps),
+                     bucket: (s.bucket|0), t: (s.t!=null?s.t:Date.now()) });
+      if ((s.bucket|0) < BUCKETS.length) covCounts[s.bucket|0]++;
+      merged++;
+    }
+    $('capN').textContent = SAMPLES.length; $('trN').textContent = SAMPLES.length;
+    $('capSkip').textContent = `imported ${merged} samples (merged)`;
+    renderCoverage(); await idbSave(); refreshGates();
+  }catch(err){
+    $('capSkip').textContent = 'import failed: ' + err.message;
+    console.error('import', err);
+  } finally { e.target.value = ''; }
+});
+
+// MediaPipe throttle: one-in-flight (no backlog) + ~18 Hz cap so the UI never blocks.
+let mpLastSend = 0;
+const MP_MIN_INTERVAL_MS = 55;   // ~18 Hz
 
 function captureLoop(){
   const W = $('capCv').width, H = $('capCv').height;
   drawCameraFrame(capCtx, W, H, 0.9);
-  if (mpReady && !mpBusy && camEl.videoWidth > 0){
-    mpBusy = true; mpPose.send({ image: camEl }).catch(()=>{ mpBusy = false; });
+  const nowMs = performance.now();
+  if (mpReady && !mpBusy && camEl.videoWidth > 0 && (nowMs - mpLastSend) >= MP_MIN_INTERVAL_MS){
+    mpBusy = true; mpLastSend = nowMs;
+    mpPose.send({ image: camEl }).catch(()=>{ mpBusy = false; });
   }
   if (latestKps) drawSkeleton(capCtx, latestKps, W, H, 'rgba(90,169,255,.95)', 'rgba(90,169,255,.6)');
 
@@ -602,29 +790,56 @@ function captureLoop(){
   $('capNodes').textContent = latestCSI.nodes.length ? latestCSI.nodes.join(', ') : '—';
   $('capVis').textContent = latestKps ? latestVis.toFixed(2) : '—';
 
-  if (recording){
-    // advance the guided bucket
-    const el = (performance.now() - bucketT0)/1000;
-    if (el >= SECS_PER_BUCKET){ bucketIx = (bucketIx+1) % BUCKETS.length; bucketT0 = performance.now(); }
-    $('prompt').textContent = BUCKETS[bucketIx];
-    $('countdown').textContent = `${Math.max(0,Math.ceil(SECS_PER_BUCKET - el))} s · bucket ${bucketIx+1}/${BUCKETS.length}`;
+  // estimate (always shown): segments × seconds × ~recorded-fps
+  const segs = totalSegments();
+  $('capEst').textContent = `~${Math.round(segs*capSecs()/60*10)/10} min · ${segs} segments`;
 
-    let skip = null;
-    if (!latestKps || latestVis <= 0.5) skip = 'no confident pose';
-    else if (!freshLiveCSI()) skip = (latestCSI.source && latestCSI.source!=='esp32') ? 'CSI not esp32 (sim)' : 'no fresh CSI';
-    else if (!baseline) skip = 'no baseline';
-    if (skip){ $('capSkip').textContent = skip; }
-    else {
-      const norm = baselineNorm(latestCSI.vec);   // baseline-deviation normalized
-      SAMPLES.push({ csi: norm, kps: latestKps.slice(), bucket: bucketIx });
-      covCounts[bucketIx]++;
-      $('capSkip').textContent = '—';
-      const n = SAMPLES.length; $('capN').textContent = n; $('trN').textContent = n;
-      if (n % 20 === 0){ renderCoverage(); idbSave(); refreshGates(); }
+  if (recording && paused){
+    $('prompt').textContent = '⏸ PAUSED — ' + BUCKETS[actIx];
+    $('countdown').textContent = `pass ${passIx+1}/${capPasses()} · activity ${actIx+1}/${BUCKETS.length}`;
+  } else if (recording){
+    const done = passIx*BUCKETS.length + actIx;             // segments completed so far
+    $('capPass').textContent = `${passIx+1}/${capPasses()} · ${actIx+1}/${BUCKETS.length}`;
+    $('capProg').style.width = Math.round(100*done/segs) + '%';
+
+    if (segReadyUntil){
+      // GET-READY: "GET INTO FRAME" + countdown, NO samples recorded yet
+      const remain = Math.max(0, (segReadyUntil - nowMs)/1000);
+      $('prompt').textContent = 'GET INTO FRAME — ' + BUCKETS[actIx];
+      $('countdown').textContent = `starting in ${Math.ceil(remain)} s · pass ${passIx+1}/${capPasses()} · activity ${actIx+1}/${BUCKETS.length}`;
+      capCtx.fillStyle='#ffb840'; capCtx.font='bold 20px monospace'; capCtx.textAlign='center';
+      capCtx.fillText(Math.ceil(remain)+'', W/2, 40); capCtx.textAlign='start';
+      if (remain <= 0){ segReadyUntil = 0; segT0 = nowMs; }
+    } else {
+      // RECORDING this activity
+      const el = (nowMs - segT0)/1000;
+      const secs = capSecs();
+      $('prompt').textContent = BUCKETS[actIx];
+      $('countdown').textContent = `${Math.max(0,Math.ceil(secs - el))} s · pass ${passIx+1}/${capPasses()} · activity ${actIx+1}/${BUCKETS.length}`;
+      if (el >= secs){
+        if (!nextSegment()){ recording = false; paused = false; setCapControls();
+          $('prompt').textContent = 'routine complete ✓'; $('countdown').textContent = `${SAMPLES.length} samples`; }
+      } else {
+        let skip = null;
+        if (!latestKps || latestVis <= 0.5) skip = 'no confident pose';
+        else if (!freshLiveCSI()) skip = (latestCSI.source && latestCSI.source!=='esp32') ? 'CSI not esp32 (sim)' : 'no fresh CSI';
+        else if (!baseline) skip = 'no baseline';
+        if (skip){ $('capSkip').textContent = skip; }
+        else {
+          const norm = baselineNorm(latestCSI.vec);   // baseline-deviation normalized
+          SAMPLES.push({ csi: norm, kps: latestKps.slice(), bucket: actIx, t: Date.now() });
+          covCounts[actIx]++; actSampleN++;
+          $('capActN').textContent = actSampleN;
+          $('capSkip').textContent = '—';
+          const n = SAMPLES.length; $('capN').textContent = n; $('trN').textContent = n;
+          if (n % 20 === 0){ renderCoverage(); idbSave(); refreshGates(); }
+        }
+      }
     }
   } else {
     $('prompt').textContent = baseline ? 'ready — press start' : 'calibrate baseline first';
     $('countdown').textContent = '—';
+    $('capProg').style.width = '0%';
   }
   requestAnimationFrame(captureLoop);
 }
@@ -664,7 +879,7 @@ async function idbDel(key){
 }
 async function idbSave(){
   try{
-    const flat = SAMPLES.map(s => ({ csi: Array.from(s.csi), kps: Array.from(s.kps), bucket: s.bucket }));
+    const flat = SAMPLES.map(s => ({ csi: Array.from(s.csi), kps: Array.from(s.kps), bucket: s.bucket, t: s.t }));
     await idbPut('samples', flat);
   }catch(e){ console.warn('idbSave', e); }
 }
@@ -672,7 +887,8 @@ async function idbLoad(){
   try{
     const flat = await idbGet('samples');
     if (Array.isArray(flat) && flat.length){
-      SAMPLES = flat.map(s => ({ csi: Float32Array.from(s.csi), kps: Float32Array.from(s.kps), bucket: s.bucket||0 }));
+      SAMPLES = flat.map((s,i) => ({ csi: Float32Array.from(s.csi), kps: Float32Array.from(s.kps),
+                                     bucket: s.bucket||0, t: (s.t!=null?s.t:i) }));
       covCounts = new Array(BUCKETS.length).fill(0);
       for (const s of SAMPLES) if (s.bucket < BUCKETS.length) covCounts[s.bucket]++;
       $('capN').textContent = SAMPLES.length; $('trN').textContent = SAMPLES.length;
@@ -779,38 +995,61 @@ async function trainModel(){
   const xva = tf.tensor2d(Xn.slice(cut*CSI_DIM),[mVal,CSI_DIM]);
 
   if (model){ model.dispose(); }
+  // Reduce overfit (train MSE 0.072 vs val 0.161 in the honest-negative run):
+  //  - L2 weight decay on every Dense layer
+  //  - slightly smaller capacity (384/192/96 vs 512/256/128)
+  //  - keep dropout (raised to 0.35 in the wider layers)
+  const L2 = tf.regularizers.l2({ l2: 1e-4 });
   model = tf.sequential();
-  model.add(tf.layers.dense({ inputShape:[CSI_DIM], units:512, activation:'relu' }));
-  model.add(tf.layers.dropout({ rate:0.3 }));
-  model.add(tf.layers.dense({ units:256, activation:'relu' }));
-  model.add(tf.layers.dropout({ rate:0.3 }));
-  model.add(tf.layers.dense({ units:128, activation:'relu' }));
-  model.add(tf.layers.dense({ units:OUT_DIM, activation:'sigmoid' }));
+  model.add(tf.layers.dense({ inputShape:[CSI_DIM], units:384, activation:'relu', kernelRegularizer:L2 }));
+  model.add(tf.layers.dropout({ rate:0.35 }));
+  model.add(tf.layers.dense({ units:192, activation:'relu', kernelRegularizer:tf.regularizers.l2({ l2:1e-4 }) }));
+  model.add(tf.layers.dropout({ rate:0.35 }));
+  model.add(tf.layers.dense({ units:96, activation:'relu', kernelRegularizer:tf.regularizers.l2({ l2:1e-4 }) }));
+  model.add(tf.layers.dense({ units:OUT_DIM, activation:'sigmoid', kernelRegularizer:tf.regularizers.l2({ l2:1e-4 }) }));
   model.compile({ optimizer: tf.train.adam(1e-3), loss:'meanSquaredError' });
 
-  let bestP10 = 0, bestVal = 1e9;
+  // Early stopping on val MSE: stop after `patience` epochs with no improvement, restore best weights.
+  const patience = Math.max(5, Math.min(200, parseInt($('trPatience').value)||30));
+  let bestP10 = 0, bestVal = 1e9, bestWeights = null, sinceImprove = 0, stoppedEarly = false;
+  const disposeBest = ()=>{ if (bestWeights){ bestWeights.forEach(w=>w.dispose()); bestWeights = null; } };
   $('trMsg').innerHTML = 'Training… on <code>'+(BACKEND_LABEL[tf.getBackend()]||tf.getBackend())+'</code>';
   await model.fit(xtr, ytr, {
     epochs, batchSize:64, shuffle:true, verbose:0,
     callbacks:{ onEpochEnd: async (ep, logs)=>{
-      let va=null,p10=null,p05=null,mpj=null;
-      if (ep % 5 === 0 || ep === epochs-1){
-        const pv = model.predict(xva); const pvArr = await pv.data(); pv.dispose();
-        let vsum=0; for (let i=0;i<pvArr.length;i++){ const d=pvArr[i]-gtVal[i]; vsum+=d*d; }
-        va = vsum/pvArr.length;
-        const r10=pckMpjpe(pvArr,gtVal,mVal,0.10), r05=pckMpjpe(pvArr,gtVal,mVal,0.05);
-        p10=r10.pck; p05=r05.pck; mpj=r10.mpjpe;
-        $('trP10').textContent=(p10*100).toFixed(1)+'%'; $('trP05').textContent=(p05*100).toFixed(1)+'%';
-        $('trMpj').textContent=mpj.toFixed(4); $('trVal').textContent=va.toFixed(4);
-        if (va<bestVal){ bestVal=va; bestP10=p10; }
+      // evaluate val EVERY epoch so early stopping/best-weight tracking is precise
+      const pv = model.predict(xva); const pvArr = await pv.data(); pv.dispose();
+      let vsum=0; for (let i=0;i<pvArr.length;i++){ const d=pvArr[i]-gtVal[i]; vsum+=d*d; }
+      const va = vsum/pvArr.length;
+      const r10=pckMpjpe(pvArr,gtVal,mVal,0.10), r05=pckMpjpe(pvArr,gtVal,mVal,0.05);
+      const p10=r10.pck, p05=r05.pck, mpj=r10.mpjpe;
+      $('trP10').textContent=(p10*100).toFixed(1)+'%'; $('trP05').textContent=(p05*100).toFixed(1)+'%';
+      $('trMpj').textContent=mpj.toFixed(4); $('trVal').textContent=va.toFixed(4);
+
+      if (va < bestVal - 1e-6){
+        // new best — snapshot weights (clone, since model weights mutate in place)
+        bestVal = va; bestP10 = p10; sinceImprove = 0;
+        disposeBest();
+        bestWeights = model.getWeights().map(w => w.clone());
+      } else {
+        sinceImprove++;
       }
+
       $('trEpoch').textContent=(ep+1); $('trLoss').textContent=logs.loss.toFixed(4);
       $('trBar').style.width=(100*(ep+1)/epochs)+'%';
       lossHist.push({ ep, tr:logs.loss, va }); drawLoss();
+
+      if (sinceImprove >= patience){
+        stoppedEarly = true; model.stopTraining = true;
+        $('trMsg').innerHTML = `Early stop at epoch ${ep+1}: val MSE hasn't improved for ${patience} epochs. Restoring best weights (val ${bestVal.toFixed(4)}).`;
+      }
       if (trainStop) model.stopTraining = true;
       await tf.nextFrame();
     }}
   });
+
+  // restore the best-val weights (early stopping semantics: report the best model, not the last)
+  if (bestWeights){ model.setWeights(bestWeights); disposeBest(); }
 
   const pvF = model.predict(xva); const pvFArr = await pvF.data(); pvF.dispose();
   const fin10 = pckMpjpe(pvFArr,gtVal,mVal,0.10), fin05 = pckMpjpe(pvFArr,gtVal,mVal,0.05);
@@ -829,10 +1068,11 @@ async function trainModel(){
   }
   stageDone.train = true;
   $('infModelState').textContent = `model ready · held-out PCK@0.10 ${(finPck*100).toFixed(1)}%`;
-  $('trMsg').innerHTML = 'Done. Saving model to IndexedDB…';
+  const stopNote = stoppedEarly ? ' (early-stopped, best weights restored)' : '';
+  $('trMsg').innerHTML = 'Done'+stopNote+'. Saving model to IndexedDB…';
   xtr.dispose(); ytr.dispose(); xva.dispose();
   await saveModel();
-  $('trMsg').innerHTML = 'Saved. Go to <b>3 · INFER</b> to see WiFi drive the skeleton.';
+  $('trMsg').innerHTML = 'Saved'+stopNote+'. Go to <b>3 · INFER</b> to see WiFi drive the skeleton.';
   $('trainBtn').disabled = false; $('trStop').disabled = true;
   refreshGates();
 }
@@ -916,6 +1156,14 @@ function inferLoop(){
   await idbLoad();
   await loadModel();
   renderCoverage();
+  setCapControls();          // pause/skip start disabled until recording
+  // if a camera was chosen in a previous session, surface it in the selectors (labels need permission,
+  // so this only fully populates after the user clicks "enable camera" in any stage)
+  try{
+    const saved = localStorage.getItem(CAM_KEY);
+    const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+    if (devs.length) populateCamSelectors(devs, saved);
+  }catch(e){}
   refreshGates();
   requestAnimationFrame(calibrateLoop);
   requestAnimationFrame(captureLoop);
