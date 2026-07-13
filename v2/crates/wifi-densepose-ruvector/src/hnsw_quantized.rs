@@ -212,7 +212,15 @@ impl QuantizedHnswIndex {
         rotation_seed: u64,
         default_rerank: usize,
     ) -> Self {
-        Self::build_bits(vectors, dim, metric, params, rotation_seed, 1, default_rerank)
+        Self::build_bits(
+            vectors,
+            dim,
+            metric,
+            params,
+            rotation_seed,
+            1,
+            default_rerank,
+        )
     }
 
     /// Build a `bits`-bit quantized index over `vectors`, mirroring a float
@@ -448,7 +456,9 @@ mod tests {
             .map(|i| {
                 let c = i % clusters;
                 let mut s = seed ^ (i as u64).wrapping_mul(0x9E37);
-                (0..dim).map(|d| centres[c][d] + gauss(&mut s) * 0.35).collect()
+                (0..dim)
+                    .map(|d| centres[c][d] + gauss(&mut s) * 0.35)
+                    .collect()
             })
             .collect()
     }
@@ -566,7 +576,8 @@ mod tests {
     #[test]
     fn one_bit_build_bits_matches_legacy_build() {
         let vectors = planted(32, 400, 8, 0x1B17);
-        let legacy = QuantizedHnswIndex::build(&vectors, 32, Metric::L2, params(0x5151), 0xC0DE, 40);
+        let legacy =
+            QuantizedHnswIndex::build(&vectors, 32, Metric::L2, params(0x5151), 0xC0DE, 40);
         let viabits =
             QuantizedHnswIndex::build_bits(&vectors, 32, Metric::L2, params(0x5151), 0xC0DE, 1, 40);
         assert_eq!(legacy.bits(), 1);
@@ -585,15 +596,8 @@ mod tests {
     fn bits_are_clamped_to_supported_set() {
         let vectors = planted(16, 50, 4, 0xB175);
         for (req, exp) in [(0u32, 1u32), (1, 1), (2, 2), (3, 4), (4, 4), (7, 4)] {
-            let idx = QuantizedHnswIndex::build_bits(
-                &vectors,
-                16,
-                Metric::L2,
-                params(0x9),
-                0xB,
-                req,
-                16,
-            );
+            let idx =
+                QuantizedHnswIndex::build_bits(&vectors, 16, Metric::L2, params(0x9), 0xB, req, 16);
             assert_eq!(idx.bits(), exp, "bits {req} should clamp to {exp}");
             // and it must still search without panic
             assert!(!idx.search_quantized(&vectors[0], 5, 32, 20).is_empty());

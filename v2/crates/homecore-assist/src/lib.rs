@@ -35,27 +35,27 @@
 //!   honest path until it ships.
 //! - STT/TTS bridge and satellite protocol (P3).
 
-pub mod intent;
-pub mod recognizer;
-pub mod semantic_recognizer;
 pub mod handler;
-pub mod runner;
+pub mod intent;
 pub mod pipeline;
+pub mod recognizer;
+pub mod runner;
+pub mod semantic_recognizer;
 
 /// Deterministic text embedding used by [`semantic_recognizer::SemanticIntentRecognizer`].
 #[cfg(feature = "semantic")]
 pub mod embedding;
 
-pub use intent::{Card, Intent, IntentName, IntentResponse};
-pub use recognizer::{
-    IntentRecognizer, RecognizerError, RegexIntentRecognizer, MAX_UTTERANCE_BYTES,
-};
-pub use semantic_recognizer::{SemanticIntentRecognizer, DEFAULT_SIMILARITY_THRESHOLD};
 pub use handler::{
     HandlerError, HassCancelAll, HassLightSet, HassNevermind, HassTurnOff, HassTurnOn,
     IntentHandler,
 };
+pub use intent::{Card, Intent, IntentName, IntentResponse};
+pub use pipeline::AssistPipeline;
+pub use recognizer::{
+    IntentRecognizer, RecognizerError, RegexIntentRecognizer, MAX_UTTERANCE_BYTES,
+};
 pub use runner::{
     AssistError, LocalRunner, NoopRunner, RufloResponse, RufloRunner, RufloRunnerOpts,
 };
-pub use pipeline::AssistPipeline;
+pub use semantic_recognizer::{SemanticIntentRecognizer, DEFAULT_SIMILARITY_THRESHOLD};

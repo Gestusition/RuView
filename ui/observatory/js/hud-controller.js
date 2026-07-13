@@ -245,7 +245,7 @@ export class HudController {
       document.getElementById('ws-url-row').style.display = e.target.value === 'ws' ? 'flex' : 'none';
       if (e.target.value === 'ws' && s.wsUrl) obs._connectWS(s.wsUrl);
       else obs._disconnectWS();
-      this.updateSourceBadge(s.dataSource, obs._ws);
+      this.updateSourceBadge(s.dataSource, obs._ws, obs._liveData);
       this.saveSettings();
     });
     document.getElementById('ws-url-row').style.display = s.dataSource === 'ws' ? 'flex' : 'none';
@@ -359,13 +359,45 @@ export class HudController {
   // Source badge
   // ============================================================
 
-  updateSourceBadge(dataSource, ws) {
+  updateSourceBadge(dataSource, ws, data = null) {
     const dot = document.querySelector('#data-source-badge .dot');
     const label = document.getElementById('data-source-label');
-    if (dataSource === 'ws' && ws?.readyState === WebSocket.OPEN) {
-      dot.className = 'dot dot--live'; label.textContent = 'LIVE';
+    if (!dot || !label) return;
+
+    this._setLiveModeUI(dataSource === 'ws');
+    const poseCapability = document.getElementById('pose-capability-label');
+    if (poseCapability) {
+      poseCapability.textContent = dataSource === 'ws' && data?.pose_available === false
+        ? 'CSI Occupancy'
+        : 'Human Pose Estimation';
+    }
+    if (dataSource !== 'ws') {
+      dot.className = 'dot dot--demo';
+      label.textContent = 'DEMO';
+      return;
+    }
+
+    const source = String(data?.source || '').toLowerCase();
+    if (ws?.readyState !== WebSocket.OPEN) {
+      dot.className = 'dot dot--demo';
+      label.textContent = 'CONNECTING';
+    } else if (!data || source === 'waiting' || source.includes('offline')) {
+      dot.className = 'dot dot--demo';
+      label.textContent = 'WAITING FOR ESP32';
+    } else if (source.startsWith('esp32')) {
+      dot.className = 'dot dot--live';
+      label.textContent = data?.pose_available === false
+        ? 'LIVE · ESP32 · CSI ONLY'
+        : 'LIVE · ESP32';
+    } else if (source.startsWith('wifi:') || source === 'wifi') {
+      dot.className = 'dot dot--demo';
+      label.textContent = 'RSSI ONLY';
+    } else if (source.startsWith('simulat')) {
+      dot.className = 'dot dot--demo';
+      label.textContent = 'SIMULATED';
     } else {
-      dot.className = 'dot dot--demo'; label.textContent = 'DEMO';
+      dot.className = 'dot dot--live';
+      label.textContent = 'LIVE';
     }
   }
 
@@ -378,13 +410,18 @@ export class HudController {
     const vs = data.vital_signs || {};
     const feat = data.features || {};
     const cls = data.classification || {};
+    const liveMode = this._obs.settings.dataSource === 'ws';
 
-    // Sync scenario dropdown
-    const quickSel = document.getElementById('scenario-quick-select');
-    const cur = demoData._autoMode ? 'auto' : demoData.currentScenario;
-    if (quickSel && quickSel.value !== cur) quickSel.value = cur;
-    const autoIcon = document.getElementById('autoplay-icon');
-    if (autoIcon) autoIcon.className = demoData._autoMode ? '' : 'hidden';
+    this.updateSourceBadge(this._obs.settings.dataSource, this._obs._ws, data);
+
+    // Demo scenarios have no meaning for a live sensor stream.
+    if (!liveMode) {
+      const quickSel = document.getElementById('scenario-quick-select');
+      const cur = demoData._autoMode ? 'auto' : demoData.currentScenario;
+      if (quickSel && quickSel.value !== cur) quickSel.value = cur;
+      const autoIcon = document.getElementById('autoplay-icon');
+      if (autoIcon) autoIcon.className = demoData._autoMode ? '' : 'hidden';
+    }
 
     const targetHr = vs.heart_rate_bpm || 0;
     const targetBr = vs.breathing_rate_bpm || 0;
@@ -417,9 +454,9 @@ export class HudController {
     this._setBarColor('br-bar', vitalColor('br', this._lerpBr));
     this._setBarColor('conf-bar', vitalColor('conf', this._lerpConf));
 
-    this._setText('rssi-value', `${Math.round(feat.mean_rssi || 0)} dBm`);
-    this._setText('var-value', (feat.variance || 0).toFixed(2));
-    this._setText('motion-value', (feat.motion_band_power || 0).toFixed(3));
+    this._setText('rssi-value', Number.isFinite(feat.mean_rssi) ? `${Math.round(feat.mean_rssi)} dBm` : '-- dBm');
+    this._setText('var-value', Number.isFinite(feat.variance) ? feat.variance.toFixed(2) : '--');
+    this._setText('motion-value', Number.isFinite(feat.motion_band_power) ? feat.motion_band_power.toFixed(3) : '--');
 
     // Mini person-count dots
     const personCount = data.estimated_persons || 0;
@@ -438,12 +475,18 @@ export class HudController {
     const fallEl = document.getElementById('fall-alert');
     if (fallEl) fallEl.style.display = cls.fall_detected ? 'block' : 'none';
 
-    // Scenario description and edge modules
-    const scenarioKey = demoData._autoMode ? (demoData.currentScenario || 'auto') : (demoData.currentScenario || 'auto');
-    if (scenarioKey !== this._currentScenarioKey) {
-      this._currentScenarioKey = scenarioKey;
-      this._updateScenarioDescription(scenarioKey);
-      this._updateEdgeModules(scenarioKey);
+    // Scenario descriptions and badges describe generated demos, not telemetry.
+    if (liveMode) {
+      this._currentScenarioKey = null;
+      this._updateScenarioDescription(null);
+      this._updateEdgeModules(null);
+    } else {
+      const scenarioKey = demoData.currentScenario || 'auto';
+      if (scenarioKey !== this._currentScenarioKey) {
+        this._currentScenarioKey = scenarioKey;
+        this._updateScenarioDescription(scenarioKey);
+        this._updateEdgeModules(scenarioKey);
+      }
     }
   }
 
@@ -507,6 +550,18 @@ export class HudController {
   _setBarColor(id, color) {
     const e = document.getElementById(id);
     if (e) e.style.background = color;
+  }
+
+  _setLiveModeUI(liveMode) {
+    const scenarioArea = document.getElementById('scenario-area');
+    const description = document.getElementById('scenario-description');
+    if (scenarioArea) scenarioArea.style.display = liveMode ? 'none' : '';
+    if (description) description.style.display = liveMode ? 'none' : '';
+
+    for (const id of ['opt-scenario', 'opt-cycle']) {
+      const row = document.getElementById(id)?.closest('.setting-row');
+      if (row) row.style.display = liveMode ? 'none' : '';
+    }
   }
 
   _bindRange(id, key, applyFn) {

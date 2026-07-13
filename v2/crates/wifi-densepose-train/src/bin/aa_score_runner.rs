@@ -79,7 +79,10 @@ fn one() -> f32 {
 struct Lcg(u64);
 impl Lcg {
     fn next_u32(&mut self) -> u32 {
-        self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.0 = self
+            .0
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         (self.0 >> 32) as u32
     }
     fn unit(&mut self) -> f32 {
@@ -87,7 +90,12 @@ impl Lcg {
     }
 }
 
-fn build_fixture() -> (Vec<Array2<f32>>, Vec<Array2<f32>>, Vec<Array1<f32>>, Vec<f32>) {
+fn build_fixture() -> (
+    Vec<Array2<f32>>,
+    Vec<Array2<f32>>,
+    Vec<Array1<f32>>,
+    Vec<f32>,
+) {
     let mut rng = Lcg(42);
     let (mut pred, mut gt, mut vis, mut scale) = (vec![], vec![], vec![], vec![]);
     for _ in 0..N_FRAMES {
@@ -119,7 +127,15 @@ fn build_fixture() -> (Vec<Array2<f32>>, Vec<Array2<f32>>, Vec<Array1<f32>>, Vec
 fn load_inputs(
     split_path: &str,
     pred_path: &str,
-) -> Result<(Vec<Array2<f32>>, Vec<Array2<f32>>, Vec<Array1<f32>>, Vec<f32>), String> {
+) -> Result<
+    (
+        Vec<Array2<f32>>,
+        Vec<Array2<f32>>,
+        Vec<Array1<f32>>,
+        Vec<f32>,
+    ),
+    String,
+> {
     let split: SplitFile = serde_json::from_str(
         &std::fs::read_to_string(split_path).map_err(|e| format!("read split: {e}"))?,
     )
@@ -139,7 +155,10 @@ fn load_inputs(
     for (i, (s, p)) in split.frames.iter().zip(pred.frames.iter()).enumerate() {
         let to_arr = |kps: &[[f32; 2]]| -> Result<Array2<f32>, String> {
             if kps.len() != N_KPTS {
-                return Err(format!("frame {i}: expected {N_KPTS} keypoints, got {}", kps.len()));
+                return Err(format!(
+                    "frame {i}: expected {N_KPTS} keypoints, got {}",
+                    kps.len()
+                ));
             }
             let mut a = Array2::<f32>::zeros((N_KPTS, 2));
             for (k, xy) in kps.iter().enumerate() {
@@ -178,11 +197,7 @@ fn sha256_hex(bytes: &[u8]) -> String {
 }
 
 /// Bind the witness to its exact inputs: hash the quantised gt+pred+vis bytes.
-fn inputs_hash(
-    pred: &[Array2<f32>],
-    gt: &[Array2<f32>],
-    vis: &[Array1<f32>],
-) -> String {
+fn inputs_hash(pred: &[Array2<f32>], gt: &[Array2<f32>], vis: &[Array1<f32>]) -> String {
     let mut h = Sha256::new();
     h.update(b"AA-INPUTS-v0");
     h.update((pred.len() as u32).to_le_bytes());
@@ -205,12 +220,7 @@ struct Witness {
     result: JointErrorResult,
 }
 
-fn score(
-    pred: &[Array2<f32>],
-    gt: &[Array2<f32>],
-    vis: &[Array1<f32>],
-    scale: &[f32],
-) -> Witness {
+fn score(pred: &[Array2<f32>], gt: &[Array2<f32>], vis: &[Array1<f32>], scale: &[f32]) -> Witness {
     let result = evaluate_joint_error(pred, gt, vis, scale, &JointErrorThresholds::default());
     Witness {
         inputs_sha256: inputs_hash(pred, gt, vis),
@@ -229,14 +239,19 @@ fn witness_json(w: &Witness) -> String {
 }
 
 fn arg_val<'a>(args: &'a [String], key: &str) -> Option<&'a str> {
-    args.iter().position(|a| a == key).and_then(|i| args.get(i + 1)).map(|s| s.as_str())
+    args.iter()
+        .position(|a| a == key)
+        .and_then(|i| args.get(i + 1))
+        .map(|s| s.as_str())
 }
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().collect();
     let mode_json = args.iter().any(|a| a == "--json");
     let mode_gen = args.iter().any(|a| a == "--generate-hash");
-    let repeat: usize = arg_val(&args, "--repeat").and_then(|v| v.parse().ok()).unwrap_or(0);
+    let repeat: usize = arg_val(&args, "--repeat")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
 
     // Inputs: real split+pred if provided, else the deterministic fixture.
     let (pred, gt, vis, scale) = match (arg_val(&args, "--split"), arg_val(&args, "--pred")) {
@@ -264,8 +279,14 @@ fn main() -> ExitCode {
             "{{\"repeatability\":{{\"runs\":{},\"unique_proof_hashes\":{},\"repeatable\":{},\"proof_sha256\":\"{}\"}}}}",
             repeat, hashes.len(), repeatable, w.proof_sha256
         );
-        return if repeatable { ExitCode::SUCCESS } else {
-            eprintln!("REPEATABILITY FAIL: {} distinct hashes across {} runs (nondeterminism)", hashes.len(), repeat);
+        return if repeatable {
+            ExitCode::SUCCESS
+        } else {
+            eprintln!(
+                "REPEATABILITY FAIL: {} distinct hashes across {} runs (nondeterminism)",
+                hashes.len(),
+                repeat
+            );
             ExitCode::FAILURE
         };
     }
@@ -288,14 +309,23 @@ fn main() -> ExitCode {
     println!("AA inputs_sha256: {}", w.inputs_sha256);
     println!("AA proof_sha256:  {}", w.proof_sha256);
 
-    let expected_path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../aether-arena/fixtures/expected_score.sha256");
-    match std::fs::read_to_string(expected_path).ok().map(|s| s.trim().to_string()) {
+    let expected_path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../aether-arena/fixtures/expected_score.sha256"
+    );
+    match std::fs::read_to_string(expected_path)
+        .ok()
+        .map(|s| s.trim().to_string())
+    {
         Some(exp) if exp == w.proof_sha256 => {
             println!("VERDICT: PASS (determinism hash matches expected)");
             ExitCode::SUCCESS
         }
         Some(exp) => {
-            eprintln!("VERDICT: FAIL — scorer drift.\n  expected: {exp}\n  actual:   {}", w.proof_sha256);
+            eprintln!(
+                "VERDICT: FAIL — scorer drift.\n  expected: {exp}\n  actual:   {}",
+                w.proof_sha256
+            );
             eprintln!("If intentional, regenerate with --generate-hash and review the diff.");
             ExitCode::FAILURE
         }

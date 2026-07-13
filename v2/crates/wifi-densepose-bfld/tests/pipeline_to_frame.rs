@@ -64,7 +64,10 @@ fn process_to_frame_emits_frame_under_low_risk() {
         )
         .expect("low-risk frame must be emitted");
     assert_eq!({ frame.header.timestamp_ns }, 1_700_000_000_000_000_000);
-    assert_eq!({ frame.header.privacy_class }, PrivacyClass::Anonymous.as_u8());
+    assert_eq!(
+        { frame.header.privacy_class },
+        PrivacyClass::Anonymous.as_u8()
+    );
 }
 
 #[test]
@@ -113,9 +116,8 @@ fn process_to_frame_round_trips_through_bytes() {
 
 #[test]
 fn process_to_frame_overrides_class_in_privacy_mode() {
-    let mut p = BfldPipeline::new(
-        BfldConfig::new("seed-01").with_privacy_class(PrivacyClass::Anonymous),
-    );
+    let mut p =
+        BfldPipeline::new(BfldConfig::new("seed-01").with_privacy_class(PrivacyClass::Anonymous));
     p.enable_privacy_mode();
     let frame = p
         .process_to_frame(
@@ -176,7 +178,10 @@ fn process_to_frame_at_anonymous_strips_identity_leaky_sections() {
             Some(embedding()),
         )
         .expect("low-risk frame must be emitted");
-    assert_eq!({ frame.header.privacy_class }, PrivacyClass::Anonymous.as_u8());
+    assert_eq!(
+        { frame.header.privacy_class },
+        PrivacyClass::Anonymous.as_u8()
+    );
     let payload = frame.parse_payload().expect("payload parses");
     assert!(
         payload.compressed_angle_matrix.is_empty(),
@@ -194,9 +199,8 @@ fn process_to_frame_at_anonymous_strips_identity_leaky_sections() {
 #[test]
 fn process_to_frame_in_privacy_mode_strips_amplitude_and_phase() {
     // privacy_mode -> Restricted(3): amplitude + phase proxies must ALSO drop.
-    let mut p = BfldPipeline::new(
-        BfldConfig::new("seed-01").with_privacy_class(PrivacyClass::Anonymous),
-    );
+    let mut p =
+        BfldPipeline::new(BfldConfig::new("seed-01").with_privacy_class(PrivacyClass::Anonymous));
     p.enable_privacy_mode();
     let frame = p
         .process_to_frame(
@@ -206,11 +210,23 @@ fn process_to_frame_in_privacy_mode_strips_amplitude_and_phase() {
             Some(embedding()),
         )
         .expect("frame emitted");
-    assert_eq!({ frame.header.privacy_class }, PrivacyClass::Restricted.as_u8());
+    assert_eq!(
+        { frame.header.privacy_class },
+        PrivacyClass::Restricted.as_u8()
+    );
     let payload = frame.parse_payload().expect("payload parses");
-    assert!(payload.compressed_angle_matrix.is_empty(), "angle matrix stripped at Restricted");
-    assert!(payload.amplitude_proxy.is_empty(), "amplitude stripped at Restricted");
-    assert!(payload.phase_proxy.is_empty(), "phase stripped at Restricted");
+    assert!(
+        payload.compressed_angle_matrix.is_empty(),
+        "angle matrix stripped at Restricted"
+    );
+    assert!(
+        payload.amplitude_proxy.is_empty(),
+        "amplitude stripped at Restricted"
+    );
+    assert!(
+        payload.phase_proxy.is_empty(),
+        "phase stripped at Restricted"
+    );
     assert_eq!(payload.snr_vector.len(), 8, "snr_vector survives");
 }
 
@@ -218,9 +234,8 @@ fn process_to_frame_in_privacy_mode_strips_amplitude_and_phase() {
 fn process_to_frame_at_derived_preserves_full_payload() {
     // Derived(1) is a research mode that legitimately keeps the angle matrix.
     // The strip must NOT over-fire at classes below Anonymous.
-    let mut p = BfldPipeline::new(
-        BfldConfig::new("seed-01").with_privacy_class(PrivacyClass::Derived),
-    );
+    let mut p =
+        BfldPipeline::new(BfldConfig::new("seed-01").with_privacy_class(PrivacyClass::Derived));
     let frame = p
         .process_to_frame(
             inputs(0, [0.1, 0.1, 0.1, 0.1]),
@@ -229,10 +244,14 @@ fn process_to_frame_at_derived_preserves_full_payload() {
             Some(embedding()),
         )
         .expect("frame emitted");
-    assert_eq!({ frame.header.privacy_class }, PrivacyClass::Derived.as_u8());
+    assert_eq!(
+        { frame.header.privacy_class },
+        PrivacyClass::Derived.as_u8()
+    );
     let payload = frame.parse_payload().expect("payload parses");
     assert_eq!(
-        payload, typed_payload(),
+        payload,
+        typed_payload(),
         "Derived research frame keeps the full payload unchanged",
     );
 }

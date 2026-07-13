@@ -61,11 +61,31 @@ struct TierSpec {
 
 fn tiers() -> Vec<TierSpec> {
     vec![
-        TierSpec { label: "ht20", n_active: 52,  bandwidth_mhz: 20, config: CalibrationConfig::ht20() },
-        TierSpec { label: "ht40", n_active: 114, bandwidth_mhz: 40, config: CalibrationConfig::ht40() },
+        TierSpec {
+            label: "ht20",
+            n_active: 52,
+            bandwidth_mhz: 20,
+            config: CalibrationConfig::ht20(),
+        },
+        TierSpec {
+            label: "ht40",
+            n_active: 114,
+            bandwidth_mhz: 40,
+            config: CalibrationConfig::ht40(),
+        },
         // Issue #1009 §1b: HE20 records all 256 delivered bins (he20().num_active == 256).
-        TierSpec { label: "he20", n_active: 256, bandwidth_mhz: 20, config: CalibrationConfig::he20() },
-        TierSpec { label: "he40", n_active: 484, bandwidth_mhz: 40, config: CalibrationConfig::he40() },
+        TierSpec {
+            label: "he20",
+            n_active: 256,
+            bandwidth_mhz: 20,
+            config: CalibrationConfig::he20(),
+        },
+        TierSpec {
+            label: "he40",
+            n_active: 484,
+            bandwidth_mhz: 40,
+            config: CalibrationConfig::he40(),
+        },
     ]
 }
 
@@ -95,7 +115,9 @@ fn pre_loaded_recorder(spec: &TierSpec) -> CalibrationRecorder {
     let mut recorder = CalibrationRecorder::new(spec.config.clone());
     for _ in 0..600 {
         let frame = make_frame(spec.n_active, spec.bandwidth_mhz, &mut rng);
-        recorder.record(&frame).expect("record should succeed in bench setup");
+        recorder
+            .record(&frame)
+            .expect("record should succeed in bench setup");
     }
     recorder
 }
@@ -119,16 +141,12 @@ fn bench_recorder_record(c: &mut Criterion) {
         let frame = make_frame(spec.n_active, spec.bandwidth_mhz, &mut rng);
         let mut recorder = CalibrationRecorder::new(spec.config.clone());
 
-        group.bench_with_input(
-            BenchmarkId::from_parameter(spec.label),
-            &frame,
-            |b, f| {
-                b.iter(|| {
-                    // Accumulate into a shared recorder — measures per-call cost of record().
-                    black_box(recorder.record(black_box(f)).ok())
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(spec.label), &frame, |b, f| {
+            b.iter(|| {
+                // Accumulate into a shared recorder — measures per-call cost of record().
+                black_box(recorder.record(black_box(f)).ok())
+            });
+        });
     }
     group.finish();
 }
@@ -145,9 +163,7 @@ fn bench_recorder_finalize(c: &mut Criterion) {
         group.bench_function(BenchmarkId::from_parameter(spec.label), |b| {
             b.iter_with_setup(
                 || pre_loaded_recorder(&spec),
-                |recorder| {
-                    black_box(recorder.finalize().ok())
-                },
+                |recorder| black_box(recorder.finalize().ok()),
             );
         });
     }
@@ -166,15 +182,9 @@ fn bench_deviation(c: &mut Criterion) {
         let mut rng = Rng::new(42);
         let frame = make_frame(spec.n_active, spec.bandwidth_mhz, &mut rng);
 
-        group.bench_with_input(
-            BenchmarkId::from_parameter(spec.label),
-            &frame,
-            |b, f| {
-                b.iter(|| {
-                    black_box(baseline.deviation(black_box(f)).ok())
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(spec.label), &frame, |b, f| {
+            b.iter(|| black_box(baseline.deviation(black_box(f)).ok()));
+        });
     }
     group.finish();
 }
@@ -194,21 +204,17 @@ fn bench_record_600(c: &mut Criterion) {
             .map(|_| make_frame(spec.n_active, spec.bandwidth_mhz, &mut rng))
             .collect();
 
-        group.bench_with_input(
-            BenchmarkId::from_parameter(spec.label),
-            &frames,
-            |b, fs| {
-                b.iter_with_setup(
-                    || CalibrationRecorder::new(spec.config.clone()),
-                    |mut recorder| {
-                        for f in fs {
-                            black_box(recorder.record(black_box(f)).ok());
-                        }
-                        black_box(recorder)
-                    },
-                );
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(spec.label), &frames, |b, fs| {
+            b.iter_with_setup(
+                || CalibrationRecorder::new(spec.config.clone()),
+                |mut recorder| {
+                    for f in fs {
+                        black_box(recorder.record(black_box(f)).ok());
+                    }
+                    black_box(recorder)
+                },
+            );
+        });
     }
     group.finish();
 }
@@ -224,9 +230,7 @@ fn bench_to_bytes(c: &mut Criterion) {
         let baseline = finalised_baseline(&spec);
 
         group.bench_function(BenchmarkId::from_parameter(spec.label), |b| {
-            b.iter(|| {
-                black_box(baseline.to_bytes())
-            });
+            b.iter(|| black_box(baseline.to_bytes()));
         });
     }
     group.finish();

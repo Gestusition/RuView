@@ -685,6 +685,9 @@ mod tests {
         println!("native leak check: {ok} ok, {failed} scan-failed of 50");
         // No leak ⇒ behavior is consistent across all 50 calls (all ok, or all
         // the same WLAN-service-off failure) — not a degrade partway through.
-        assert!(ok == 50 || failed == 50, "inconsistent results suggest a leak: {ok} ok / {failed} failed");
+        assert!(
+            ok == 50 || failed == 50,
+            "inconsistent results suggest a leak: {ok} ok / {failed} failed"
+        );
     }
 }

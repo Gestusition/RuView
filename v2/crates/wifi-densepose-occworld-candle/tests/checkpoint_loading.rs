@@ -175,7 +175,9 @@ fn int64_tensor_round_trips() {
     let path = write_temp(&bytes, "i64");
 
     let map = load_safetensors(&path, &device).expect("i64 checkpoint must load");
-    let t = map.get("transformer.output_head.bias").expect("key present");
+    let t = map
+        .get("transformer.output_head.bias")
+        .expect("key present");
     assert_eq!(t.dims(), &[3]);
     assert_eq!(t.elem_count(), 3);
     let got: Vec<i64> = t.to_vec1::<i64>().expect("to_vec i64");

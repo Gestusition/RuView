@@ -113,7 +113,12 @@ impl RoomSim {
         let phase = (0..N_SC)
             .map(|k| (k as f32 * 0.1).rem_euclid(2.0 * PI) - PI)
             .collect();
-        Self { rng: Rng::new(seed), amp, phase, t: 0 }
+        Self {
+            rng: Rng::new(seed),
+            amp,
+            phase,
+            t: 0,
+        }
     }
 
     /// Generate the next CSI frame for the given occupancy.
@@ -144,8 +149,11 @@ impl RoomSim {
             data[(0, k)] = Complex64::new(re as f64, im as f64);
         }
 
-        let mut meta =
-            CsiMetadata::new(DeviceId::new("full-loop-test"), FrequencyBand::Band2_4GHz, 6);
+        let mut meta = CsiMetadata::new(
+            DeviceId::new("full-loop-test"),
+            FrequencyBand::Band2_4GHz,
+            6,
+        );
         meta.bandwidth_mhz = 20;
         meta.antenna_config = AntennaConfig::new(1, 1);
         self.t += 1;
@@ -167,29 +175,53 @@ fn anchor_person(label: AnchorLabel) -> Option<Person> {
         // absolute motion threshold (z > 2.0). Pre-ADR-152 this anchor was
         // unenrollable ("too much motion"); the delta-based gate must accept it.
         AnchorLabel::StandStill => Person {
-            presence_z: 3.0, sway_z: 0.25, phase_shift: 0.10, ..Default::default()
+            presence_z: 3.0,
+            sway_z: 0.25,
+            phase_shift: 0.10,
+            ..Default::default()
         },
         AnchorLabel::Sit => Person {
-            presence_z: 1.65, sway_z: 0.25, phase_shift: 0.08, ..Default::default()
+            presence_z: 1.65,
+            sway_z: 0.25,
+            phase_shift: 0.08,
+            ..Default::default()
         },
         AnchorLabel::LieDown => Person {
-            presence_z: 1.6, sway_z: 0.25, phase_shift: 0.06, ..Default::default()
+            presence_z: 1.6,
+            sway_z: 0.25,
+            phase_shift: 0.06,
+            ..Default::default()
         },
         AnchorLabel::BreatheSlow => Person {
-            presence_z: 1.7, sway_z: 0.2, breathing_hz: 0.125, breathing_depth: 0.03,
-            phase_shift: 0.08, ..Default::default()
+            presence_z: 1.7,
+            sway_z: 0.2,
+            breathing_hz: 0.125,
+            breathing_depth: 0.03,
+            phase_shift: 0.08,
+            ..Default::default()
         },
         AnchorLabel::BreatheNormal => Person {
-            presence_z: 1.7, sway_z: 0.2, breathing_hz: 0.25, breathing_depth: 0.03,
-            phase_shift: 0.08, ..Default::default()
+            presence_z: 1.7,
+            sway_z: 0.2,
+            breathing_hz: 0.25,
+            breathing_depth: 0.03,
+            phase_shift: 0.08,
+            ..Default::default()
         },
         AnchorLabel::SmallMove => Person {
-            presence_z: 1.7, sway_z: 1.0, phase_shift: 0.10, phase_wobble: 1.0,
+            presence_z: 1.7,
+            sway_z: 1.0,
+            phase_shift: 0.10,
+            phase_wobble: 1.0,
             ..Default::default()
         },
         AnchorLabel::SleepPosture => Person {
-            presence_z: 1.6, sway_z: 0.2, breathing_hz: 0.2, breathing_depth: 0.03,
-            phase_shift: 0.06, ..Default::default()
+            presence_z: 1.6,
+            sway_z: 0.2,
+            breathing_hz: 0.2,
+            breathing_depth: 0.03,
+            phase_shift: 0.06,
+            ..Default::default()
         },
     };
     Some(p)
@@ -205,7 +237,11 @@ fn capture_anchor(
     label: AnchorLabel,
     room_id: &str,
     at_unix_s: i64,
-) -> (Option<AnchorFeature>, wifi_densepose_calibration::Anchor, Option<String>) {
+) -> (
+    Option<AnchorFeature>,
+    wifi_densepose_calibration::Anchor,
+    Option<String>,
+) {
     let person = anchor_person(label);
     let mut recorder = AnchorRecorder::new(label);
     let mut series = Vec::with_capacity(ANCHOR_FRAMES);
@@ -288,8 +324,7 @@ fn full_loop_baseline_enroll_extract_train_infer() {
 
     for (i, label) in AnchorLabel::SEQUENCE.into_iter().enumerate() {
         let at = 1_700_000_000 + (i as i64 + 1) * 30;
-        let (feat, anchor, reason) =
-            capture_anchor(&mut sim, &baseline, &gate, label, room_id, at);
+        let (feat, anchor, reason) = capture_anchor(&mut sim, &baseline, &gate, label, room_id, at);
         assert!(
             anchor.quality.accepted,
             "anchor {} rejected: {} (presence_z={:.2} motion={:.0}% frames={})",
@@ -320,7 +355,11 @@ fn full_loop_baseline_enroll_extract_train_infer() {
         features.push(feat.expect("accepted anchor yields a feature"));
         session.apply(EnrollmentEvent::AnchorAccepted { anchor });
     }
-    assert!(session.is_complete(), "missing anchors: {:?}", session.missing());
+    assert!(
+        session.is_complete(),
+        "missing anchors: {:?}",
+        session.missing()
+    );
     assert_eq!(session.progress(), (8, 8));
     session.apply(EnrollmentEvent::Completed { at: 1_700_000_300 });
 
@@ -373,7 +412,10 @@ fn full_loop_baseline_enroll_extract_train_infer() {
         SpecialistKind::Restlessness,
         SpecialistKind::Anomaly,
     ] {
-        assert!(kinds.contains(&kind), "bank missing {kind:?} (got {kinds:?})");
+        assert!(
+            kinds.contains(&kind),
+            "bank missing {kind:?} (got {kinds:?})"
+        );
     }
 
     // Persist and reload (JSON today) — the runtime below uses the *reloaded*
@@ -408,17 +450,28 @@ fn full_loop_baseline_enroll_extract_train_infer() {
     };
     let f = live_window(&mut sim, Some(&occupied));
     let state = mix.infer(&f, &baseline_id);
-    assert!(!state.stale, "bank trained against this baseline must be fresh");
-    assert!(!state.vetoed, "plausible occupied window must not be vetoed");
+    assert!(
+        !state.stale,
+        "bank trained against this baseline must be fresh"
+    );
+    assert!(
+        !state.vetoed,
+        "plausible occupied window must not be vetoed"
+    );
     let presence = state.presence.expect("presence specialist trained");
     assert_eq!(presence.value, 1.0, "person in the room must be detected");
-    let breathing = state.breathing.expect("breathing must be reported when present");
+    let breathing = state
+        .breathing
+        .expect("breathing must be reported when present");
     assert!(
         (breathing.value - 18.0).abs() <= 2.0,
         "breathing {} BPM, injected 18 BPM",
         breathing.value
     );
-    assert!(state.restlessness.is_some(), "restlessness specialist trained");
+    assert!(
+        state.restlessness.is_some(),
+        "restlessness specialist trained"
+    );
 
     // Motionless-person case (ADR-152 "variance-only presence" regression):
     // a strong reflector standing perfectly still — variance stays at the

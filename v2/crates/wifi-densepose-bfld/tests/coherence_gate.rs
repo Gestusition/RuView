@@ -24,14 +24,22 @@ fn score_just_past_boundary_but_within_hysteresis_does_not_pend() {
     let mut g = CoherenceGate::new();
     let out = g.evaluate(0.52, 0);
     assert_eq!(out, GateAction::Accept);
-    assert_eq!(g.pending(), None, "0.52 must not start a pending transition");
+    assert_eq!(
+        g.pending(),
+        None,
+        "0.52 must not start a pending transition"
+    );
 }
 
 #[test]
 fn score_clearly_past_hysteresis_starts_pending() {
     let mut g = CoherenceGate::new();
     let out = g.evaluate(0.6, 0);
-    assert_eq!(out, GateAction::Accept, "still Accept until debounce elapses");
+    assert_eq!(
+        out,
+        GateAction::Accept,
+        "still Accept until debounce elapses"
+    );
     assert_eq!(g.pending(), Some(GateAction::PredictOnly));
 }
 
@@ -60,7 +68,11 @@ fn returning_to_current_band_cancels_pending() {
     g.evaluate(0.6, 0); // pending PredictOnly
     let out = g.evaluate(0.4, 1_000_000_000); // 1s later, back in Accept band
     assert_eq!(out, GateAction::Accept);
-    assert_eq!(g.pending(), None, "returning to current band cancels pending");
+    assert_eq!(
+        g.pending(),
+        None,
+        "returning to current band cancels pending"
+    );
 }
 
 #[test]
@@ -68,7 +80,7 @@ fn changing_pending_target_resets_the_debounce_clock() {
     let mut g = CoherenceGate::new();
     g.evaluate(0.6, 0); // pending PredictOnly at t=0
     g.evaluate(0.95, 1_000_000_000); // pending Recalibrate at t=1s (clock reset)
-    // At t=1s + DEBOUNCE_NS - 1, still not promoted (Recalibrate pending since 1s)
+                                     // At t=1s + DEBOUNCE_NS - 1, still not promoted (Recalibrate pending since 1s)
     let out = g.evaluate(0.95, 1_000_000_000 + DEBOUNCE_NS - 1);
     assert_eq!(out, GateAction::Accept);
     // At t=1s + DEBOUNCE_NS, promoted to Recalibrate
@@ -98,7 +110,7 @@ fn downward_transitions_also_require_hysteresis() {
 fn spike_to_one_then_back_to_zero_never_promotes_to_recalibrate() {
     let mut g = CoherenceGate::new();
     g.evaluate(1.0, 0); // pending Recalibrate at t=0
-    // 1 second later score is back to 0 — cancel pending.
+                        // 1 second later score is back to 0 — cancel pending.
     let out = g.evaluate(0.0, 1_000_000_000);
     assert_eq!(out, GateAction::Accept);
     assert_eq!(g.pending(), None);

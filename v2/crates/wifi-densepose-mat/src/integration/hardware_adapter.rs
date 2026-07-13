@@ -792,9 +792,8 @@ impl HardwareAdapter {
         // Read one newline-delimited record from the serial port.
         let line = Self::read_serial_line(settings).await?;
         // Parse with the real ESP32 parser (shared with csi_receiver).
-        let parser = super::csi_receiver::CsiParser::new(
-            super::csi_receiver::CsiPacketFormat::Esp32Csi,
-        );
+        let parser =
+            super::csi_receiver::CsiParser::new(super::csi_receiver::CsiPacketFormat::Esp32Csi);
         let packet = parser.parse(&line)?;
         Ok(packet.into())
     }
@@ -1578,7 +1577,8 @@ mod tests {
 
         // Sender pushes a real JSON CSI packet.
         let sender = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
-        let payload = br#"{"rssi":-50,"channel":6,"amplitudes":[1.0,2.0,3.0],"phases":[0.1,0.2,0.3]}"#;
+        let payload =
+            br#"{"rssi":-50,"channel":6,"amplitudes":[1.0,2.0,3.0],"phases":[0.1,0.2,0.3]}"#;
         sender.send_to(payload, local).await.unwrap();
 
         // Receive + parse exactly as read_udp_csi does.
@@ -1633,7 +1633,9 @@ mod tests {
             ..HardwareConfig::default()
         };
 
-        let readings = HardwareAdapter::read_pcap_csi(&config).await.expect("pcap read");
+        let readings = HardwareAdapter::read_pcap_csi(&config)
+            .await
+            .expect("pcap read");
         assert_eq!(readings.readings[0].amplitudes.len(), 2);
         assert_eq!(readings.metadata.channel, 6);
 

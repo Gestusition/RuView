@@ -426,8 +426,18 @@ mod tests {
 
     #[test]
     fn adr110_ppdu_byte_round_trips_for_known_variants() {
-        for v in [PpduType::HtLegacy, PpduType::HeSu, PpduType::HeMu, PpduType::HeTb, PpduType::Unknown] {
-            assert_eq!(PpduType::from_byte(v.to_byte()), v, "round-trip failed for {v:?}");
+        for v in [
+            PpduType::HtLegacy,
+            PpduType::HeSu,
+            PpduType::HeMu,
+            PpduType::HeTb,
+            PpduType::Unknown,
+        ] {
+            assert_eq!(
+                PpduType::from_byte(v.to_byte()),
+                v,
+                "round-trip failed for {v:?}"
+            );
         }
     }
 

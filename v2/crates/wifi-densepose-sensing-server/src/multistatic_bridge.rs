@@ -237,7 +237,11 @@ mod tests {
         states.insert(1, make_node_state(h64, Some(Instant::now()), 1));
 
         let mut h192 = VecDeque::new();
-        h192.push_back((0..192).map(|i| 2.0 + 0.05 * i as f64).collect::<Vec<f64>>());
+        h192.push_back(
+            (0..192)
+                .map(|i| 2.0 + 0.05 * i as f64)
+                .collect::<Vec<f64>>(),
+        );
         states.insert(3, make_node_state(h192, Some(Instant::now()), 1));
 
         let frames = node_frames_from_states(&states);

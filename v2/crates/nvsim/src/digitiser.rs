@@ -180,7 +180,10 @@ mod tests {
         }
         // A finite in-range value is unaffected (no false positives).
         let (_, sat) = adc_quantise(1.0e-7);
-        assert!(!sat, "a finite in-range value must NOT be flagged saturated");
+        assert!(
+            !sat,
+            "a finite in-range value must NOT be flagged saturated"
+        );
     }
 
     #[test]

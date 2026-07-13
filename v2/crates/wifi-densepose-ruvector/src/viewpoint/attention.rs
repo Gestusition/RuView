@@ -180,11 +180,10 @@ impl GeometricBias {
                     // absolute difference, which mis-reads pairs across the 0/2π
                     // seam (e.g. 350° vs 10° would read as 340° apart instead of
                     // 20°). Reuse the canonical helper (ADR-156 §finding 1).
-                    let theta_ij =
-                        crate::viewpoint::geometry::angular_distance(
-                            viewpoints[i].azimuth,
-                            viewpoints[j].azimuth,
-                        );
+                    let theta_ij = crate::viewpoint::geometry::angular_distance(
+                        viewpoints[i].azimuth,
+                        viewpoints[j].azimuth,
+                    );
                     let dx = viewpoints[i].position.0 - viewpoints[j].position.0;
                     let dy = viewpoints[i].position.1 - viewpoints[j].position.1;
                     let d_ij = (dx * dx + dy * dy).sqrt();
@@ -736,8 +735,14 @@ mod tests {
         // Symmetry of build_matrix across the seam (must hold under the fix):
         let bias = GeometricBias::new(1.0, 1.0, 5.0);
         let vps = vec![
-            ViewpointGeometry { azimuth: a, position: (0.0, 0.0) },
-            ViewpointGeometry { azimuth: b, position: (1.0, 0.0) },
+            ViewpointGeometry {
+                azimuth: a,
+                position: (0.0, 0.0),
+            },
+            ViewpointGeometry {
+                azimuth: b,
+                position: (1.0, 0.0),
+            },
         ];
         let m = bias.build_matrix(&vps);
         assert!(

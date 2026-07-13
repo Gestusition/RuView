@@ -1,15 +1,15 @@
 //! Acceptance tests for ADR-121 §2.6 — `SoulMatchOracle` Recalibrate exemption.
 
 use wifi_densepose_bfld::coherence_gate::DEBOUNCE_NS;
-use wifi_densepose_bfld::{
-    CoherenceGate, GateAction, MatchOutcome, NullOracle, SoulMatchOracle,
-};
+use wifi_densepose_bfld::{CoherenceGate, GateAction, MatchOutcome, NullOracle, SoulMatchOracle};
 
 /// Oracle that always claims an enrolled match.
 struct AlwaysMatch;
 impl SoulMatchOracle for AlwaysMatch {
     fn matches_enrolled(&self) -> MatchOutcome {
-        MatchOutcome::Match { person_id: 0x4242_4242 }
+        MatchOutcome::Match {
+            person_id: 0x4242_4242,
+        }
     }
 }
 
@@ -28,7 +28,10 @@ fn null_oracle_matches_default_evaluate_behavior() {
     let oracle = NullOracle;
     for (i, score) in [0.1, 0.4, 0.6, 0.8, 0.95].iter().enumerate() {
         let ts = (i as u64) * 2 * DEBOUNCE_NS;
-        assert_eq!(a.evaluate(*score, ts), b.evaluate_with_oracle(*score, ts, &oracle));
+        assert_eq!(
+            a.evaluate(*score, ts),
+            b.evaluate_with_oracle(*score, ts, &oracle)
+        );
     }
 }
 
@@ -49,7 +52,11 @@ fn match_exemption_promotes_predict_only_after_debounce_not_recalibrate() {
     g.evaluate_with_oracle(0.95, 0, &oracle);
     let out = g.evaluate_with_oracle(0.95, DEBOUNCE_NS, &oracle);
     assert_eq!(out, GateAction::PredictOnly);
-    assert_ne!(out, GateAction::Recalibrate, "Match must prevent Recalibrate");
+    assert_ne!(
+        out,
+        GateAction::Recalibrate,
+        "Match must prevent Recalibrate"
+    );
 }
 
 #[test]

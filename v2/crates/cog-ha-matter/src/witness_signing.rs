@@ -247,7 +247,9 @@ mod tests {
         let sig = sign_event(&event, &key);
         let hex = signature_to_hex(&sig);
         assert_eq!(hex.len(), 128);
-        assert!(hex.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+        assert!(hex
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
         let parsed = signature_from_hex(&hex).unwrap();
         assert_eq!(parsed.to_bytes(), sig.to_bytes());
     }

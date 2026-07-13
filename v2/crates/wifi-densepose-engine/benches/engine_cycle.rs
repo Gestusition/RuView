@@ -28,8 +28,9 @@ fn node_frame(node_id: u8, ts_us: u64, n_sub: usize) -> MultiBandCsiFrame {
 }
 
 fn bench_cycle(c: &mut Criterion) {
-    let frames: Vec<MultiBandCsiFrame> =
-        (0..4).map(|i| node_frame(i, 1000 + u64::from(i), 56)).collect();
+    let frames: Vec<MultiBandCsiFrame> = (0..4)
+        .map(|i| node_frame(i, 1000 + u64::from(i), 56))
+        .collect();
 
     c.bench_function("process_cycle_4nodes_56sc", |b| {
         b.iter_batched(
@@ -40,9 +41,7 @@ fn bench_cycle(c: &mut Criterion) {
                 e.add_sensor("esp32-com9", room);
                 (e, room)
             },
-            |(mut e, room)| {
-                e.process_cycle(&frames, CalibrationId(1), room, 0).unwrap()
-            },
+            |(mut e, room)| e.process_cycle(&frames, CalibrationId(1), room, 0).unwrap(),
             BatchSize::SmallInput,
         );
     });
@@ -78,7 +77,11 @@ fn bench_mesh_guard(c: &mut Criterion) {
             flip = !flip;
             let delta = if flip { 0.2 } else { 0.0 };
             g.update(&nodes, |i, j| {
-                if (i.min(j), i.max(j)) == (0, 1) { 0.4 + delta } else { w(i, j) }
+                if (i.min(j), i.max(j)) == (0, 1) {
+                    0.4 + delta
+                } else {
+                    w(i, j)
+                }
             })
         });
     });

@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use homecore::HomeCore;
+use std::sync::Arc;
 
 use crate::tokens::LongLivedTokenStore;
 
@@ -56,8 +56,16 @@ impl SharedState {
         }
     }
 
-    pub fn homecore(&self) -> &HomeCore { &self.inner.homecore }
-    pub fn version(&self) -> &str { &self.inner.homecore_version }
-    pub fn location_name(&self) -> &str { &self.inner.location_name }
-    pub fn tokens(&self) -> &LongLivedTokenStore { &self.inner.tokens }
+    pub fn homecore(&self) -> &HomeCore {
+        &self.inner.homecore
+    }
+    pub fn version(&self) -> &str {
+        &self.inner.homecore_version
+    }
+    pub fn location_name(&self) -> &str {
+        &self.inner.location_name
+    }
+    pub fn tokens(&self) -> &LongLivedTokenStore {
+        &self.inner.tokens
+    }
 }

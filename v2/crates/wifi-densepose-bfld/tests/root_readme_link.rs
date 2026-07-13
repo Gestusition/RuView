@@ -29,7 +29,9 @@ fn root_readme_mentions_bfld_acronym_and_full_name() {
 
 #[test]
 fn root_readme_cites_all_six_bfld_adrs() {
-    for adr in ["ADR-118", "ADR-119", "ADR-120", "ADR-121", "ADR-122", "ADR-123"] {
+    for adr in [
+        "ADR-118", "ADR-119", "ADR-120", "ADR-121", "ADR-122", "ADR-123",
+    ] {
         assert!(
             ROOT_README.contains(adr),
             "root README must cite {adr} so the discovery path is intact",

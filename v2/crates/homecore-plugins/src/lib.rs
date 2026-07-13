@@ -54,7 +54,7 @@ pub mod wasmtime_runtime;
 
 pub use error::PluginError;
 pub use host_abi::{ConfigEntryJson, StateChangedEventJson};
-pub use manifest::{IotClass, IntegrationType, PluginManifest};
+pub use manifest::{IntegrationType, IotClass, PluginManifest};
 pub use permissions::PermissionSet;
 pub use plugin::{HomeCorePlugin, PluginId};
 pub use registry::PluginRegistry;

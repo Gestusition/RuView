@@ -76,7 +76,12 @@ fn det_conv2d(
     let scale = (1.0 / fan_in).sqrt();
     let w = det_fill(&[out_c, in_c, kernel, kernel], seed, scale, device)?;
     // Small non-zero deterministic bias so even all-zero inputs differ per channel.
-    let b = det_fill(&[out_c], seed.wrapping_add(0x9E37_79B9_7F4A_7C15), scale, device)?;
+    let b = det_fill(
+        &[out_c],
+        seed.wrapping_add(0x9E37_79B9_7F4A_7C15),
+        scale,
+        device,
+    )?;
     Ok(Conv2d::new(w, Some(b), cfg))
 }
 

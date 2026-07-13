@@ -42,7 +42,11 @@ fn embedding_canonical_bytes_match_manual_flatten() {
     let emb = embedding(0.7);
     let f = IdentityFeatures::from_embedding(&emb);
     let actual = f.canonical_bytes();
-    let expected: Vec<u8> = emb.as_slice().iter().flat_map(|x| x.to_le_bytes()).collect();
+    let expected: Vec<u8> = emb
+        .as_slice()
+        .iter()
+        .flat_map(|x| x.to_le_bytes())
+        .collect();
     assert_eq!(actual, expected);
 }
 
@@ -105,7 +109,11 @@ fn iter_16_wire_compat_embedding_path() {
     let day_epoch = 12345;
 
     // Iter 16 manual computation:
-    let bytes_v16: Vec<u8> = emb.as_slice().iter().flat_map(|f| f.to_le_bytes()).collect();
+    let bytes_v16: Vec<u8> = emb
+        .as_slice()
+        .iter()
+        .flat_map(|f| f.to_le_bytes())
+        .collect();
     let hash_v16 = h.compute(day_epoch, &bytes_v16);
 
     // Iter 18 IdentityFeatures path:

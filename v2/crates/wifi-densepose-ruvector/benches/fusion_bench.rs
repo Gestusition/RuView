@@ -113,7 +113,10 @@ fn extract_single_clone(viewpoints: &[ViewpointEmbedding]) -> Vec<Vec<f32>> {
     let mut embeddings: Vec<Vec<f32>> = Vec::with_capacity(extracted.len());
     let mut _geom: Vec<ViewpointGeometry> = Vec::with_capacity(extracted.len());
     for (_, emb, az, pos) in extracted {
-        _geom.push(ViewpointGeometry { azimuth: az, position: pos });
+        _geom.push(ViewpointGeometry {
+            azimuth: az,
+            position: pos,
+        });
         embeddings.push(emb); // move
     }
     embeddings

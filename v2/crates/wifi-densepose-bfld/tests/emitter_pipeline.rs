@@ -68,7 +68,10 @@ fn emitter_drains_ring_on_recalibrate() {
     assert_eq!(e.ring_len(), 5);
 
     // Now push a Recalibrate-grade score and run past debounce.
-    e.emit(inputs(10_000_000, [1.0, 1.0, 1.0, 1.0]), Some(dummy_embedding()));
+    e.emit(
+        inputs(10_000_000, [1.0, 1.0, 1.0, 1.0]),
+        Some(dummy_embedding()),
+    );
     let _ = e.emit(
         inputs(10_000_000 + DEBOUNCE_NS, [1.0, 1.0, 1.0, 1.0]),
         Some(dummy_embedding()),

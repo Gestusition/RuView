@@ -25,7 +25,12 @@ fn bench_set_first_write(c: &mut Criterion) {
     g.throughput(Throughput::Elements(1));
     g.bench_function("first_write", |b| {
         b.iter_with_setup(
-            || (StateMachine::new(), EntityId::parse("light.benchmark").unwrap()),
+            || {
+                (
+                    StateMachine::new(),
+                    EntityId::parse("light.benchmark").unwrap(),
+                )
+            },
             |(sm, id)| {
                 sm.set(
                     id,
@@ -66,7 +71,12 @@ fn bench_set_warm_write(c: &mut Criterion) {
 fn bench_set_noop(c: &mut Criterion) {
     let sm = StateMachine::new();
     let id = EntityId::parse("light.benchmark").unwrap();
-    sm.set(id.clone(), "on", serde_json::json!({"brightness": 200}), Context::new());
+    sm.set(
+        id.clone(),
+        "on",
+        serde_json::json!({"brightness": 200}),
+        Context::new(),
+    );
 
     let mut g = c.benchmark_group("set");
     g.throughput(Throughput::Elements(1));
@@ -86,7 +96,12 @@ fn bench_set_noop(c: &mut Criterion) {
 fn bench_get(c: &mut Criterion) {
     let sm = StateMachine::new();
     let id = EntityId::parse("sensor.temperature").unwrap();
-    sm.set(id.clone(), "20.5", serde_json::json!({"unit": "C"}), Context::new());
+    sm.set(
+        id.clone(),
+        "20.5",
+        serde_json::json!({"unit": "C"}),
+        Context::new(),
+    );
 
     let mut g = c.benchmark_group("get");
     g.throughput(Throughput::Elements(1));

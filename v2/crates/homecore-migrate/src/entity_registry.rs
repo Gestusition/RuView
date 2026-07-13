@@ -32,11 +32,7 @@ use serde::{Deserialize, Serialize};
 
 use homecore::{registry::DisabledBy, EntityCategory, EntityEntry, EntityId};
 
-use crate::{
-    storage::read_envelope,
-    storage_format::v13,
-    MigrateError,
-};
+use crate::{storage::read_envelope, storage_format::v13, MigrateError};
 
 // Key used by `inspect` subcommand when scanning the directory.
 #[allow(dead_code)]
@@ -75,21 +71,21 @@ struct HaEntityRow {
     // Fields present in v13 that we capture but do not yet map to HOMECORE.
     // Forwarded as Q5 items.
     #[serde(default)]
-    hidden_by: Option<String>,        // v13: "user" | "integration"
+    hidden_by: Option<String>, // v13: "user" | "integration"
     #[serde(default)]
-    has_entity_name: Option<bool>,    // v13: HA naming convention flag
+    has_entity_name: Option<bool>, // v13: HA naming convention flag
     #[serde(default)]
-    original_name: Option<String>,    // v13: integration-provided default name
+    original_name: Option<String>, // v13: integration-provided default name
     #[serde(default)]
-    icon: Option<String>,             // v13: mdi:xxx icon override
+    icon: Option<String>, // v13: mdi:xxx icon override
     #[serde(default)]
-    original_icon: Option<String>,    // v13: integration-provided icon
+    original_icon: Option<String>, // v13: integration-provided icon
     #[serde(default)]
-    aliases: Option<Vec<String>>,     // v13: user-set aliases for voice assist
+    aliases: Option<Vec<String>>, // v13: user-set aliases for voice assist
     #[serde(default)]
     capabilities: Option<serde_json::Value>, // v13: integration-specific caps
     #[serde(default)]
-    supported_features: Option<u64>,  // v13: bitmask
+    supported_features: Option<u64>, // v13: bitmask
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -227,7 +223,10 @@ mod tests {
     fn entity_fields_round_trip_correctly() {
         let f = write_fixture(FIXTURE_V13);
         let entries = read_entity_registry(f.path()).unwrap();
-        let light = entries.iter().find(|e| e.entity_id.as_str() == "light.kitchen").unwrap();
+        let light = entries
+            .iter()
+            .find(|e| e.entity_id.as_str() == "light.kitchen")
+            .unwrap();
         assert_eq!(light.unique_id.as_deref(), Some("hue_lamp_42"));
         assert_eq!(light.platform, "hue");
         assert_eq!(light.name.as_deref(), Some("Kitchen lamp"));
@@ -260,7 +259,13 @@ mod tests {
         let f = write_fixture(json);
         let err = read_entity_registry(f.path()).unwrap_err();
         assert!(
-            matches!(err, MigrateError::UnsupportedSchemaVersion { minor_version: 99, .. }),
+            matches!(
+                err,
+                MigrateError::UnsupportedSchemaVersion {
+                    minor_version: 99,
+                    ..
+                }
+            ),
             "got: {err}"
         );
         let msg = err.to_string();

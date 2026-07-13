@@ -267,7 +267,8 @@ mod tests {
 
     #[test]
     fn empty_states_produce_no_belief() {
-        let mut bridge = EngineBridge::new(PrivacyMode::PrivateHome, 1, "living_room", "Living Room");
+        let mut bridge =
+            EngineBridge::new(PrivacyMode::PrivateHome, 1, "living_room", "Living Room");
         let out = bridge.process_cycle_from_states(&HashMap::new(), 1_000);
         assert!(out.is_none());
         // No belief published, no sensor wired.
@@ -276,7 +277,8 @@ mod tests {
 
     #[test]
     fn live_cycle_produces_witnessed_belief_with_provenance() {
-        let mut bridge = EngineBridge::new(PrivacyMode::PrivateHome, 1, "living_room", "Living Room");
+        let mut bridge =
+            EngineBridge::new(PrivacyMode::PrivateHome, 1, "living_room", "Living Room");
         let states = two_node_states();
         let out = bridge
             .process_cycle_from_states(&states, 10_000)
@@ -300,12 +302,17 @@ mod tests {
         let states = two_node_states_fixed();
         let run = || {
             let mut b = EngineBridge::new(PrivacyMode::PrivateHome, 1, "r", "R");
-            b.process_cycle_from_states(&states, 5_000).unwrap().unwrap()
+            b.process_cycle_from_states(&states, 5_000)
+                .unwrap()
+                .unwrap()
         };
         let a = run();
         let b = run();
         assert_eq!(a.witness, b.witness);
-        assert_eq!(a.provenance.calibration_version, b.provenance.calibration_version);
+        assert_eq!(
+            a.provenance.calibration_version,
+            b.provenance.calibration_version
+        );
         assert_eq!(a.effective_class, b.effective_class);
     }
 
@@ -478,11 +485,17 @@ mod tests {
             .process_cycle_from_states(&two_node_states(), 7_000)
             .unwrap()
             .unwrap();
-        assert!(out.provenance.privacy_decision.starts_with("StrictNoIdentity/"));
+        assert!(out
+            .provenance
+            .privacy_decision
+            .starts_with("StrictNoIdentity/"));
         // Effective class is a valid privacy class (sanity).
         let _ = matches!(
             out.effective_class,
-            PrivacyClass::Raw | PrivacyClass::Derived | PrivacyClass::Anonymous | PrivacyClass::Restricted
+            PrivacyClass::Raw
+                | PrivacyClass::Derived
+                | PrivacyClass::Anonymous
+                | PrivacyClass::Restricted
         );
     }
 }

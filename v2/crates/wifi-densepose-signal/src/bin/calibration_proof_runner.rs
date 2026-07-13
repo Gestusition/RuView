@@ -53,9 +53,9 @@ use wifi_densepose_signal::calibration::{CalibrationConfig, CalibrationRecorder}
 // Constants
 // ---------------------------------------------------------------------------
 
-const N_ACTIVE: usize = 52;   // HT20 active subcarriers
-const N_FRAMES: usize = 600;  // 30 s × 20 Hz
-const TIER_BYTE: u8 = 0;      // 0 = HT20
+const N_ACTIVE: usize = 52; // HT20 active subcarriers
+const N_FRAMES: usize = 600; // 30 s × 20 Hz
+const TIER_BYTE: u8 = 0; // 0 = HT20
 
 // ---------------------------------------------------------------------------
 // Deterministic PRNG (xorshift32, seed=42) — duplicated locally.
@@ -105,8 +105,7 @@ fn make_frame(rng: &mut Rng) -> CsiFrame {
         let im = amp * phase.sin() + noise_std * rng.next_normal();
         data[(0, k)] = Complex64::new(re as f64, im as f64);
     }
-    let mut meta =
-        CsiMetadata::new(DeviceId::new("proof-runner"), FrequencyBand::Band2_4GHz, 6);
+    let mut meta = CsiMetadata::new(DeviceId::new("proof-runner"), FrequencyBand::Band2_4GHz, 6);
     meta.bandwidth_mhz = 20;
     meta.antenna_config = AntennaConfig::new(1, 1);
     CsiFrame::new(meta, data)
@@ -178,7 +177,9 @@ fn repo_root() -> PathBuf {
         if candidate
             .join("archive/v1/data/proof/expected_calibration_features.sha256")
             .exists()
-            || candidate.join("archive/v1/data/proof/sample_csi_data.json").exists()
+            || candidate
+                .join("archive/v1/data/proof/sample_csi_data.json")
+                .exists()
         {
             return candidate.canonicalize().unwrap_or(candidate.clone());
         }

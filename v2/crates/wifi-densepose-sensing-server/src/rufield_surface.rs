@@ -45,8 +45,8 @@ use tokio::sync::{broadcast, RwLock};
 // Re-export the bridge input types `main.rs` needs to build a snapshot, so the
 // server-side call site depends only on `rufield_surface` (the server seam).
 pub use wifi_densepose_rufield::{
-    network_egress_allowed, snapshot_to_field_event, FieldEvent, RuViewPrivacyClass,
-    SensingClass, SensingFeatures, SensingSnapshot, Signer, SignalField,
+    network_egress_allowed, snapshot_to_field_event, FieldEvent, RuViewPrivacyClass, SensingClass,
+    SensingFeatures, SensingSnapshot, SignalField, Signer,
 };
 
 /// How many recent surfaced `FieldEvent`s the ring buffer retains. Small and
@@ -107,7 +107,10 @@ impl FieldSurface {
     /// key.
     #[must_use]
     pub fn from_env() -> Self {
-        match std::env::var(SIGNING_SEED_ENV).ok().and_then(|v| parse_seed(&v)) {
+        match std::env::var(SIGNING_SEED_ENV)
+            .ok()
+            .and_then(|v| parse_seed(&v))
+        {
             Some(seed) => {
                 tracing::info!(
                     "ADR-262 P3: RuField surface using signing seed from {SIGNING_SEED_ENV} \
@@ -390,7 +393,10 @@ mod tests {
         );
         let ev = surface.emit(&snap).expect("anonymous P2 cycle is surfaced");
         assert_eq!(ev.observation.privacy_class, PrivacyClass::P2);
-        assert!(is_fusable(&ev), "live event must be ed25519-signed & fusable");
+        assert!(
+            is_fusable(&ev),
+            "live event must be ed25519-signed & fusable"
+        );
         assert_eq!(surface.recent().len(), 1);
     }
 
@@ -415,7 +421,10 @@ mod tests {
                 "Derived cycle (identity_bound={identity_bound}) must be held edge-local"
             );
         }
-        assert!(surface.recent().is_empty(), "no Derived event may reach the surface");
+        assert!(
+            surface.recent().is_empty(),
+            "no Derived event may reach the surface"
+        );
     }
 
     #[test]

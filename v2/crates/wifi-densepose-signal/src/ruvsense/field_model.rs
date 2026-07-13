@@ -611,8 +611,7 @@ impl FieldModel {
                         }
                         Err(_) => {
                             // Fallback to diagonal approximation on SVD failure
-                            let (e, m, b) =
-                                diagonal_fallback(&self.link_stats, n_sc, n_modes);
+                            let (e, m, b) = diagonal_fallback(&self.link_stats, n_sc, n_modes);
                             (e, m, b, 0.0_f64)
                         }
                     }

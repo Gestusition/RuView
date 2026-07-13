@@ -297,10 +297,10 @@ pub fn measure_multibit(p: CoverageParams, rotation_seed: u64, bits: u32) -> Cov
     assert!((1..=8).contains(&bits), "bits must be in 1..=8");
     let rot = Rotation::new(rotation_seed, p.dim);
     let levels = 1u32 << bits; // 2^bits codes per dim
-    // Rotated AETHER-shape coords after the normalized FHT sit roughly in
-    // [-RANGE, RANGE]; clamp out-of-range to the end codes. RANGE picked to
-    // cover ~99% of the rotated-coord magnitude on this fixture (empirically
-    // ~3.0 after the 1/√m normalization).
+                               // Rotated AETHER-shape coords after the normalized FHT sit roughly in
+                               // [-RANGE, RANGE]; clamp out-of-range to the end codes. RANGE picked to
+                               // cover ~99% of the rotated-coord magnitude on this fixture (empirically
+                               // ~3.0 after the 1/√m normalization).
     const RANGE: f32 = 3.0;
     let quantize = move |v: &[f32]| -> Vec<u16> {
         rot.apply(v)
@@ -362,7 +362,12 @@ pub fn make_fixture(p: CoverageParams) -> Vec<Vec<f32>> {
     (0..p.n)
         .map(|i| {
             let c = i % p.n_clusters.max(1);
-            realize(&centres[c], p.dim, p.noise, p.seed ^ (i as u64).wrapping_mul(0x9E37))
+            realize(
+                &centres[c],
+                p.dim,
+                p.noise,
+                p.seed ^ (i as u64).wrapping_mul(0x9E37),
+            )
         })
         .collect()
 }
@@ -446,8 +451,14 @@ mod tests {
         let rot_seed = 0x5EED_C0DE_1234_5678u64;
         let p1 = measure_pass1(base).coverage;
         let p2 = measure_pass2(base, rot_seed).coverage;
-        println!("\n=== ADR-156 §8 multi-bit tradeoff (strict candidate_k=K={}) ===", base.k);
-        println!("dim={} N={} clusters={} noise={}  bar=90%", base.dim, base.n, base.n_clusters, base.noise);
+        println!(
+            "\n=== ADR-156 §8 multi-bit tradeoff (strict candidate_k=K={}) ===",
+            base.k
+        );
+        println!(
+            "dim={} N={} clusters={} noise={}  bar=90%",
+            base.dim, base.n, base.n_clusters, base.noise
+        );
         println!("  Pass1 (no rot, 1-bit)      : {:6.2}%", p1 * 100.0);
         println!("  Pass2 (rot, 1-bit)         : {:6.2}%", p2 * 100.0);
         for bits in 1..=4u32 {
@@ -531,9 +542,7 @@ mod tests {
     fn estimator_coverage_report() {
         let base = CoverageParams::aether_default(0xAD00_0084);
         let rot_seed = 0x5EED_C0DE_1234_5678u64;
-        println!(
-            "\n=== ADR-156 Milestone-2 RaBitQ estimator coverage (anisotropic synthetic) ==="
-        );
+        println!("\n=== ADR-156 Milestone-2 RaBitQ estimator coverage (anisotropic synthetic) ===");
         println!(
             "dim={} N={} K={} queries={} clusters={} noise={} master_seed=0x{:X} rotation_seed=0x{:X}",
             base.dim, base.n, base.k, base.n_queries, base.n_clusters, base.noise, base.seed, rot_seed
@@ -552,7 +561,11 @@ mod tests {
             let p2 = measure_pass2(pc, rot_seed).coverage;
             let est_cos = measure_estimator(pc, rot_seed).coverage;
             let est_euc = measure_estimator_euclidean(pc, rot_seed).coverage;
-            let bar = if est_cos >= 0.90 { "EST≥90%" } else { "below" };
+            let bar = if est_cos >= 0.90 {
+                "EST≥90%"
+            } else {
+                "below"
+            };
             let strict = if c == base.k { " (STRICT)" } else { "" };
             println!(
                 "{:<12} {:>8.2}% {:>8.2}% {:>10.2}% {:>10.2}% {:>9}{}",

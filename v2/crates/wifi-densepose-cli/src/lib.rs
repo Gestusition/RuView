@@ -28,9 +28,9 @@ use clap::{Parser, Subcommand};
 
 pub mod calibrate;
 pub mod calibrate_api;
-pub mod room;
 #[cfg(feature = "mat")]
 pub mod mat;
+pub mod room;
 
 /// WiFi-DensePose Command Line Interface
 #[derive(Parser, Debug)]

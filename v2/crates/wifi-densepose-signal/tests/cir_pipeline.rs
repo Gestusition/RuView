@@ -156,8 +156,7 @@ fn should_not_produce_ghost_at_tau_zero_after_phase_sanitization() {
     // The true direct path is at tau=50ns, well above bin 0.
     // Ghost at bin 0 from CFO should NOT be dominant after sanitization.
     assert_ne!(
-        cir.dominant_tap_idx,
-        0,
+        cir.dominant_tap_idx, 0,
         "dominant tap landed at bin 0 — ghost tap from unsanitized phase survived sanitization"
     );
 }
@@ -301,7 +300,10 @@ fn should_produce_clean_estimate_after_correct_pipeline_order() {
     assert!(
         (lo..=hi).contains(&cir.dominant_tap_idx),
         "dominant_tap_idx={} expected near bin {} (range [{},{}])",
-        cir.dominant_tap_idx, expected_bin, lo, hi
+        cir.dominant_tap_idx,
+        expected_bin,
+        lo,
+        hi
     );
     assert!(cir.dominant_tap_ratio > 0.5, "dominant_tap_ratio too low");
 }

@@ -14,7 +14,11 @@ fn sample_event(class: PrivacyClass, with_zone: bool) -> BfldEvent {
         0.5,
         1,
         0.8,
-        if with_zone { Some("kitchen".into()) } else { None },
+        if with_zone {
+            Some("kitchen".into())
+        } else {
+            None
+        },
         class,
         Some(0.25),
         Some([0xCD; 32]),
@@ -26,7 +30,11 @@ fn capture_publisher_records_every_message() {
     let mut p = CapturePublisher::default();
     let count = publish_event(&mut p, &sample_event(PrivacyClass::Anonymous, true))
         .expect("publish must succeed");
-    assert_eq!(count, p.published.len(), "return value must equal publish count");
+    assert_eq!(
+        count,
+        p.published.len(),
+        "return value must equal publish count"
+    );
     assert_eq!(count, 6, "Anonymous + zone publishes 6 topics");
 }
 
@@ -56,7 +64,9 @@ fn restricted_class_publishes_no_identity_risk_topic() {
     let mut p = CapturePublisher::default();
     publish_event(&mut p, &sample_event(PrivacyClass::Restricted, true)).unwrap();
     assert!(
-        !p.published.iter().any(|m| m.topic.contains("identity_risk")),
+        !p.published
+            .iter()
+            .any(|m| m.topic.contains("identity_risk")),
         "Restricted must not publish identity_risk, got: {:?}",
         p.published.iter().map(|m| &m.topic).collect::<Vec<_>>(),
     );

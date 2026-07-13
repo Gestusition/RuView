@@ -60,13 +60,12 @@ fn repo_root() -> PathBuf {
     // or walk up from cwd until we find archive/.
     let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     // If run from v2/, walk up once; if run from repo root, use directly.
-    let candidates = [
-        cwd.clone(),
-        cwd.join(".."),
-        cwd.join("../.."),
-    ];
+    let candidates = [cwd.clone(), cwd.join(".."), cwd.join("../..")];
     for candidate in &candidates {
-        if candidate.join("archive/v1/data/proof/sample_csi_data.json").exists() {
+        if candidate
+            .join("archive/v1/data/proof/sample_csi_data.json")
+            .exists()
+        {
             return candidate.canonicalize().unwrap_or(candidate.clone());
         }
     }
@@ -85,9 +84,11 @@ fn load_json(path: &Path) -> Value {
 /// The reference signal has 3 antennas and 56 subcarriers.
 /// We use only the first antenna's amplitude/phase to form a Complex32 vector.
 fn frame_from_json(record: &Value) -> CsiFrame {
-    let amplitude_all = record["amplitude"].as_array()
+    let amplitude_all = record["amplitude"]
+        .as_array()
         .expect("frame must have amplitude array");
-    let phase_all = record["phase"].as_array()
+    let phase_all = record["phase"]
+        .as_array()
         .expect("frame must have phase array");
 
     // Use the first antenna row
@@ -181,7 +182,10 @@ fn main() {
     let hash_path = root.join("archive/v1/data/proof/expected_cir_features.sha256");
 
     if !json_path.exists() {
-        eprintln!("ERROR: reference signal not found at {}", json_path.display());
+        eprintln!(
+            "ERROR: reference signal not found at {}",
+            json_path.display()
+        );
         std::process::exit(1);
     }
 
@@ -192,7 +196,10 @@ fn main() {
     } else {
         // Compare against stored hash
         if !hash_path.exists() {
-            eprintln!("ERROR: expected hash file not found at {}", hash_path.display());
+            eprintln!(
+                "ERROR: expected hash file not found at {}",
+                hash_path.display()
+            );
             eprintln!("Run with --generate-hash to create it.");
             std::process::exit(1);
         }

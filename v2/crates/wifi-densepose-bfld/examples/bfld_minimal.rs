@@ -28,8 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 2. Build the pipeline. Default class = Anonymous, no zone, hasher
     //    installed so rf_signature_hash gets derived from the embedding.
     let mut pipeline = BfldPipeline::new(
-        BfldConfig::new("seed-example")
-            .with_signature_hasher(SignatureHasher::new(site_salt)),
+        BfldConfig::new("seed-example").with_signature_hasher(SignatureHasher::new(site_salt)),
     );
 
     // 3. One per-frame sensing observation. In production these come from

@@ -51,7 +51,9 @@ async fn time_trigger_fires_via_timer_path() {
     let engine = AutomationEngine::new(hc.clone());
     engine.register(Automation::new(
         "time_auto",
-        vec![Trigger::Time { at: "07:30:00".into() }],
+        vec![Trigger::Time {
+            at: "07:30:00".into(),
+        }],
         vec![Action::ServiceCall {
             domain: "light".into(),
             service: "turn_on".into(),
@@ -61,9 +63,16 @@ async fn time_trigger_fires_via_timer_path() {
 
     // Deterministically fire the timer path for the matching second.
     let fired = engine.fire_time_for_test("07:30:00").await;
-    assert_eq!(fired, 1, "time automation should fire for matching HH:MM:SS");
+    assert_eq!(
+        fired, 1,
+        "time automation should fire for matching HH:MM:SS"
+    );
     sleep(Duration::from_millis(50)).await;
-    assert_eq!(log.lock().unwrap().len(), 1, "time trigger should run its action");
+    assert_eq!(
+        log.lock().unwrap().len(),
+        1,
+        "time trigger should run its action"
+    );
 
     // A non-matching second must NOT fire.
     let none = engine.fire_time_for_test("09:00:00").await;
@@ -109,9 +118,19 @@ async fn single_mode_does_not_double_fire_on_rapid_triggers() {
     let _handle = engine.start();
 
     // Two rapid triggers while the first run is still sleeping.
-    hc.states().set(EntityId::parse("switch.s").unwrap(), "a", serde_json::json!({}), Context::new());
+    hc.states().set(
+        EntityId::parse("switch.s").unwrap(),
+        "a",
+        serde_json::json!({}),
+        Context::new(),
+    );
     sleep(Duration::from_millis(20)).await;
-    hc.states().set(EntityId::parse("switch.s").unwrap(), "b", serde_json::json!({}), Context::new());
+    hc.states().set(
+        EntityId::parse("switch.s").unwrap(),
+        "b",
+        serde_json::json!({}),
+        Context::new(),
+    );
 
     sleep(Duration::from_millis(350)).await;
     assert_eq!(
@@ -158,9 +177,19 @@ async fn parallel_mode_does_fire_concurrently() {
     engine.register(auto);
     let _handle = engine.start();
 
-    hc.states().set(EntityId::parse("switch.p").unwrap(), "a", serde_json::json!({}), Context::new());
+    hc.states().set(
+        EntityId::parse("switch.p").unwrap(),
+        "a",
+        serde_json::json!({}),
+        Context::new(),
+    );
     sleep(Duration::from_millis(20)).await;
-    hc.states().set(EntityId::parse("switch.p").unwrap(), "b", serde_json::json!({}), Context::new());
+    hc.states().set(
+        EntityId::parse("switch.p").unwrap(),
+        "b",
+        serde_json::json!({}),
+        Context::new(),
+    );
 
     sleep(Duration::from_millis(300)).await;
     assert_eq!(
@@ -255,7 +284,11 @@ async fn template_condition_evaluates_false_blocks_action() {
         Context::new(),
     );
     sleep(Duration::from_millis(50)).await;
-    assert_eq!(log.lock().unwrap().len(), 0, "false template condition should block the action");
+    assert_eq!(
+        log.lock().unwrap().len(),
+        0,
+        "false template condition should block the action"
+    );
 }
 
 // ── ADR-162 (completes ADR-161 §A5): bounded RunModes ───────────────
@@ -277,7 +310,11 @@ async fn register_gauge(
     let live = Arc::new(AtomicUsize::new(0));
     let max_seen = Arc::new(AtomicUsize::new(0));
     let completed = Arc::new(AtomicUsize::new(0));
-    let (l, m, c) = (Arc::clone(&live), Arc::clone(&max_seen), Arc::clone(&completed));
+    let (l, m, c) = (
+        Arc::clone(&live),
+        Arc::clone(&max_seen),
+        Arc::clone(&completed),
+    );
     hc.services()
         .register(
             ServiceName::new(domain, service),
@@ -318,8 +355,7 @@ fn state_auto(id: &str, entity: &str, domain: &str, service: &str) -> Automation
 async fn restart_mode_cancels_prior_run() {
     let hc = HomeCore::new();
     // Each run sleeps 300ms before recording completion.
-    let (_max, completed) =
-        register_gauge(&hc, "light", "slow", Duration::from_millis(300)).await;
+    let (_max, completed) = register_gauge(&hc, "light", "slow", Duration::from_millis(300)).await;
 
     let engine = AutomationEngine::new(hc.clone());
     let mut auto = state_auto("restart_auto", "switch.r", "light", "slow");
@@ -328,10 +364,20 @@ async fn restart_mode_cancels_prior_run() {
     let _handle = engine.start();
 
     // Trigger 1 starts the slow run.
-    hc.states().set(EntityId::parse("switch.r").unwrap(), "a", serde_json::json!({}), Context::new());
+    hc.states().set(
+        EntityId::parse("switch.r").unwrap(),
+        "a",
+        serde_json::json!({}),
+        Context::new(),
+    );
     sleep(Duration::from_millis(80)).await;
     // Trigger 2 arrives mid-run → must ABORT run 1 and start run 2.
-    hc.states().set(EntityId::parse("switch.r").unwrap(), "b", serde_json::json!({}), Context::new());
+    hc.states().set(
+        EntityId::parse("switch.r").unwrap(),
+        "b",
+        serde_json::json!({}),
+        Context::new(),
+    );
 
     // Wait long enough for run 2 (started ~80ms in) to finish, but run 1
     // (aborted at ~80ms, would have finished at ~300ms) must NOT complete.
@@ -359,7 +405,12 @@ async fn queued_mode_runs_sequentially_not_concurrently() {
 
     // Three rapid triggers.
     for v in ["a", "b", "c"] {
-        hc.states().set(EntityId::parse("switch.q").unwrap(), v, serde_json::json!({}), Context::new());
+        hc.states().set(
+            EntityId::parse("switch.q").unwrap(),
+            v,
+            serde_json::json!({}),
+            Context::new(),
+        );
         sleep(Duration::from_millis(10)).await;
     }
 
@@ -394,7 +445,12 @@ async fn max_two_caps_concurrency_at_two() {
 
     // Four rapid triggers — without the cap all 4 would run at once.
     for v in ["a", "b", "c", "d"] {
-        hc.states().set(EntityId::parse("switch.m").unwrap(), v, serde_json::json!({}), Context::new());
+        hc.states().set(
+            EntityId::parse("switch.m").unwrap(),
+            v,
+            serde_json::json!({}),
+            Context::new(),
+        );
         sleep(Duration::from_millis(10)).await;
     }
 

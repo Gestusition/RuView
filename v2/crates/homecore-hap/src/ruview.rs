@@ -53,7 +53,11 @@ impl RuViewToHapMapper {
             accessory_type: HapAccessoryType::OccupancySensor,
             characteristics: vec![(
                 HapCharacteristic::OccupancyDetected,
-                HapCharacteristicValue::UInt8(if vitals.presence || vitals.breathing_present { 1 } else { 0 }),
+                HapCharacteristicValue::UInt8(if vitals.presence || vitals.breathing_present {
+                    1
+                } else {
+                    0
+                }),
             )],
         });
 
@@ -99,9 +103,15 @@ mod tests {
 
     #[test]
     fn presence_true_maps_to_occupancy_detected_1() {
-        let vitals = EdgeVitals { presence: true, ..Default::default() };
+        let vitals = EdgeVitals {
+            presence: true,
+            ..Default::default()
+        };
         let mappings = RuViewToHapMapper::map(&vitals);
-        let occ = mappings.iter().find(|m| m.accessory_type == HapAccessoryType::OccupancySensor).unwrap();
+        let occ = mappings
+            .iter()
+            .find(|m| m.accessory_type == HapAccessoryType::OccupancySensor)
+            .unwrap();
         assert!(occ.characteristics.contains(&(
             HapCharacteristic::OccupancyDetected,
             HapCharacteristicValue::UInt8(1)
@@ -110,9 +120,15 @@ mod tests {
 
     #[test]
     fn fall_detected_maps_to_leak_sensor() {
-        let vitals = EdgeVitals { fall_detected: true, ..Default::default() };
+        let vitals = EdgeVitals {
+            fall_detected: true,
+            ..Default::default()
+        };
         let mappings = RuViewToHapMapper::map(&vitals);
-        let leak = mappings.iter().find(|m| m.accessory_type == HapAccessoryType::LeakSensor).unwrap();
+        let leak = mappings
+            .iter()
+            .find(|m| m.accessory_type == HapAccessoryType::LeakSensor)
+            .unwrap();
         assert!(leak.characteristics.contains(&(
             HapCharacteristic::LeakDetected,
             HapCharacteristicValue::UInt8(1)
@@ -121,9 +137,15 @@ mod tests {
 
     #[test]
     fn motion_false_maps_correctly() {
-        let vitals = EdgeVitals { motion: false, ..Default::default() };
+        let vitals = EdgeVitals {
+            motion: false,
+            ..Default::default()
+        };
         let mappings = RuViewToHapMapper::map(&vitals);
-        let mot = mappings.iter().find(|m| m.accessory_type == HapAccessoryType::MotionSensor).unwrap();
+        let mot = mappings
+            .iter()
+            .find(|m| m.accessory_type == HapAccessoryType::MotionSensor)
+            .unwrap();
         assert!(mot.characteristics.contains(&(
             HapCharacteristic::MotionDetected,
             HapCharacteristicValue::Bool(false)
@@ -132,24 +154,41 @@ mod tests {
 
     #[test]
     fn ambient_temp_emits_temperature_mapping() {
-        let vitals = EdgeVitals { ambient_temp_c: Some(22.5), ..Default::default() };
+        let vitals = EdgeVitals {
+            ambient_temp_c: Some(22.5),
+            ..Default::default()
+        };
         let mappings = RuViewToHapMapper::map(&vitals);
-        let temp = mappings.iter().find(|m| m.accessory_type == HapAccessoryType::TemperatureSensor);
+        let temp = mappings
+            .iter()
+            .find(|m| m.accessory_type == HapAccessoryType::TemperatureSensor);
         assert!(temp.is_some());
     }
 
     #[test]
     fn no_ambient_temp_omits_temperature_mapping() {
-        let vitals = EdgeVitals { ambient_temp_c: None, ..Default::default() };
+        let vitals = EdgeVitals {
+            ambient_temp_c: None,
+            ..Default::default()
+        };
         let mappings = RuViewToHapMapper::map(&vitals);
-        assert!(mappings.iter().all(|m| m.accessory_type != HapAccessoryType::TemperatureSensor));
+        assert!(mappings
+            .iter()
+            .all(|m| m.accessory_type != HapAccessoryType::TemperatureSensor));
     }
 
     #[test]
     fn breathing_present_triggers_occupancy() {
-        let vitals = EdgeVitals { presence: false, breathing_present: true, ..Default::default() };
+        let vitals = EdgeVitals {
+            presence: false,
+            breathing_present: true,
+            ..Default::default()
+        };
         let mappings = RuViewToHapMapper::map(&vitals);
-        let occ = mappings.iter().find(|m| m.accessory_type == HapAccessoryType::OccupancySensor).unwrap();
+        let occ = mappings
+            .iter()
+            .find(|m| m.accessory_type == HapAccessoryType::OccupancySensor)
+            .unwrap();
         assert!(occ.characteristics.contains(&(
             HapCharacteristic::OccupancyDetected,
             HapCharacteristicValue::UInt8(1)

@@ -245,5 +245,10 @@ fn bench_pass2_coverage(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_compare_cost, bench_topk, bench_pass2_coverage);
+criterion_group!(
+    benches,
+    bench_compare_cost,
+    bench_topk,
+    bench_pass2_coverage
+);
 criterion_main!(benches);

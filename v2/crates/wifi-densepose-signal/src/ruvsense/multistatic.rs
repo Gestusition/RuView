@@ -386,8 +386,10 @@ impl MultistaticFuser {
         &self,
         node_frames: &[MultiBandCsiFrame],
         coherence_accept: f32,
-    ) -> std::result::Result<(FusedSensingFrame, super::fusion_quality::QualityScore), MultistaticError>
-    {
+    ) -> std::result::Result<
+        (FusedSensingFrame, super::fusion_quality::QualityScore),
+        MultistaticError,
+    > {
         use super::fusion_quality::{ContradictionFlag, EvidenceRef, FamilyId, QualityScore};
 
         let fused = self.fuse(node_frames)?;
@@ -422,8 +424,16 @@ impl MultistaticFuser {
         // --- Tolerated contradictions ---
         let mut contradiction_flags = Vec::new();
         if n_nodes > 1 {
-            let min_ts = node_frames.iter().map(|f| f.timestamp_us).min().unwrap_or(0);
-            let max_ts = node_frames.iter().map(|f| f.timestamp_us).max().unwrap_or(0);
+            let min_ts = node_frames
+                .iter()
+                .map(|f| f.timestamp_us)
+                .min()
+                .unwrap_or(0);
+            let max_ts = node_frames
+                .iter()
+                .map(|f| f.timestamp_us)
+                .max()
+                .unwrap_or(0);
             let spread_ns = (max_ts - min_ts).saturating_mul(1000);
             let soft_guard_ns = self.config.soft_guard_us.saturating_mul(1000);
             if spread_ns > soft_guard_ns {
@@ -473,8 +483,10 @@ impl MultistaticFuser {
         node_frames: &[MultiBandCsiFrame],
         calibrations: &[Option<super::fusion_quality::CalibrationId>],
         coherence_accept: f32,
-    ) -> std::result::Result<(FusedSensingFrame, super::fusion_quality::QualityScore), MultistaticError>
-    {
+    ) -> std::result::Result<
+        (FusedSensingFrame, super::fusion_quality::QualityScore),
+        MultistaticError,
+    > {
         use super::fusion_quality::{ContradictionFlag, EvidenceRef};
         let (fused, mut score) = self.fuse_scored(node_frames, coherence_accept)?;
 
@@ -508,7 +520,10 @@ impl MultistaticFuser {
             score.calibration_id = None;
             score
                 .contradiction_flags
-                .push(ContradictionFlag::CalibrationIdMismatch { expected: modal, disagreeing });
+                .push(ContradictionFlag::CalibrationIdMismatch {
+                    expected: modal,
+                    disagreeing,
+                });
         }
         Ok((fused, score))
     }
@@ -521,11 +536,7 @@ impl MultistaticFuser {
     ///
     /// On `CirError::UnsanitizedPhase` the CIR result is dropped and the
     /// frequency-domain coherence is returned unchanged (graceful fallback).
-    fn cir_gate_coherence(
-        &self,
-        freq_coherence: f32,
-        node_frames: &[MultiBandCsiFrame],
-    ) -> f32 {
+    fn cir_gate_coherence(&self, freq_coherence: f32, node_frames: &[MultiBandCsiFrame]) -> f32 {
         if !self.config.use_cir_gate {
             return freq_coherence;
         }
@@ -880,7 +891,10 @@ mod tests {
             .evidence_refs
             .iter()
             .any(|e| matches!(e, EvidenceRef::WeightEntropy { n_nodes: 2, .. })));
-        assert!(!score.forces_privacy_demotion(), "tight alignment ⇒ no demotion");
+        assert!(
+            !score.forces_privacy_demotion(),
+            "tight alignment ⇒ no demotion"
+        );
     }
 
     #[test]
@@ -894,10 +908,16 @@ mod tests {
         let f1 = make_node_frame(1, 26_000, 56, 1.0);
         let (_fused, score) = fuser.fuse_scored(&[f0, f1], 0.85).unwrap();
 
-        assert!(score.forces_privacy_demotion(), "loose alignment ⇒ demotion");
+        assert!(
+            score.forces_privacy_demotion(),
+            "loose alignment ⇒ demotion"
+        );
         assert!(matches!(
             score.contradiction_flags[0],
-            ContradictionFlag::TimestampMismatch { spread_ns: 25_000_000, soft_guard_ns: 20_000_000 }
+            ContradictionFlag::TimestampMismatch {
+                spread_ns: 25_000_000,
+                soft_guard_ns: 20_000_000
+            }
         ));
         // Penalized coherence is strictly below base when a contradiction fires.
         assert!(score.penalized_coherence() < score.base_coherence);
@@ -977,7 +997,11 @@ mod tests {
         let (_f, score) = fuser
             .fuse_scored_calibrated(&[f0, f1], &[Some(cal), Some(cal)], 0.85)
             .unwrap();
-        assert_eq!(score.calibration_id, Some(cal), "agreed calibration recorded");
+        assert_eq!(
+            score.calibration_id,
+            Some(cal),
+            "agreed calibration recorded"
+        );
         assert!(score
             .evidence_refs
             .iter()
@@ -993,13 +1017,20 @@ mod tests {
         let f1 = make_node_frame(1, 1001, 56, 1.0);
         // Two nodes, DIFFERENT calibration epochs → mismatch.
         let (_f, score) = fuser
-            .fuse_scored_calibrated(&[f0, f1], &[Some(CalibrationId(1)), Some(CalibrationId(2))], 0.85)
+            .fuse_scored_calibrated(
+                &[f0, f1],
+                &[Some(CalibrationId(1)), Some(CalibrationId(2))],
+                0.85,
+            )
             .unwrap();
-        assert_eq!(score.calibration_id, None, "mismatch ⇒ no single calibration id");
-        assert!(score
-            .contradiction_flags
-            .iter()
-            .any(|c| matches!(c, ContradictionFlag::CalibrationIdMismatch { disagreeing: 1, .. })));
+        assert_eq!(
+            score.calibration_id, None,
+            "mismatch ⇒ no single calibration id"
+        );
+        assert!(score.contradiction_flags.iter().any(|c| matches!(
+            c,
+            ContradictionFlag::CalibrationIdMismatch { disagreeing: 1, .. }
+        )));
         assert!(score.forces_privacy_demotion(), "mismatch forces demotion");
     }
 

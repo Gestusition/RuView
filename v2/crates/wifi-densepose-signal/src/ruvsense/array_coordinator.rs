@@ -122,8 +122,11 @@ impl ArrayCoordinator {
         let monitoring_idx: Vec<usize> = (0..nodes.len())
             .filter(|&i| matches!(gate_decisions[i].1, ClockGateDecision::MonitorOnly { .. }))
             .collect();
-        let evidence_idx: Vec<usize> =
-            admitted_idx.iter().chain(monitoring_idx.iter()).copied().collect();
+        let evidence_idx: Vec<usize> = admitted_idx
+            .iter()
+            .chain(monitoring_idx.iter())
+            .copied()
+            .collect();
 
         let mut contradictions = Vec::new();
 
@@ -137,7 +140,8 @@ impl ArrayCoordinator {
                 for &i in &evidence_idx {
                     let sigma = (mean - nodes[i].coherence) / std;
                     if sigma > self.config.contradiction_sigma {
-                        contradictions.push(ContradictionFlag::CoherenceDrop { node_idx: i, sigma });
+                        contradictions
+                            .push(ContradictionFlag::CoherenceDrop { node_idx: i, sigma });
                     }
                 }
             }
@@ -209,7 +213,11 @@ impl ArrayCoordinator {
             let len0 = amps.first().map(|a| a.len()).unwrap_or(0);
             if len0 > 0 && amps.iter().all(|a| a.len() == len0) {
                 let w = node_attention_weights(&amps, self.config.attention_temperature);
-                return admitted_idx.iter().map(|&i| nodes[i].node_id).zip(w).collect();
+                return admitted_idx
+                    .iter()
+                    .map(|&i| nodes[i].node_id)
+                    .zip(w)
+                    .collect();
             }
         }
 
@@ -235,7 +243,11 @@ mod tests {
     use super::*;
 
     fn clock(stdev: f32, age_us: u64) -> ClockQualityScore {
-        ClockQualityScore { offset_stdev_us: stdev, age_us, valid: true }
+        ClockQualityScore {
+            offset_stdev_us: stdev,
+            age_us,
+            valid: true,
+        }
     }
 
     fn node(id: NodeId, x: f32, y: f32, az: f32, coh: f32, stdev: f32) -> ArrayNodeInput {
@@ -302,7 +314,8 @@ mod tests {
         assert!(matches!(
             ev.gate_decisions[0].1,
             ClockGateDecision::Reject {
-                reason: wifi_densepose_ruvector::viewpoint::coherence::ClockRejectReason::ClockStale
+                reason:
+                    wifi_densepose_ruvector::viewpoint::coherence::ClockRejectReason::ClockStale
             }
         ));
     }

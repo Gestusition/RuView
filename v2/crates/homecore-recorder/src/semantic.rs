@@ -170,7 +170,11 @@ mod tests {
 
     #[test]
     fn embed_state_is_deterministic() {
-        let s = make_state("light.kitchen", "on", serde_json::json!({"brightness": 200}));
+        let s = make_state(
+            "light.kitchen",
+            "on",
+            serde_json::json!({"brightness": 200}),
+        );
         let v1 = RuvectorSemanticIndex::embed_state(&s);
         let v2 = RuvectorSemanticIndex::embed_state(&s);
         assert_eq!(v1, v2, "same input must produce identical embedding");
@@ -199,14 +203,15 @@ mod tests {
     #[tokio::test]
     async fn insert_then_search_finds_state() {
         let mut idx = RuvectorSemanticIndex::new(1000).unwrap();
-        let state = make_state("light.living_room", "on", serde_json::json!({"brightness": 255}));
+        let state = make_state(
+            "light.living_room",
+            "on",
+            serde_json::json!({"brightness": 255}),
+        );
         idx.insert_state(42, &state).await.unwrap();
 
         // Query the same canonical string used by embed_state
-        let query = format!(
-            "{}={}|{}",
-            state.entity_id, state.state, state.attributes
-        );
+        let query = format!("{}={}|{}", state.entity_id, state.state, state.attributes);
         let hits = idx.search(&query, 5).await.unwrap();
         assert!(!hits.is_empty(), "search must return at least one hit");
         assert_eq!(hits[0].0, 42, "top hit must be the inserted state_id");
@@ -237,12 +242,10 @@ mod tests {
 
     #[tokio::test]
     async fn recorder_search_semantic_returns_recorded_state() {
-        use homecore::event::StateChangedEvent;
         use chrono::Utc;
+        use homecore::event::StateChangedEvent;
 
-        let idx = Arc::new(RwLock::new(
-            RuvectorSemanticIndex::new(1000).unwrap(),
-        ));
+        let idx = Arc::new(RwLock::new(RuvectorSemanticIndex::new(1000).unwrap()));
         let semantic: Arc<RwLock<dyn SemanticIndex>> = idx;
         let recorder = Recorder::open_with_index("sqlite::memory:", semantic)
             .await
@@ -264,7 +267,10 @@ mod tests {
         // Query using the entity prefix — close enough embedding to find it
         let query = format!("{}={}|{}", state.entity_id, state.state, state.attributes);
         let rows = recorder.search_semantic(&query, 5).await.unwrap();
-        assert!(!rows.is_empty(), "search_semantic must return at least one row");
+        assert!(
+            !rows.is_empty(),
+            "search_semantic must return at least one row"
+        );
         assert_eq!(
             rows[0].state_id, state_id,
             "returned row must match the recorded state"

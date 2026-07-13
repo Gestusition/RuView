@@ -137,7 +137,12 @@ pub struct StartParams {
 
 impl Default for StartParams {
     fn default() -> Self {
-        Self { tier: None, duration_s: 30, room_id: None, min_frames: 0 }
+        Self {
+            tier: None,
+            duration_s: 30,
+            room_id: None,
+            min_frames: 0,
+        }
     }
 }
 
@@ -191,8 +196,13 @@ struct SharedStatus {
 
 /// Commands sent from HTTP handlers to the ingest task.
 enum CalCommand {
-    Start { params: StartParams, reply: oneshot::Sender<Result<SessionStatus, String>> },
-    Stop { reply: oneshot::Sender<Result<ResultSummary, String>> },
+    Start {
+        params: StartParams,
+        reply: oneshot::Sender<Result<SessionStatus, String>>,
+    },
+    Stop {
+        reply: oneshot::Sender<Result<ResultSummary, String>>,
+    },
     EnrollAnchor {
         room_id: String,
         baseline_name: String,
@@ -339,11 +349,26 @@ pub async fn execute(args: CalibrateServeArgs) -> Result<()> {
         let window = window.clone();
         let enroll = enroll.clone();
         tokio::spawn(async move {
-            ingest_loop(socket, cmd_rx, status, default_tier, output_dir, window, enroll).await;
+            ingest_loop(
+                socket,
+                cmd_rx,
+                status,
+                default_tier,
+                output_dir,
+                window,
+                enroll,
+            )
+            .await;
         });
     }
 
-    let state = ApiState { cmd_tx, status, window, fs_hz: 15.0, enroll };
+    let state = ApiState {
+        cmd_tx,
+        status,
+        window,
+        fs_hz: 15.0,
+        enroll,
+    };
     let mut app = build_router(state);
 
     // Optional bearer auth — required before any non-loopback exposure.
@@ -685,7 +710,11 @@ async fn descriptor() -> impl IntoResponse {
 
 async fn health(State(st): State<ApiState>) -> impl IntoResponse {
     let s = st.status.read().await;
-    let age = if s.last_frame_unix_ms == 0 { None } else { Some(unix_ms().saturating_sub(s.last_frame_unix_ms)) };
+    let age = if s.last_frame_unix_ms == 0 {
+        None
+    } else {
+        Some(unix_ms().saturating_sub(s.last_frame_unix_ms))
+    };
     Json(serde_json::json!({
         "status": "ok",
         "udp_port": s.udp_port,
@@ -700,13 +729,30 @@ async fn health(State(st): State<ApiState>) -> impl IntoResponse {
 
 async fn start(State(st): State<ApiState>, Json(params): Json<StartParams>) -> impl IntoResponse {
     let (tx, rx) = oneshot::channel();
-    if st.cmd_tx.send(CalCommand::Start { params, reply: tx }).await.is_err() {
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":"ingest task unavailable"}))).into_response();
+    if st
+        .cmd_tx
+        .send(CalCommand::Start { params, reply: tx })
+        .await
+        .is_err()
+    {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error":"ingest task unavailable"})),
+        )
+            .into_response();
     }
     match rx.await {
-        Ok(Ok(snap)) => (StatusCode::ACCEPTED, Json(serde_json::to_value(snap).unwrap())).into_response(),
+        Ok(Ok(snap)) => (
+            StatusCode::ACCEPTED,
+            Json(serde_json::to_value(snap).unwrap()),
+        )
+            .into_response(),
         Ok(Err(e)) => (StatusCode::CONFLICT, Json(serde_json::json!({"error": e}))).into_response(),
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":"no reply"}))).into_response(),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error":"no reply"})),
+        )
+            .into_response(),
     }
 }
 
@@ -720,13 +766,28 @@ async fn status_handler(State(st): State<ApiState>) -> impl IntoResponse {
 
 async fn stop(State(st): State<ApiState>) -> impl IntoResponse {
     let (tx, rx) = oneshot::channel();
-    if st.cmd_tx.send(CalCommand::Stop { reply: tx }).await.is_err() {
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":"ingest task unavailable"}))).into_response();
+    if st
+        .cmd_tx
+        .send(CalCommand::Stop { reply: tx })
+        .await
+        .is_err()
+    {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error":"ingest task unavailable"})),
+        )
+            .into_response();
     }
     match rx.await {
-        Ok(Ok(summary)) => (StatusCode::OK, Json(serde_json::to_value(summary).unwrap())).into_response(),
+        Ok(Ok(summary)) => {
+            (StatusCode::OK, Json(serde_json::to_value(summary).unwrap())).into_response()
+        }
         Ok(Err(e)) => (StatusCode::CONFLICT, Json(serde_json::json!({"error": e}))).into_response(),
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":"no reply"}))).into_response(),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error":"no reply"})),
+        )
+            .into_response(),
     }
 }
 
@@ -734,7 +795,11 @@ async fn result(State(st): State<ApiState>) -> impl IntoResponse {
     let s = st.status.read().await;
     match &s.last_result {
         Some(r) => (StatusCode::OK, Json(serde_json::to_value(r).unwrap())).into_response(),
-        None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error":"no finalized baseline yet"}))).into_response(),
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error":"no finalized baseline yet"})),
+        )
+            .into_response(),
     }
 }
 
@@ -758,7 +823,10 @@ struct TrainRequest {
 /// falls back to the in-server enrollment accumulated via `POST /enroll/anchor`.
 /// The enrollment's transceiver-geometry snapshot (posted `geometry` or the
 /// `POST /enroll/geometry` record) is threaded into the bank (ADR-152 §2.1.1).
-async fn train_room(State(st): State<ApiState>, Json(req): Json<TrainRequest>) -> impl IntoResponse {
+async fn train_room(
+    State(st): State<ApiState>,
+    Json(req): Json<TrainRequest>,
+) -> impl IntoResponse {
     let (anchors, baseline_id) = if !req.anchors.is_empty() {
         (req.anchors.clone(), req.baseline_id.clone())
     } else {
@@ -772,12 +840,23 @@ async fn train_room(State(st): State<ApiState>, Json(req): Json<TrainRequest>) -
     let geometry = if !req.geometry.is_empty() {
         req.geometry.clone()
     } else {
-        st.enroll.read().await.get(&req.room_id).map(|re| re.geometry.clone()).unwrap_or_default()
+        st.enroll
+            .read()
+            .await
+            .get(&req.room_id)
+            .map(|re| re.geometry.clone())
+            .unwrap_or_default()
     };
     let at = (unix_ms() / 1000) as i64;
     let bank = match SpecialistBank::train(&req.room_id, &baseline_id, &anchors, at) {
         Ok(b) => b,
-        Err(e) => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": format!("training failed: {e}")}))).into_response(),
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": format!("training failed: {e}")})),
+            )
+                .into_response()
+        }
     };
     let bank = if geometry.is_empty() {
         eprintln!(
@@ -793,20 +872,38 @@ async fn train_room(State(st): State<ApiState>, Json(req): Json<TrainRequest>) -
     let path = format!("{dir}/{name}.json");
     let json = match bank.to_json() {
         Ok(j) => j,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": format!("serialize: {e}")}))).into_response(),
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": format!("serialize: {e}")})),
+            )
+                .into_response()
+        }
     };
     if let Err(e) = tokio::fs::write(&path, json).await {
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": format!("cannot write {path}: {e}")}))).into_response();
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": format!("cannot write {path}: {e}")})),
+        )
+            .into_response();
     }
-    let kinds: Vec<String> = bank.trained_kinds().iter().map(|k| format!("{k:?}")).collect();
-    (StatusCode::OK, Json(serde_json::json!({
-        "room_id": bank.room_id,
-        "bank": name,                  // pass as ?bank=<name> to /room/state
-        "anchor_count": bank.anchor_count,
-        "specialists": kinds,
-        "geometry_nodes": bank.geometry.len(),
-        "path": path,
-    }))).into_response()
+    let kinds: Vec<String> = bank
+        .trained_kinds()
+        .iter()
+        .map(|k| format!("{k:?}"))
+        .collect();
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "room_id": bank.room_id,
+            "bank": name,                  // pass as ?bank=<name> to /room/state
+            "anchor_count": bank.anchor_count,
+            "specialists": kinds,
+            "geometry_nodes": bank.geometry.len(),
+            "path": path,
+        })),
+    )
+        .into_response()
 }
 
 /// Body for `POST /api/v1/enroll/geometry`.
@@ -821,18 +918,30 @@ struct EnrollGeometryBody {
 /// enrollment; the next `POST /room/train` snapshots it into the bank. A later
 /// POST supersedes an earlier one (latest wins), mirroring
 /// `EnrollmentSession::record_geometry`.
-async fn enroll_geometry(State(st): State<ApiState>, Json(b): Json<EnrollGeometryBody>) -> impl IntoResponse {
+async fn enroll_geometry(
+    State(st): State<ApiState>,
+    Json(b): Json<EnrollGeometryBody>,
+) -> impl IntoResponse {
     if b.geometry.is_empty() {
         return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error":"geometry must be a non-empty array of NodeGeometry records"}))).into_response();
     }
     let nodes = b.geometry.len();
     {
         let mut map = st.enroll.write().await;
-        let re = map.entry(b.room_id.clone()).or_insert_with(RoomEnroll::default);
+        let re = map
+            .entry(b.room_id.clone())
+            .or_insert_with(RoomEnroll::default);
         re.geometry = b.geometry;
     }
-    eprintln!("[calibrate-serve] enroll geometry room={} nodes={nodes}", b.room_id);
-    (StatusCode::OK, Json(serde_json::json!({"room_id": b.room_id, "geometry_nodes": nodes}))).into_response()
+    eprintln!(
+        "[calibrate-serve] enroll geometry room={} nodes={nodes}",
+        b.room_id
+    );
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"room_id": b.room_id, "geometry_nodes": nodes})),
+    )
+        .into_response()
 }
 
 /// Body for `POST /api/v1/enroll/anchor`.
@@ -849,10 +958,19 @@ struct EnrollAnchorBody {
 
 /// Capture one guided anchor against a baseline. Blocks for the capture
 /// duration, then returns the gate verdict (accept/reject + progress).
-async fn enroll_anchor(State(st): State<ApiState>, Json(b): Json<EnrollAnchorBody>) -> impl IntoResponse {
+async fn enroll_anchor(
+    State(st): State<ApiState>,
+    Json(b): Json<EnrollAnchorBody>,
+) -> impl IntoResponse {
     let label = match AnchorLabel::from_str(&b.label) {
         Some(l) => l,
-        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": format!("unknown anchor label {:?}", b.label)}))).into_response(),
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": format!("unknown anchor label {:?}", b.label)})),
+            )
+                .into_response()
+        }
     };
     let duration_s = b.duration_s.unwrap_or_else(|| label.duration_s());
     let (tx, rx) = oneshot::channel();
@@ -864,12 +982,20 @@ async fn enroll_anchor(State(st): State<ApiState>, Json(b): Json<EnrollAnchorBod
         reply: tx,
     };
     if st.cmd_tx.send(cmd).await.is_err() {
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":"ingest task unavailable"}))).into_response();
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error":"ingest task unavailable"})),
+        )
+            .into_response();
     }
     match rx.await {
         Ok(Ok(v)) => (StatusCode::OK, Json(serde_json::to_value(v).unwrap())).into_response(),
         Ok(Err(e)) => (StatusCode::CONFLICT, Json(serde_json::json!({"error": e}))).into_response(),
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":"no reply"}))).into_response(),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error":"no reply"})),
+        )
+            .into_response(),
     }
 }
 
@@ -880,11 +1006,17 @@ struct EnrollStatusQuery {
 }
 
 /// Enrollment progress for a room.
-async fn enroll_status(State(st): State<ApiState>, Query(q): Query<EnrollStatusQuery>) -> impl IntoResponse {
+async fn enroll_status(
+    State(st): State<ApiState>,
+    Query(q): Query<EnrollStatusQuery>,
+) -> impl IntoResponse {
     let map = st.enroll.read().await;
     let (accepted, baseline_id): (Vec<String>, String) = match map.get(&q.room) {
         Some(re) => (
-            re.anchors.iter().map(|a| a.label.as_str().to_string()).collect(),
+            re.anchors
+                .iter()
+                .map(|a| a.label.as_str().to_string())
+                .collect(),
             re.baseline_id.clone(),
         ),
         None => (Vec::new(), String::new()),
@@ -915,7 +1047,10 @@ struct RoomStateQuery {
 }
 
 /// Live mixture-of-specialists readout over the current CSI window.
-async fn room_state(State(st): State<ApiState>, Query(q): Query<RoomStateQuery>) -> impl IntoResponse {
+async fn room_state(
+    State(st): State<ApiState>,
+    Query(q): Query<RoomStateQuery>,
+) -> impl IntoResponse {
     // Resolve the bank as a sanitized name under output_dir — no arbitrary file read.
     let name = sanitize_room_id(&q.bank);
     let dir = { st.status.read().await.output_dir.clone() };
@@ -923,17 +1058,31 @@ async fn room_state(State(st): State<ApiState>, Query(q): Query<RoomStateQuery>)
     let raw = match tokio::fs::read_to_string(&path).await {
         Ok(r) => r,
         Err(e) => {
-            return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": format!("bank '{name}' not found: {e}")}))).into_response();
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({"error": format!("bank '{name}' not found: {e}")})),
+            )
+                .into_response();
         }
     };
     let bank = match SpecialistBank::from_json(&raw) {
         Ok(b) => b,
-        Err(e) => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": format!("invalid bank: {e}")}))).into_response(),
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": format!("invalid bank: {e}")})),
+            )
+                .into_response()
+        }
     };
 
     let series: Vec<f32> = { st.window.read().await.iter().copied().collect() };
     if series.len() < 32 {
-        return (StatusCode::OK, Json(serde_json::json!({"state":"warming_up","frames":series.len()}))).into_response();
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({"state":"warming_up","frames":series.len()})),
+        )
+            .into_response();
     }
     let fs = q.fs.unwrap_or(st.fs_hz);
     let features = Features::from_series(&series, fs);
@@ -975,7 +1124,9 @@ fn session_snapshot(sess: &ActiveSession, state: &str, note: Option<String>) -> 
     };
     let elapsed = sess.started.elapsed().as_secs_f32();
     let eta = if frames == 0 {
-        sess.deadline.saturating_duration_since(Instant::now()).as_secs_f32()
+        sess.deadline
+            .saturating_duration_since(Instant::now())
+            .as_secs_f32()
     } else {
         let per = elapsed / frames as f32;
         (per * (sess.target_frames.saturating_sub(frames)) as f32).max(0.0)
@@ -1034,7 +1185,8 @@ mod tests {
 
     #[test]
     fn start_params_partial_json() {
-        let p: StartParams = serde_json::from_str(r#"{"room_id":"living-room","tier":"he20"}"#).unwrap();
+        let p: StartParams =
+            serde_json::from_str(r#"{"room_id":"living-room","tier":"he20"}"#).unwrap();
         assert_eq!(p.room_id.as_deref(), Some("living-room"));
         assert_eq!(p.tier.as_deref(), Some("he20"));
         assert_eq!(p.duration_s, 30); // default applied
@@ -1081,11 +1233,19 @@ mod tests {
         let enroll = Arc::new(RwLock::new(HashMap::<String, RoomEnroll>::new()));
         // Tested handlers never use cmd_tx; drop the receiver.
         drop(_rx);
-        ApiState { cmd_tx, status, window, fs_hz: 15.0, enroll }
+        ApiState {
+            cmd_tx,
+            status,
+            window,
+            fs_hz: 15.0,
+            enroll,
+        }
     }
 
     async fn req(app: Router, method: &str, uri: &str, body: Option<&str>) -> StatusCode {
-        let b = body.map(|s| Body::from(s.to_string())).unwrap_or_else(Body::empty);
+        let b = body
+            .map(|s| Body::from(s.to_string()))
+            .unwrap_or_else(Body::empty);
         let r = Request::builder()
             .method(method)
             .uri(uri)
@@ -1100,7 +1260,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let app = build_router(test_state(dir.path().to_str().unwrap()));
         assert_eq!(req(app.clone(), "GET", "/", None).await, StatusCode::OK);
-        assert_eq!(req(app, "GET", "/api/v1/calibration/health", None).await, StatusCode::OK);
+        assert_eq!(
+            req(app, "GET", "/api/v1/calibration/health", None).await,
+            StatusCode::OK
+        );
     }
 
     #[tokio::test]
@@ -1121,21 +1284,39 @@ mod tests {
             {"room_id":"t","label":"empty","features":{"mean":1.0,"variance":1.0,"motion":0.1,"breathing_score":0.0,"breathing_hz":0.0,"heart_score":0.0,"heart_hz":0.0}},
             {"room_id":"t","label":"stand_still","features":{"mean":1.0,"variance":10.0,"motion":0.2,"breathing_score":0.0,"breathing_hz":0.0,"heart_score":0.0,"heart_hz":0.0}}
         ]}"#;
-        assert_eq!(req(app.clone(), "POST", "/api/v1/room/train", Some(body)).await, StatusCode::OK);
+        assert_eq!(
+            req(app.clone(), "POST", "/api/v1/room/train", Some(body)).await,
+            StatusCode::OK
+        );
         assert!(dir.path().join("t.json").exists(), "bank file written");
 
         // GET /room/state?bank=t → 200 (trained bank loaded, window present).
-        assert_eq!(req(app.clone(), "GET", "/api/v1/room/state?bank=t", None).await, StatusCode::OK);
+        assert_eq!(
+            req(app.clone(), "GET", "/api/v1/room/state?bank=t", None).await,
+            StatusCode::OK
+        );
 
         // Path-traversal: ?bank=../../etc/passwd is sanitized → NOT_FOUND, never reads outside dir.
         assert_eq!(
-            req(app.clone(), "GET", "/api/v1/room/state?bank=../../etc/passwd", None).await,
+            req(
+                app.clone(),
+                "GET",
+                "/api/v1/room/state?bank=../../etc/passwd",
+                None
+            )
+            .await,
             StatusCode::NOT_FOUND
         );
 
         // Train with no anchors and nothing enrolled → 400.
         assert_eq!(
-            req(app, "POST", "/api/v1/room/train", Some(r#"{"room_id":"none","baseline_id":"b","anchors":[]}"#)).await,
+            req(
+                app,
+                "POST",
+                "/api/v1/room/train",
+                Some(r#"{"room_id":"none","baseline_id":"b","anchors":[]}"#)
+            )
+            .await,
             StatusCode::BAD_REQUEST
         );
     }
@@ -1161,7 +1342,10 @@ mod tests {
             r#"{{"room_id":"g1","baseline_id":"b","anchors":{anchors},
                 "geometry":[{{"node_id":1,"position":{{"x_m":0.0,"y_m":0.0,"z_m":1.0}},"method":"tape-measure"}},{{"node_id":2}}]}}"#
         );
-        assert_eq!(req(app.clone(), "POST", "/api/v1/room/train", Some(&body)).await, StatusCode::OK);
+        assert_eq!(
+            req(app.clone(), "POST", "/api/v1/room/train", Some(&body)).await,
+            StatusCode::OK
+        );
         let bank = load_bank("g1");
         assert_eq!(bank.geometry.len(), 2);
         assert_eq!(bank.geometry[0].method, "tape-measure");
@@ -1169,26 +1353,46 @@ mod tests {
 
         // (2) geometry recorded via /enroll/geometry; train body omits it.
         assert_eq!(
-            req(app.clone(), "POST", "/api/v1/enroll/geometry",
-                Some(r#"{"room_id":"g2","geometry":[{"node_id":7,"method":"floor-plan"}]}"#)).await,
+            req(
+                app.clone(),
+                "POST",
+                "/api/v1/enroll/geometry",
+                Some(r#"{"room_id":"g2","geometry":[{"node_id":7,"method":"floor-plan"}]}"#)
+            )
+            .await,
             StatusCode::OK
         );
         let body2 = format!(r#"{{"room_id":"g2","baseline_id":"b","anchors":{anchors}}}"#);
-        assert_eq!(req(app.clone(), "POST", "/api/v1/room/train", Some(&body2)).await, StatusCode::OK);
+        assert_eq!(
+            req(app.clone(), "POST", "/api/v1/room/train", Some(&body2)).await,
+            StatusCode::OK
+        );
         let bank2 = load_bank("g2");
         assert_eq!(bank2.geometry.len(), 1);
         assert_eq!(bank2.geometry[0].node_id, 7);
 
         // (3) no geometry anywhere → valid geometry-free bank (note logged).
         let body3 = format!(r#"{{"room_id":"g3","baseline_id":"b","anchors":{anchors}}}"#);
-        assert_eq!(req(app.clone(), "POST", "/api/v1/room/train", Some(&body3)).await, StatusCode::OK);
+        assert_eq!(
+            req(app.clone(), "POST", "/api/v1/room/train", Some(&body3)).await,
+            StatusCode::OK
+        );
         let bank3 = load_bank("g3");
         assert!(bank3.geometry.is_empty());
-        assert!(bank3.presence.is_some(), "bank still trains without geometry");
+        assert!(
+            bank3.presence.is_some(),
+            "bank still trains without geometry"
+        );
 
         // (4) empty geometry array is rejected.
         assert_eq!(
-            req(app, "POST", "/api/v1/enroll/geometry", Some(r#"{"room_id":"g4","geometry":[]}"#)).await,
+            req(
+                app,
+                "POST",
+                "/api/v1/enroll/geometry",
+                Some(r#"{"room_id":"g4","geometry":[]}"#)
+            )
+            .await,
             StatusCode::BAD_REQUEST
         );
     }
@@ -1198,10 +1402,19 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let app = build_router(test_state(dir.path().to_str().unwrap()));
         // No enrollment yet → 200 with next=empty.
-        assert_eq!(req(app.clone(), "GET", "/api/v1/enroll/status?room=x", None).await, StatusCode::OK);
+        assert_eq!(
+            req(app.clone(), "GET", "/api/v1/enroll/status?room=x", None).await,
+            StatusCode::OK
+        );
         // Unknown anchor label → 400.
         assert_eq!(
-            req(app, "POST", "/api/v1/enroll/anchor", Some(r#"{"room_id":"x","baseline":"b","label":"nope"}"#)).await,
+            req(
+                app,
+                "POST",
+                "/api/v1/enroll/anchor",
+                Some(r#"{"room_id":"x","baseline":"b","label":"nope"}"#)
+            )
+            .await,
             StatusCode::BAD_REQUEST
         );
     }

@@ -78,7 +78,6 @@ pub struct PluginManifest {
     pub requirements: Vec<String>,
 
     // ── [HOMECORE] fields ──────────────────────────────────────────────────
-
     /// [HOMECORE] Relative path to the `.wasm` binary (absent for native plugins).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wasm_module: Option<String>,
@@ -136,8 +135,8 @@ impl PluginManifest {
     ///
     /// Required fields: `domain`, `name`, `version`.
     pub fn parse_json(s: &str) -> Result<Self, PluginError> {
-        let m: Self = serde_json::from_str(s)
-            .map_err(|e| PluginError::InvalidManifest(e.to_string()))?;
+        let m: Self =
+            serde_json::from_str(s).map_err(|e| PluginError::InvalidManifest(e.to_string()))?;
         m.validate()?;
         Ok(m)
     }

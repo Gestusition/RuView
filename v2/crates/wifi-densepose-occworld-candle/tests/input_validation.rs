@@ -12,8 +12,8 @@
 
 use candle_core::{DType, Device, Tensor};
 use wifi_densepose_occworld_candle::config::OccWorldConfig;
-use wifi_densepose_occworld_candle::inference::OccWorldCandle;
 use wifi_densepose_occworld_candle::error::OccWorldError;
+use wifi_densepose_occworld_candle::inference::OccWorldCandle;
 
 fn small_cfg() -> OccWorldConfig {
     OccWorldConfig {
@@ -126,7 +126,13 @@ fn predict_rejects_wrong_grid_dims() {
     let cfg = small_cfg();
     let engine = OccWorldCandle::dummy(cfg.clone(), device.clone()).unwrap();
     let past = Tensor::zeros(
-        (1usize, cfg.num_frames, cfg.grid_h + 1, cfg.grid_w, cfg.grid_d),
+        (
+            1usize,
+            cfg.num_frames,
+            cfg.grid_h + 1,
+            cfg.grid_w,
+            cfg.grid_d,
+        ),
         DType::U8,
         &device,
     )

@@ -91,13 +91,9 @@ pub enum Trigger {
         below: Option<f64>,
     },
     /// Fires at a specific time of day (HH:MM:SS).
-    Time {
-        at: String,
-    },
+    Time { at: String },
     /// Fires when a named domain event is published on the event bus.
-    Event {
-        event_type: String,
-    },
+    Event { event_type: String },
 }
 
 impl Trigger {
@@ -105,26 +101,42 @@ impl Trigger {
     /// context? Used directly in tests and by the engine's event loop.
     pub fn matches_sync(&self, ctx: &TriggerContext) -> bool {
         match self {
-            Trigger::State { entity_id, from, to } => {
+            Trigger::State {
+                entity_id,
+                from,
+                to,
+            } => {
                 let eid_match = ctx.entity_id.as_ref().map_or(false, |e| e == entity_id);
                 if !eid_match {
                     return false;
                 }
                 if let Some(expected_from) = from {
-                    let actual_from = ctx.from_state.as_ref().map(|s| s.state.as_str()).unwrap_or("unavailable");
+                    let actual_from = ctx
+                        .from_state
+                        .as_ref()
+                        .map(|s| s.state.as_str())
+                        .unwrap_or("unavailable");
                     if actual_from != expected_from.as_str() {
                         return false;
                     }
                 }
                 if let Some(expected_to) = to {
-                    let actual_to = ctx.to_state.as_ref().map(|s| s.state.as_str()).unwrap_or("unavailable");
+                    let actual_to = ctx
+                        .to_state
+                        .as_ref()
+                        .map(|s| s.state.as_str())
+                        .unwrap_or("unavailable");
                     if actual_to != expected_to.as_str() {
                         return false;
                     }
                 }
                 true
             }
-            Trigger::NumericState { entity_id, above, below } => {
+            Trigger::NumericState {
+                entity_id,
+                above,
+                below,
+            } => {
                 let eid_match = ctx.entity_id.as_ref().map_or(false, |e| e == entity_id);
                 if !eid_match {
                     return false;
@@ -158,9 +170,7 @@ impl Trigger {
                 // `Time` on the state-change path by design.
                 false
             }
-            Trigger::Event { event_type } => {
-                ctx.event_type.as_deref() == Some(event_type.as_str())
-            }
+            Trigger::Event { event_type } => ctx.event_type.as_deref() == Some(event_type.as_str()),
         }
     }
 }
@@ -278,14 +288,18 @@ mod tests {
 
     #[test]
     fn event_trigger_matches_type() {
-        let trigger = Trigger::Event { event_type: "my_custom_event".into() };
+        let trigger = Trigger::Event {
+            event_type: "my_custom_event".into(),
+        };
         let ctx = TriggerContext::event("my_custom_event");
         assert!(trigger.matches_sync(&ctx));
     }
 
     #[test]
     fn event_trigger_no_match_wrong_type() {
-        let trigger = Trigger::Event { event_type: "my_custom_event".into() };
+        let trigger = Trigger::Event {
+            event_type: "my_custom_event".into(),
+        };
         let ctx = TriggerContext::event("other_event");
         assert!(!trigger.matches_sync(&ctx));
     }

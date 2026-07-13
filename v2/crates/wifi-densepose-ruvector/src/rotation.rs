@@ -321,7 +321,9 @@ mod tests {
         // coordinates ARE the whole transform, so norm is preserved exactly
         // (to fp tolerance). We test a power-of-two dim for the exact claim.
         let r = Rotation::new(42, 128);
-        let x: Vec<f32> = (0..128).map(|i| ((i * 7 % 13) as f32 - 6.0) * 0.5).collect();
+        let x: Vec<f32> = (0..128)
+            .map(|i| ((i * 7 % 13) as f32 - 6.0) * 0.5)
+            .collect();
         let y = r.apply(&x);
         let before = l2(&x);
         let after = l2(&y);

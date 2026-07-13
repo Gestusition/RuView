@@ -815,7 +815,11 @@ mod tests {
         assert_eq!(top.len(), k);
         let ids: Vec<u32> = top.iter().map(|&(id, _)| id).collect();
         let dists: Vec<u32> = top.iter().map(|&(_, d)| d).collect();
-        assert_eq!(ids, vec![0, 1, 2, 3], "topk must return the NEAREST k, got {ids:?}");
+        assert_eq!(
+            ids,
+            vec![0, 1, 2, 3],
+            "topk must return the NEAREST k, got {ids:?}"
+        );
         assert_eq!(dists, vec![0, 1, 2, 3], "distances must be the smallest k");
     }
 
@@ -1050,7 +1054,11 @@ mod tests {
         let v: Vec<f32> = (0..96).map(|i| ((i * 5 % 11) as f32 - 5.0) * 0.3).collect();
         let s1 = Sketch::from_embedding_rotated(&v, 1, &Rotation::new(7, 96));
         let s2 = Sketch::from_embedding_rotated(&v, 1, &Rotation::new(7, 96));
-        assert_eq!(s1.distance_unchecked(&s2), 0, "same seed must agree exactly");
+        assert_eq!(
+            s1.distance_unchecked(&s2),
+            0,
+            "same seed must agree exactly"
+        );
     }
 
     #[test]
@@ -1065,7 +1073,10 @@ mod tests {
         let top = bank.topk_embedding(&v, 1, 1).unwrap();
         assert_eq!(top.len(), 1);
         assert_eq!(top[0].0, 42);
-        assert_eq!(top[0].1, 0, "self-query in a rotated bank must be distance 0");
+        assert_eq!(
+            top[0].1, 0,
+            "self-query in a rotated bank must be distance 0"
+        );
     }
 
     #[test]
@@ -1099,9 +1110,7 @@ mod tests {
         use crate::coverage::{measure_pass1, measure_pass2, CoverageParams};
         let base = CoverageParams::aether_default(0xAD00_0084);
         let rot_seed = 0x5EED_C0DE_1234_5678u64;
-        println!(
-            "\n=== ADR-156 §8 RaBitQ Pass-2 coverage report (anisotropic synthetic) ==="
-        );
+        println!("\n=== ADR-156 §8 RaBitQ Pass-2 coverage report (anisotropic synthetic) ===");
         println!(
             "dim={} N={} K={} queries={} master_seed=0x{:X} rotation_seed=0x{:X}",
             base.dim, base.n, base.k, base.n_queries, base.seed, rot_seed

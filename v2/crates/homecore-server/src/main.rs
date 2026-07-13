@@ -25,8 +25,8 @@ use anyhow::Result;
 use clap::Parser;
 use tracing::{info, warn};
 
-use homecore::{Context, EntityId, HomeCore, ServiceCall, ServiceError, ServiceName};
 use homecore::service::FnHandler;
+use homecore::{Context, EntityId, HomeCore, ServiceCall, ServiceError, ServiceName};
 use homecore_api::{build_cors_layer, router, LongLivedTokenStore, SharedState};
 use homecore_assist::pipeline::default_pipeline;
 use homecore_assist::RegexIntentRecognizer;
@@ -71,7 +71,11 @@ struct Cli {
     calibration_token: Option<String>,
 
     /// COG install directory the gateway's supervisor reads (ADR-131 §11.6).
-    #[arg(long, env = "HOMECORE_APPS_DIR", default_value = "/var/lib/ruview/apps")]
+    #[arg(
+        long,
+        env = "HOMECORE_APPS_DIR",
+        default_value = "/var/lib/ruview/apps"
+    )]
     apps_dir: String,
 
     /// Per-upstream proxy timeout in milliseconds (ADR-131 §11.1).
@@ -102,8 +106,10 @@ async fn main() -> Result<()> {
     init_tracing();
     let cli = Cli::parse();
 
-    info!("HOMECORE booting — bind={}, db={}, location={:?}",
-          cli.bind, cli.db, cli.location_name);
+    info!(
+        "HOMECORE booting — bind={}, db={}, location={:?}",
+        cli.bind, cli.db, cli.location_name
+    );
 
     // ── 1. HomeCore runtime ─────────────────────────────────────────
     let hc = HomeCore::new();
@@ -140,7 +146,10 @@ async fn main() -> Result<()> {
                         }
                     }
                 });
-                info!("Recorder open at {} — state_changed events being persisted", cli.db);
+                info!(
+                    "Recorder open at {} — state_changed events being persisted",
+                    cli.db
+                );
             }
             Err(e) => {
                 warn!("Recorder failed to open ({e}) — continuing without persistence");
@@ -153,7 +162,9 @@ async fn main() -> Result<()> {
     // ── 3. Plugin runtime ───────────────────────────────────────────
     let plugin_runtime = InProcessRuntime;
     let plugin_registry: PluginRegistry<InProcessRuntime> = PluginRegistry::new(plugin_runtime);
-    info!("Plugin registry ready (runtime: InProcess; Wasmtime available with --features wasmtime)");
+    info!(
+        "Plugin registry ready (runtime: InProcess; Wasmtime available with --features wasmtime)"
+    );
     let _ = plugin_registry; // wired-but-empty at boot; integrations register here
 
     // ── 4. Automation engine ────────────────────────────────────────
@@ -187,7 +198,10 @@ async fn main() -> Result<()> {
         device_id: "AA:BB:CC:DD:EE:FF".to_string(),
     };
     let hap_bridge = HapBridge::new(hap_record);
-    info!("HAP bridge surface ready ({} accessories registered)", hap_bridge.running_accessories().len());
+    info!(
+        "HAP bridge surface ready ({} accessories registered)",
+        hap_bridge.running_accessories().len()
+    );
     let _ = hap_bridge;
 
     // ── 7. REST + WS API ────────────────────────────────────────────
@@ -195,10 +209,16 @@ async fn main() -> Result<()> {
     // HOMECORE_TOKENS is set in the env, populate the store from
     // its comma-separated list. Otherwise fall back to DEV mode
     // (warn-on-each-request) so existing smoke tests still work.
-    let tokens = if std::env::var("HOMECORE_TOKENS").map(|v| !v.trim().is_empty()).unwrap_or(false) {
+    let tokens = if std::env::var("HOMECORE_TOKENS")
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false)
+    {
         let s = LongLivedTokenStore::from_env();
         let n = s.len().await;
-        info!("LongLivedTokenStore provisioned with {} bearer token(s) from HOMECORE_TOKENS", n);
+        info!(
+            "LongLivedTokenStore provisioned with {} bearer token(s) from HOMECORE_TOKENS",
+            n
+        );
         s
     } else {
         warn!("HOMECORE_TOKENS not set — token store in DEV mode (any non-empty bearer accepted). Provision real tokens before exposing to the network.");
@@ -233,13 +253,19 @@ async fn main() -> Result<()> {
         .layer(build_cors_layer())
         .layer(TraceLayer::new_for_http());
     let listener = tokio::net::TcpListener::bind(cli.bind).await?;
-    info!("HOMECORE-API listening on http://{} (HA-compat /api + /api/websocket)", cli.bind);
+    info!(
+        "HOMECORE-API listening on http://{} (HA-compat /api + /api/websocket)",
+        cli.bind
+    );
     info!(
         "HOMECORE BFF gateway active: /api/homecore/* + /api/cal/* (calibration_url={:?})",
         cli.calibration_url
     );
     if !cli.ui_dir.trim().is_empty() {
-        info!("HOMECORE-UI (ADR-131) served at http://{}/homecore/ from {}", cli.bind, cli.ui_dir);
+        info!(
+            "HOMECORE-UI (ADR-131) served at http://{}/homecore/ from {}",
+            cli.bind, cli.ui_dir
+        );
     } else {
         info!("HOMECORE-UI mount disabled (--ui-dir empty)");
     }
@@ -266,8 +292,9 @@ fn build_app(api_state: SharedState, ui_dir: &str) -> Router {
 fn init_tracing() {
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,homecore=debug,homecore_server=debug,tower_http=info".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                "info,homecore=debug,homecore_server=debug,tower_http=info".into()
+            }),
         )
         .init();
 }
@@ -282,13 +309,15 @@ fn init_tracing() {
 /// domain so operators can see HOMECORE-native services distinguished
 /// from the HA-compat ones.
 async fn seed_default_services(hc: &HomeCore) {
-    let echo = || FnHandler(|call: ServiceCall| async move {
-        Ok(serde_json::json!({
-            "called": format!("{}.{}", call.name.domain, call.name.service),
-            "service_data": call.data,
-            "acknowledged": true,
-        }))
-    });
+    let echo = || {
+        FnHandler(|call: ServiceCall| async move {
+            Ok(serde_json::json!({
+                "called": format!("{}.{}", call.name.domain, call.name.service),
+                "service_data": call.data,
+                "acknowledged": true,
+            }))
+        })
+    };
 
     let svcs = [
         // Conventional HA wire-compat services
@@ -315,7 +344,10 @@ async fn seed_default_services(hc: &HomeCore) {
     }
 
     let count = hc.services().registered_services().await.len();
-    let _ = ServiceError::NotRegistered { domain: String::new(), service: String::new() };
+    let _ = ServiceError::NotRegistered {
+        domain: String::new(),
+        service: String::new(),
+    };
     info!("Service registry seeded with {} default service(s)", count);
 }
 
@@ -325,45 +357,85 @@ async fn seed_default_services(hc: &HomeCore) {
 /// they stay in sync.
 fn seed_default_entities(hc: &HomeCore) {
     let entities: Vec<(&str, &str, serde_json::Value)> = vec![
-        ("sensor.living_room_presence", "false", serde_json::json!({
-            "friendly_name": "Living Room Presence", "device_class": "occupancy",
-            "source": "RuView ESP32-C6 BFLD"
-        })),
-        ("sensor.living_room_motion_score", "0.0", serde_json::json!({
-            "friendly_name": "Living Room Motion Score", "unit_of_measurement": "score",
-            "icon": "mdi:motion-sensor"
-        })),
-        ("sensor.bedroom_breathing_rate", "14.5", serde_json::json!({
-            "friendly_name": "Bedroom Breathing Rate", "unit_of_measurement": "BPM",
-            "device_class": "frequency", "source": "Seeed MR60BHA2 mmWave"
-        })),
-        ("sensor.bedroom_heart_rate", "68.0", serde_json::json!({
-            "friendly_name": "Bedroom Heart Rate", "unit_of_measurement": "BPM",
-            "device_class": "frequency", "source": "Seeed MR60BHA2 mmWave"
-        })),
-        ("light.kitchen_ceiling", "on", serde_json::json!({
-            "friendly_name": "Kitchen Ceiling", "brightness": 230,
-            "color_temp_kelvin": 4000, "supported_color_modes": ["color_temp"]
-        })),
-        ("light.living_room_lamp", "off", serde_json::json!({
-            "friendly_name": "Living Room Lamp", "brightness": 0,
-            "supported_color_modes": ["brightness"]
-        })),
-        ("switch.coffee_maker", "off", serde_json::json!({
-            "friendly_name": "Coffee Maker", "device_class": "outlet"
-        })),
-        ("binary_sensor.front_door", "off", serde_json::json!({
-            "friendly_name": "Front Door", "device_class": "door"
-        })),
-        ("climate.thermostat", "heat", serde_json::json!({
-            "friendly_name": "Thermostat", "current_temperature": 21.5,
-            "temperature": 22.0, "hvac_modes": ["off", "heat", "cool", "auto"],
-            "supported_features": 387
-        })),
-        ("sensor.air_quality_index", "42", serde_json::json!({
-            "friendly_name": "Air Quality Index", "unit_of_measurement": "AQI",
-            "device_class": "aqi"
-        })),
+        (
+            "sensor.living_room_presence",
+            "false",
+            serde_json::json!({
+                "friendly_name": "Living Room Presence", "device_class": "occupancy",
+                "source": "RuView ESP32-C6 BFLD"
+            }),
+        ),
+        (
+            "sensor.living_room_motion_score",
+            "0.0",
+            serde_json::json!({
+                "friendly_name": "Living Room Motion Score", "unit_of_measurement": "score",
+                "icon": "mdi:motion-sensor"
+            }),
+        ),
+        (
+            "sensor.bedroom_breathing_rate",
+            "14.5",
+            serde_json::json!({
+                "friendly_name": "Bedroom Breathing Rate", "unit_of_measurement": "BPM",
+                "device_class": "frequency", "source": "Seeed MR60BHA2 mmWave"
+            }),
+        ),
+        (
+            "sensor.bedroom_heart_rate",
+            "68.0",
+            serde_json::json!({
+                "friendly_name": "Bedroom Heart Rate", "unit_of_measurement": "BPM",
+                "device_class": "frequency", "source": "Seeed MR60BHA2 mmWave"
+            }),
+        ),
+        (
+            "light.kitchen_ceiling",
+            "on",
+            serde_json::json!({
+                "friendly_name": "Kitchen Ceiling", "brightness": 230,
+                "color_temp_kelvin": 4000, "supported_color_modes": ["color_temp"]
+            }),
+        ),
+        (
+            "light.living_room_lamp",
+            "off",
+            serde_json::json!({
+                "friendly_name": "Living Room Lamp", "brightness": 0,
+                "supported_color_modes": ["brightness"]
+            }),
+        ),
+        (
+            "switch.coffee_maker",
+            "off",
+            serde_json::json!({
+                "friendly_name": "Coffee Maker", "device_class": "outlet"
+            }),
+        ),
+        (
+            "binary_sensor.front_door",
+            "off",
+            serde_json::json!({
+                "friendly_name": "Front Door", "device_class": "door"
+            }),
+        ),
+        (
+            "climate.thermostat",
+            "heat",
+            serde_json::json!({
+                "friendly_name": "Thermostat", "current_temperature": 21.5,
+                "temperature": 22.0, "hvac_modes": ["off", "heat", "cool", "auto"],
+                "supported_features": 387
+            }),
+        ),
+        (
+            "sensor.air_quality_index",
+            "42",
+            serde_json::json!({
+                "friendly_name": "Air Quality Index", "unit_of_measurement": "AQI",
+                "device_class": "aqi"
+            }),
+        ),
     ];
 
     for (id, state, attrs) in entities {
@@ -381,8 +453,11 @@ fn seed_default_entities(hc: &HomeCore) {
         context: Context::new(),
     };
     let total = hc.states().all().len();
-    info!("State machine seeded with {} default entit{}", total,
-          if total == 1 { "y" } else { "ies" });
+    info!(
+        "State machine seeded with {} default entit{}",
+        total,
+        if total == 1 { "y" } else { "ies" }
+    );
 }
 
 #[cfg(test)]
@@ -419,9 +494,19 @@ mod ui_tests {
     async fn ui_index_is_served_at_homecore() {
         let app = build_app(test_state(), DEFAULT_UI_DIR);
         let (status, body) = get(app, "/homecore/").await;
-        assert_eq!(status, StatusCode::OK, "GET /homecore/ should serve index.html");
-        assert!(body.contains("HOMECORE"), "index.html should mention HOMECORE");
-        assert!(body.contains("./js/app.js"), "index.html should bootstrap app.js");
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "GET /homecore/ should serve index.html"
+        );
+        assert!(
+            body.contains("HOMECORE"),
+            "index.html should mention HOMECORE"
+        );
+        assert!(
+            body.contains("./js/app.js"),
+            "index.html should bootstrap app.js"
+        );
     }
 
     #[tokio::test]
@@ -437,8 +522,18 @@ mod ui_tests {
     #[tokio::test]
     async fn ui_panels_are_served() {
         let app = build_app(test_state(), DEFAULT_UI_DIR);
-        for p in ["dashboard", "rooms", "calibration", "fleet", "seed-detail",
-                  "entities", "cogs", "events", "audit", "settings"] {
+        for p in [
+            "dashboard",
+            "rooms",
+            "calibration",
+            "fleet",
+            "seed-detail",
+            "entities",
+            "cogs",
+            "events",
+            "audit",
+            "settings",
+        ] {
             let (status, _) = get(app.clone(), &format!("/homecore/js/panels/{p}.js")).await;
             assert_eq!(status, StatusCode::OK, "panel {p}.js should be served");
         }
@@ -459,9 +554,15 @@ mod ui_tests {
             .await
             .unwrap();
         let status = resp.status();
-        let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20).await.unwrap();
+        let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20)
+            .await
+            .unwrap();
         let body = String::from_utf8_lossy(&bytes);
-        assert_eq!(status, StatusCode::OK, "the HA-compat API must coexist with the UI mount");
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "the HA-compat API must coexist with the UI mount"
+        );
         assert!(body.contains("API running"));
     }
 
@@ -469,7 +570,11 @@ mod ui_tests {
     async fn ui_mount_can_be_disabled() {
         let app = build_app(test_state(), "");
         let (status, _) = get(app, "/homecore/").await;
-        assert_eq!(status, StatusCode::NOT_FOUND, "empty --ui-dir disables the mount");
+        assert_eq!(
+            status,
+            StatusCode::NOT_FOUND,
+            "empty --ui-dir disables the mount"
+        );
     }
 
     /// Build the SAME merged + layered surface `main()` serves: API + UI mount

@@ -28,10 +28,7 @@ impl PrivacyGate {
     ///
     /// Returns [`BfldError::InvalidDemote`] when `target` would *increase*
     /// the information density (lower class number than the source).
-    pub fn demote(
-        mut frame: BfldFrame,
-        target: PrivacyClass,
-    ) -> Result<BfldFrame, BfldError> {
+    pub fn demote(mut frame: BfldFrame, target: PrivacyClass) -> Result<BfldFrame, BfldError> {
         let current = PrivacyClass::try_from(frame.header.privacy_class)?;
         if target.as_u8() < current.as_u8() {
             return Err(BfldError::InvalidDemote {

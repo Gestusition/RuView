@@ -69,7 +69,10 @@ mod tests {
     #[test]
     fn distinct_strings_differ() {
         assert_ne!(fnv64a_hash("on"), fnv64a_hash("off"));
-        assert_ne!(fnv64a_hash("{\"brightness\":100}"), fnv64a_hash("{\"brightness\":200}"));
+        assert_ne!(
+            fnv64a_hash("{\"brightness\":100}"),
+            fnv64a_hash("{\"brightness\":200}")
+        );
     }
 
     /// Deterministic: same input always gives same output.

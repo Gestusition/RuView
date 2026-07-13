@@ -58,11 +58,7 @@ pub fn build_cors_layer() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(AllowOrigin::list(origins))
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS, Method::DELETE])
-        .allow_headers([
-            header::AUTHORIZATION,
-            header::CONTENT_TYPE,
-            header::ACCEPT,
-        ])
+        .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE, header::ACCEPT])
         .allow_credentials(false)
 }
 
@@ -108,7 +104,10 @@ mod tests {
     #[test]
     fn env_override_via_homecore_cors_origins() {
         let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        std::env::set_var("HOMECORE_CORS_ORIGINS", "https://example.com,https://other.example.com");
+        std::env::set_var(
+            "HOMECORE_CORS_ORIGINS",
+            "https://example.com,https://other.example.com",
+        );
         // build_cors_layer() returns a CorsLayer which doesn't expose
         // its origin list; we test the parse path indirectly by
         // confirming no panic + at least one origin would parse.

@@ -113,7 +113,10 @@ fn first_call_after_pipeline_construction_is_not_pathologically_slow() {
     let _evt = pipeline.process(inputs(1_000_000), Some(embedding()));
     let first_call = start.elapsed();
 
-    eprintln!("first-call latency: {:.3}µs", first_call.as_secs_f64() * 1e6);
+    eprintln!(
+        "first-call latency: {:.3}µs",
+        first_call.as_secs_f64() * 1e6
+    );
     // First call is allowed to be slower than steady-state but still
     // bounded — 250ms catches a real warm-up bug without flaking.
     assert!(

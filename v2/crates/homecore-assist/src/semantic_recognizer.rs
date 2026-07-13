@@ -242,7 +242,10 @@ mod tests {
         // iterator `max_by` path returns None cleanly.
         let semantic = SemanticIntentRecognizer::new(RegexIntentRecognizer::new());
         let result = semantic.recognize("", "en").await.unwrap();
-        assert!(result.is_none(), "empty utterance must produce no intent / no action");
+        assert!(
+            result.is_none(),
+            "empty utterance must produce no intent / no action"
+        );
     }
 
     #[tokio::test]
@@ -257,7 +260,10 @@ mod tests {
         );
         assert!(huge.len() > crate::recognizer::MAX_UTTERANCE_BYTES);
         let result = semantic.recognize(&huge, "en").await.unwrap();
-        assert!(result.is_none(), "over-length utterance must fail closed in semantic path");
+        assert!(
+            result.is_none(),
+            "over-length utterance must fail closed in semantic path"
+        );
     }
 
     #[tokio::test]
@@ -328,7 +334,10 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(intent.is_none(), "unrelated utterance must not match any intent");
+        assert!(
+            intent.is_none(),
+            "unrelated utterance must not match any intent"
+        );
         let sim = score.expect("even a no-match reports the best similarity seen");
         assert!(
             sim < DEFAULT_SIMILARITY_THRESHOLD,
@@ -375,6 +384,9 @@ mod tests {
         let intent = intent.expect("regex fallback must catch this");
         assert_eq!(intent.name.as_str(), "HassTurnOn");
         let sim = score.expect("semantic score still reported on fallback");
-        assert!(sim < DEFAULT_SIMILARITY_THRESHOLD, "expected low sim, got {sim:.4}");
+        assert!(
+            sim < DEFAULT_SIMILARITY_THRESHOLD,
+            "expected low sim, got {sim:.4}"
+        );
     }
 }

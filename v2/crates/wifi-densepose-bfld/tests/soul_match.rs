@@ -19,9 +19,7 @@
 
 use wifi_densepose_bfld::coherence_gate::{MatchOutcome, SoulMatchOracle};
 use wifi_densepose_bfld::embedding::IdentityEmbedding;
-use wifi_densepose_bfld::soul_channels::{
-    Channel, FeatureVector, MatchWeights, SoulChannels,
-};
+use wifi_densepose_bfld::soul_channels::{Channel, FeatureVector, MatchWeights, SoulChannels};
 use wifi_densepose_bfld::soul_match::{cosine_sim, match_score, EnrolledMatcher};
 use wifi_densepose_bfld::EMBEDDING_DIM;
 
@@ -82,7 +80,10 @@ fn synthetic_respiratory(seed: u64) -> FeatureVector {
 fn synthetic_person(seed: u64) -> SoulChannels {
     SoulChannels::empty()
         .with_aether(synthetic_aether(seed))
-        .with_channel(Channel::SubcarrierReflectionProfile, synthetic_subcarrier(seed))
+        .with_channel(
+            Channel::SubcarrierReflectionProfile,
+            synthetic_subcarrier(seed),
+        )
         .with_channel(Channel::CardiacHrProfile, synthetic_cardiac(seed))
         .with_channel(Channel::RespiratoryPattern, synthetic_respiratory(seed))
 }
@@ -266,7 +267,10 @@ fn availability_normalization_with_missing_channels() {
     assert!(ms.is_defined());
     assert_eq!(ms.contributing_channels(), 1);
 
-    let expected_cos = cosine_sim(aether.as_slice(), profile.channel_slice(Channel::AetherEmbedding).unwrap());
+    let expected_cos = cosine_sim(
+        aether.as_slice(),
+        profile.channel_slice(Channel::AetherEmbedding).unwrap(),
+    );
     let score = ms.score().unwrap();
     // score == w*cos / (w*1.0) == cos
     assert!(
@@ -292,7 +296,9 @@ fn zero_norm_channel_contributes_zero_availability_no_nan() {
     let ms = match_score(&profile, &probe, &weights);
     // Zero-norm respiratory is unavailable; only AETHER contributes.
     assert_eq!(ms.contributing_channels(), 1);
-    assert!(ms.channel_contribution(Channel::RespiratoryPattern).is_none());
+    assert!(ms
+        .channel_contribution(Channel::RespiratoryPattern)
+        .is_none());
     let score = ms.score().unwrap();
     assert!(score.is_finite(), "score must never be NaN, got {score}");
 }
@@ -318,8 +324,7 @@ fn no_shared_channels_yields_insufficient_not_high_score() {
     // Profile carries only AETHER; probe carries only cardiac. No weighted
     // channel is shared => denominator 0 => undefined.
     let profile = SoulChannels::empty().with_aether(synthetic_aether(9));
-    let probe = SoulChannels::empty()
-        .with_channel(Channel::CardiacHrProfile, synthetic_cardiac(9));
+    let probe = SoulChannels::empty().with_channel(Channel::CardiacHrProfile, synthetic_cardiac(9));
 
     let ms = match_score(&profile, &probe, &weights);
     assert!(!ms.is_defined(), "no shared channels must be undefined");

@@ -55,7 +55,10 @@ fn header_serialization_is_deterministic() {
     let h = sample_header();
     let a = h.to_le_bytes();
     let b = h.to_le_bytes();
-    assert_eq!(a, b, "two serializations of the same header must be bit-identical");
+    assert_eq!(
+        a, b,
+        "two serializations of the same header must be bit-identical"
+    );
 }
 
 #[test]

@@ -9,7 +9,10 @@ fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Command::Inspect(args) => {
-            println!("Inspecting HA .storage directory: {}", args.storage.display());
+            println!(
+                "Inspecting HA .storage directory: {}",
+                args.storage.display()
+            );
             // Probe entity_registry
             let entity_path = args.storage.join("core.entity_registry");
             if entity_path.exists() {
@@ -42,31 +45,38 @@ fn main() -> anyhow::Result<()> {
 
         Command::ImportEntities(args) => {
             let entity_path = args.storage.join("core.entity_registry");
-            let entries =
-                homecore_migrate::entity_registry::read_entity_registry(&entity_path)?;
-            println!("Imported {} entity entries (P1: in-memory only)", entries.len());
+            let entries = homecore_migrate::entity_registry::read_entity_registry(&entity_path)?;
+            println!(
+                "Imported {} entity entries (P1: in-memory only)",
+                entries.len()
+            );
             println!("  Destination: {} (P2 persistence)", args.to.display());
             for e in &entries {
                 println!(
                     "  {} ({}{})",
                     e.entity_id.as_str(),
                     e.platform,
-                    if e.disabled_by.is_some() { " DISABLED" } else { "" }
+                    if e.disabled_by.is_some() {
+                        " DISABLED"
+                    } else {
+                        ""
+                    }
                 );
             }
         }
 
         Command::ImportDevices(args) => {
             let device_path = args.storage.join("core.device_registry");
-            let devices =
-                homecore_migrate::device_registry::read_device_registry(&device_path)?;
-            println!("Parsed {} device entries (P1: staging only, wiring to HOMECORE is P2)", devices.len());
+            let devices = homecore_migrate::device_registry::read_device_registry(&device_path)?;
+            println!(
+                "Parsed {} device entries (P1: staging only, wiring to HOMECORE is P2)",
+                devices.len()
+            );
         }
 
         Command::InspectConfigEntries(args) => {
             let ce_path = args.storage.join("core.config_entries");
-            let summary =
-                homecore_migrate::config_entries::inspect_config_entries(&ce_path)?;
+            let summary = homecore_migrate::config_entries::inspect_config_entries(&ce_path)?;
             println!(
                 "config_entries: {} total, domains: {}",
                 summary.count,

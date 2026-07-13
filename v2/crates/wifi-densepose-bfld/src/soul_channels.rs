@@ -93,8 +93,7 @@ impl Channel {
 /// | Skeletal_Proportions | 0.05 |
 /// | Body_Field_Coupling | 0.00 (single-room) |
 /// | Cardiac_Waveform_Morphology | 0.05 |
-pub const DEFAULT_WEIGHTS: [f32; CHANNEL_COUNT] =
-    [0.35, 0.20, 0.15, 0.15, 0.10, 0.05, 0.00, 0.05];
+pub const DEFAULT_WEIGHTS: [f32; CHANNEL_COUNT] = [0.35, 0.20, 0.15, 0.15, 0.10, 0.05, 0.00, 0.05];
 
 /// Per-channel fusion weights for the §3.6 score.
 ///
@@ -310,7 +309,10 @@ impl SoulChannels {
     /// Count of channels currently present (available).
     #[must_use]
     pub fn available_count(&self) -> usize {
-        Channel::ALL.iter().filter(|&&c| self.has_channel(c)).count()
+        Channel::ALL
+            .iter()
+            .filter(|&&c| self.has_channel(c))
+            .count()
     }
 
     fn vector_slot_mut(&mut self, channel: Channel) -> Option<&mut Option<FeatureVector>> {

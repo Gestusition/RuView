@@ -148,7 +148,12 @@ fn config_message(
     push_str_field(&mut payload, "unique_id", &unique_id, false);
     push_str_field(&mut payload, "state_topic", &state_topic, false);
     // Availability — every entity inherits the device-level offline marker.
-    push_str_field(&mut payload, "availability_topic", &availability_topic_str, false);
+    push_str_field(
+        &mut payload,
+        "availability_topic",
+        &availability_topic_str,
+        false,
+    );
     push_str_field(
         &mut payload,
         "payload_available",

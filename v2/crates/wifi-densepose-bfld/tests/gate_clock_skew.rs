@@ -45,12 +45,12 @@ fn backward_jump_after_pending_does_not_promote_prematurely() {
 fn forward_recovery_after_backward_jump_still_promotes_correctly() {
     let mut g = CoherenceGate::new();
     g.evaluate(predict_only_grade(), DEBOUNCE_NS + 100); // pending at t_old
-    g.evaluate(predict_only_grade(), 0);                  // backward jump
-    // Wall time advances past the ORIGINAL pending timestamp by DEBOUNCE_NS.
-    // Since the "since" stamp wasn't reset on the backward jump (target
-    // didn't change), the second evaluate at 0 didn't reset; the third at
-    // 2*DEBOUNCE_NS + 100 should now satisfy (2*DEBOUNCE_NS + 100) -
-    // (DEBOUNCE_NS + 100) >= DEBOUNCE_NS → promote.
+    g.evaluate(predict_only_grade(), 0); // backward jump
+                                         // Wall time advances past the ORIGINAL pending timestamp by DEBOUNCE_NS.
+                                         // Since the "since" stamp wasn't reset on the backward jump (target
+                                         // didn't change), the second evaluate at 0 didn't reset; the third at
+                                         // 2*DEBOUNCE_NS + 100 should now satisfy (2*DEBOUNCE_NS + 100) -
+                                         // (DEBOUNCE_NS + 100) >= DEBOUNCE_NS → promote.
     let after_recovery = g.evaluate(predict_only_grade(), 2 * DEBOUNCE_NS + 100);
     assert_eq!(after_recovery, GateAction::PredictOnly);
 }

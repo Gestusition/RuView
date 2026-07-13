@@ -287,7 +287,11 @@ pub struct ClockQualityGate {
 impl ClockQualityGate {
     /// Construct from a phase gate and the two clock thresholds.
     pub fn new(coherence: CoherenceGate, max_offset_stdev_us: f32, max_age_us: u64) -> Self {
-        Self { coherence, max_offset_stdev_us, max_age_us }
+        Self {
+            coherence,
+            max_offset_stdev_us,
+            max_age_us,
+        }
     }
 
     /// Defaults: phase gate 0.7/0.05, 200 µs floor, 9 s staleness ceiling.
@@ -297,19 +301,31 @@ impl ClockQualityGate {
 
     /// Evaluate both terms for one node this cycle. `coherence_value` is the
     /// rolling phasor coherence ([`CoherenceState::coherence`]).
-    pub fn evaluate(&mut self, coherence_value: f32, clock: &ClockQualityScore) -> ClockGateDecision {
+    pub fn evaluate(
+        &mut self,
+        coherence_value: f32,
+        clock: &ClockQualityScore,
+    ) -> ClockGateDecision {
         if !clock.valid {
-            return ClockGateDecision::Reject { reason: ClockRejectReason::ClockInvalid };
+            return ClockGateDecision::Reject {
+                reason: ClockRejectReason::ClockInvalid,
+            };
         }
         if clock.age_us > self.max_age_us {
-            return ClockGateDecision::Reject { reason: ClockRejectReason::ClockStale };
+            return ClockGateDecision::Reject {
+                reason: ClockRejectReason::ClockStale,
+            };
         }
         if clock.offset_stdev_us >= 5.0 * self.max_offset_stdev_us {
-            return ClockGateDecision::Reject { reason: ClockRejectReason::ClockDispersed };
+            return ClockGateDecision::Reject {
+                reason: ClockRejectReason::ClockDispersed,
+            };
         }
         // Phase term (hysteretic). Clock-degraded but coherent ⇒ MonitorOnly.
         if !self.coherence.evaluate(coherence_value) {
-            return ClockGateDecision::Reject { reason: ClockRejectReason::Incoherent };
+            return ClockGateDecision::Reject {
+                reason: ClockRejectReason::Incoherent,
+            };
         }
         if clock.offset_stdev_us >= self.max_offset_stdev_us {
             ClockGateDecision::MonitorOnly {
@@ -503,33 +519,53 @@ mod tests {
     #[test]
     fn clock_gate_invalid_rejected() {
         let mut g = ClockQualityGate::default_params();
-        let c = ClockQualityScore { offset_stdev_us: 10.0, age_us: 0, valid: false };
+        let c = ClockQualityScore {
+            offset_stdev_us: 10.0,
+            age_us: 0,
+            valid: false,
+        };
         assert_eq!(
             g.evaluate(0.9, &c),
-            ClockGateDecision::Reject { reason: ClockRejectReason::ClockInvalid }
+            ClockGateDecision::Reject {
+                reason: ClockRejectReason::ClockInvalid
+            }
         );
     }
 
     #[test]
     fn clock_gate_dispersed_rejected() {
         let mut g = ClockQualityGate::default_params(); // floor 200 → 5× = 1000 µs
-        let c = ClockQualityScore { offset_stdev_us: 1500.0, age_us: 0, valid: true };
+        let c = ClockQualityScore {
+            offset_stdev_us: 1500.0,
+            age_us: 0,
+            valid: true,
+        };
         assert_eq!(
             g.evaluate(0.9, &c),
-            ClockGateDecision::Reject { reason: ClockRejectReason::ClockDispersed }
+            ClockGateDecision::Reject {
+                reason: ClockRejectReason::ClockDispersed
+            }
         );
     }
 
     #[test]
     fn clock_gate_admit_and_monitor_and_quality() {
         let mut g = ClockQualityGate::default_params();
-        let good = ClockQualityScore { offset_stdev_us: 50.0, age_us: 0, valid: true };
+        let good = ClockQualityScore {
+            offset_stdev_us: 50.0,
+            age_us: 0,
+            valid: true,
+        };
         assert_eq!(g.evaluate(0.9, &good), ClockGateDecision::Admit);
         // quality: 1 - 50/(5*200) = 0.95
         assert!((good.quality(200.0) - 0.95).abs() < 1e-4);
 
         let mut g2 = ClockQualityGate::default_params();
-        let degraded = ClockQualityScore { offset_stdev_us: 250.0, age_us: 0, valid: true };
+        let degraded = ClockQualityScore {
+            offset_stdev_us: 250.0,
+            age_us: 0,
+            valid: true,
+        };
         assert!(matches!(
             g2.evaluate(0.9, &degraded),
             ClockGateDecision::MonitorOnly { .. }

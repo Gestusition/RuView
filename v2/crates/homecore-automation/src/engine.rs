@@ -154,7 +154,9 @@ impl AutomationEngine {
                     }
                     Err(broadcast::error::RecvError::Closed) => break,
                     Err(broadcast::error::RecvError::Lagged(n)) => {
-                        eprintln!("[homecore-automation] state-changed receiver lagged by {n} events");
+                        eprintln!(
+                            "[homecore-automation] state-changed receiver lagged by {n} events"
+                        );
                     }
                 }
             }
@@ -288,8 +290,8 @@ mod tests {
     use crate::action::Action;
     use crate::automation::Automation;
     use crate::trigger::Trigger;
-    use homecore::{Context, EntityId, HomeCore, ServiceCall, ServiceName};
     use homecore::service::FnHandler;
+    use homecore::{Context, EntityId, HomeCore, ServiceCall, ServiceName};
     use std::sync::{Arc, Mutex};
     use tokio::time::{sleep, Duration};
 
@@ -381,7 +383,11 @@ mod tests {
         );
 
         sleep(Duration::from_millis(50)).await;
-        assert_eq!(log.lock().unwrap().len(), 0, "should not fire on wrong entity");
+        assert_eq!(
+            log.lock().unwrap().len(),
+            0,
+            "should not fire on wrong entity"
+        );
     }
 
     #[tokio::test]
@@ -416,7 +422,11 @@ mod tests {
         );
 
         sleep(Duration::from_millis(50)).await;
-        assert_eq!(log.lock().unwrap().len(), 0, "disabled automation should not fire");
+        assert_eq!(
+            log.lock().unwrap().len(),
+            0,
+            "disabled automation should not fire"
+        );
     }
 
     // Behavioral tests for the timer / run-mode / template paths

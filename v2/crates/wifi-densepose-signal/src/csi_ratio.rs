@@ -218,10 +218,10 @@ mod tests {
             Complex64::from_polar(1.0, 0.3),
         ];
         let h_target = vec![
-            Complex64::new(eps, 0.0),           // exactly at the epsilon
-            Complex64::new(eps * 0.5, 0.0),     // below the epsilon
-            Complex64::new(0.0, eps),           // imaginary axis, at epsilon
-            Complex64::new(0.0, 0.0),           // exact zero — div would be inf/NaN
+            Complex64::new(eps, 0.0),       // exactly at the epsilon
+            Complex64::new(eps * 0.5, 0.0), // below the epsilon
+            Complex64::new(0.0, eps),       // imaginary axis, at epsilon
+            Complex64::new(0.0, 0.0),       // exact zero — div would be inf/NaN
         ];
 
         let ratio = conjugate_multiply(&h_ref, &h_target).unwrap();

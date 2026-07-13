@@ -665,7 +665,10 @@ fn compute_single_oks(pred: &Array2<f32>, gt: &Array2<f32>, vis: &Array1<f32>, s
     let s_sq = s * s;
     // ADR-155 §Tier-2: bound the loop to the actual array extents so adversarial
     // / short inputs (< 17 rows, mismatched vis length) cannot panic on `[j]`.
-    let n = pred.shape()[0].min(gt.shape()[0]).min(vis.len()).min(NUM_KEYPOINTS);
+    let n = pred.shape()[0]
+        .min(gt.shape()[0])
+        .min(vis.len())
+        .min(NUM_KEYPOINTS);
     let mut num = 0.0_f32;
     let mut den = 0.0_f32;
     for j in 0..n {

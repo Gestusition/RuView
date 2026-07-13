@@ -81,25 +81,58 @@ fn per_room_adapter_changes_inference_output() {
     let mut put = |k: &str, t: Tensor| {
         w.insert(k.to_string(), t);
     };
-    put("enc.c1.weight", Tensor::randn(0f32, 0.1, (64, 56, 3), &dev).unwrap());
+    put(
+        "enc.c1.weight",
+        Tensor::randn(0f32, 0.1, (64, 56, 3), &dev).unwrap(),
+    );
     put("enc.c1.bias", Tensor::zeros(64, DType::F32, &dev).unwrap());
-    put("enc.c2.weight", Tensor::randn(0f32, 0.1, (128, 64, 3), &dev).unwrap());
+    put(
+        "enc.c2.weight",
+        Tensor::randn(0f32, 0.1, (128, 64, 3), &dev).unwrap(),
+    );
     put("enc.c2.bias", Tensor::zeros(128, DType::F32, &dev).unwrap());
-    put("enc.c3.weight", Tensor::randn(0f32, 0.1, (128, 128, 3), &dev).unwrap());
+    put(
+        "enc.c3.weight",
+        Tensor::randn(0f32, 0.1, (128, 128, 3), &dev).unwrap(),
+    );
     put("enc.c3.bias", Tensor::zeros(128, DType::F32, &dev).unwrap());
-    put("head.fc1.weight", Tensor::randn(0f32, 0.1, (256, 128), &dev).unwrap());
-    put("head.fc1.bias", Tensor::zeros(256, DType::F32, &dev).unwrap());
-    put("head.fc2.weight", Tensor::randn(0f32, 0.1, (34, 256), &dev).unwrap());
-    put("head.fc2.bias", Tensor::zeros(34, DType::F32, &dev).unwrap());
+    put(
+        "head.fc1.weight",
+        Tensor::randn(0f32, 0.1, (256, 128), &dev).unwrap(),
+    );
+    put(
+        "head.fc1.bias",
+        Tensor::zeros(256, DType::F32, &dev).unwrap(),
+    );
+    put(
+        "head.fc2.weight",
+        Tensor::randn(0f32, 0.1, (34, 256), &dev).unwrap(),
+    );
+    put(
+        "head.fc2.bias",
+        Tensor::zeros(34, DType::F32, &dev).unwrap(),
+    );
     candle_core::safetensors::save(&w, &base_p).unwrap();
 
     // --- adapter: non-zero low-rank deltas on both head layers (scale baked into B) ---
     let r = 4usize;
     let mut ad: HashMap<String, Tensor> = HashMap::new();
-    ad.insert("fc1.a".into(), Tensor::randn(0f32, 0.5, (128, r), &dev).unwrap());
-    ad.insert("fc1.b".into(), Tensor::randn(0f32, 0.5, (r, 256), &dev).unwrap());
-    ad.insert("fc2.a".into(), Tensor::randn(0f32, 0.5, (256, r), &dev).unwrap());
-    ad.insert("fc2.b".into(), Tensor::randn(0f32, 0.5, (r, 34), &dev).unwrap());
+    ad.insert(
+        "fc1.a".into(),
+        Tensor::randn(0f32, 0.5, (128, r), &dev).unwrap(),
+    );
+    ad.insert(
+        "fc1.b".into(),
+        Tensor::randn(0f32, 0.5, (r, 256), &dev).unwrap(),
+    );
+    ad.insert(
+        "fc2.a".into(),
+        Tensor::randn(0f32, 0.5, (256, r), &dev).unwrap(),
+    );
+    ad.insert(
+        "fc2.b".into(),
+        Tensor::randn(0f32, 0.5, (r, 34), &dev).unwrap(),
+    );
     candle_core::safetensors::save(&ad, &adapter_p).unwrap();
 
     let base = InferenceEngine::with_weights(Some(&base_p)).expect("base load");
@@ -143,13 +176,19 @@ fn python_produced_adapter_loads_in_engine() {
         return;
     }
     let adapter = std::path::Path::new("tests/fixtures/sample_room.adapter.safetensors");
-    assert!(adapter.exists(), "committed producer-generated adapter fixture is missing");
+    assert!(
+        adapter.exists(),
+        "committed producer-generated adapter fixture is missing"
+    );
 
     let base_eng = InferenceEngine::with_weights(Some(base)).expect("base load");
-    let cal_eng =
-        InferenceEngine::with_weights_and_adapter(Some(base), Some(adapter)).expect("calibrated load");
+    let cal_eng = InferenceEngine::with_weights_and_adapter(Some(base), Some(adapter))
+        .expect("calibrated load");
     assert!(!base_eng.is_calibrated());
-    assert!(cal_eng.is_calibrated(), "engine should report calibrated with the producer adapter");
+    assert!(
+        cal_eng.is_calibrated(),
+        "engine should report calibrated with the producer adapter"
+    );
 
     // Non-zero input so the LoRA delta is exercised.
     let win = cog_pose_estimation::inference::CsiWindow {
@@ -160,8 +199,16 @@ fn python_produced_adapter_loads_in_engine() {
     let a = base_eng.infer(&win).expect("base infer");
     let b = cal_eng.infer(&win).expect("calibrated infer");
     assert!(a.is_finite() && b.is_finite());
-    let diff: f32 = a.keypoints.iter().zip(&b.keypoints).map(|(x, y)| (x - y).abs()).sum();
-    assert!(diff > 1e-4, "python-produced adapter must change engine output (sum|Δ| = {diff})");
+    let diff: f32 = a
+        .keypoints
+        .iter()
+        .zip(&b.keypoints)
+        .map(|(x, y)| (x - y).abs())
+        .sum();
+    assert!(
+        diff > 1e-4,
+        "python-produced adapter must change engine output (sum|Δ| = {diff})"
+    );
 }
 
 #[test]

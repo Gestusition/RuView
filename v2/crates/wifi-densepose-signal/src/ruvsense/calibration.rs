@@ -127,11 +127,23 @@ pub struct CalibrationConfig {
 impl CalibrationConfig {
     /// HT20 defaults: 64 FFT, 52 active, 600 frame minimum (30 s @ 20 Hz).
     pub fn ht20() -> Self {
-        Self { tier: PhyTier::Ht20, num_subcarriers: 64, num_active: 52, min_frames: DEFAULT_MIN_FRAMES, max_phase_variance: 0.3 }
+        Self {
+            tier: PhyTier::Ht20,
+            num_subcarriers: 64,
+            num_active: 52,
+            min_frames: DEFAULT_MIN_FRAMES,
+            max_phase_variance: 0.3,
+        }
     }
     /// HT40 defaults: 128 FFT, 114 active.
     pub fn ht40() -> Self {
-        Self { tier: PhyTier::Ht40, num_subcarriers: 128, num_active: 114, min_frames: DEFAULT_MIN_FRAMES, max_phase_variance: 0.3 }
+        Self {
+            tier: PhyTier::Ht40,
+            num_subcarriers: 128,
+            num_active: 114,
+            min_frames: DEFAULT_MIN_FRAMES,
+            max_phase_variance: 0.3,
+        }
     }
     /// HE20 defaults: 256 FFT, **256 active** (record all delivered bins).
     ///
@@ -152,11 +164,23 @@ impl CalibrationConfig {
     /// `cir.rs` (`HE20_ACTIVE`), where the Φ sensing matrix genuinely needs it;
     /// the baseline recorder does not.
     pub fn he20() -> Self {
-        Self { tier: PhyTier::He20, num_subcarriers: 256, num_active: 256, min_frames: DEFAULT_MIN_FRAMES, max_phase_variance: 0.3 }
+        Self {
+            tier: PhyTier::He20,
+            num_subcarriers: 256,
+            num_active: 256,
+            min_frames: DEFAULT_MIN_FRAMES,
+            max_phase_variance: 0.3,
+        }
     }
     /// HE40 defaults: 512 FFT, 484 active.
     pub fn he40() -> Self {
-        Self { tier: PhyTier::He40, num_subcarriers: 512, num_active: 484, min_frames: DEFAULT_MIN_FRAMES, max_phase_variance: 0.3 }
+        Self {
+            tier: PhyTier::He40,
+            num_subcarriers: 512,
+            num_active: 484,
+            min_frames: DEFAULT_MIN_FRAMES,
+            max_phase_variance: 0.3,
+        }
     }
 }
 
@@ -209,7 +233,13 @@ struct SubcarrierStats {
 
 impl SubcarrierStats {
     fn new() -> Self {
-        Self { amp_count: 0, amp_mean: 0.0, amp_m2: 0.0, phase_sin_sum: 0.0, phase_cos_sum: 0.0 }
+        Self {
+            amp_count: 0,
+            amp_mean: 0.0,
+            amp_m2: 0.0,
+            phase_sin_sum: 0.0,
+            phase_cos_sum: 0.0,
+        }
     }
 
     /// Welford update for amplitude; circular update for phase.
@@ -228,7 +258,11 @@ impl SubcarrierStats {
 
     /// Bessel-corrected sample variance (matches Welford convention).
     fn amp_variance(&self) -> f64 {
-        if self.amp_count < 2 { 0.0 } else { self.amp_m2 / (self.amp_count - 1) as f64 }
+        if self.amp_count < 2 {
+            0.0
+        } else {
+            self.amp_m2 / (self.amp_count - 1) as f64
+        }
     }
 
     /// Circular mean phase in `[-π, π]`.
@@ -238,9 +272,13 @@ impl SubcarrierStats {
 
     /// Von Mises dispersion `1 − R̄` in `[0, 1]`.
     fn phase_dispersion(&self) -> f64 {
-        if self.amp_count == 0 { return 1.0; }
+        if self.amp_count == 0 {
+            return 1.0;
+        }
         let n = self.amp_count as f64;
-        let r = (self.phase_sin_sum * self.phase_sin_sum + self.phase_cos_sum * self.phase_cos_sum).sqrt() / n;
+        let r = (self.phase_sin_sum * self.phase_sin_sum + self.phase_cos_sum * self.phase_cos_sum)
+            .sqrt()
+            / n;
         1.0 - r.min(1.0)
     }
 }
@@ -276,11 +314,17 @@ pub struct BaselineCalibration {
 
 impl BaselineCalibration {
     /// Compute a per-frame deviation score against this baseline.
-    pub fn deviation(&self, frame: &CsiFrame) -> Result<CalibrationDeviationScore, CalibrationError> {
+    pub fn deviation(
+        &self,
+        frame: &CsiFrame,
+    ) -> Result<CalibrationDeviationScore, CalibrationError> {
         let n_sc = frame.num_subcarriers();
         let expected = self.subcarriers.len();
         if n_sc != expected && n_sc != self.tier_num_subcarriers() {
-            return Err(CalibrationError::SubcarrierMismatch { expected, got: n_sc });
+            return Err(CalibrationError::SubcarrierMismatch {
+                expected,
+                got: n_sc,
+            });
         }
         let y = extract_first_stream(frame, expected, self.tier_num_subcarriers());
         let mut z_amp = Vec::with_capacity(expected);
@@ -297,9 +341,14 @@ impl BaselineCalibration {
         let amplitude_z_median = median_abs(&z_amp);
         let amplitude_z_max = z_amp.iter().map(|v| v.abs()).fold(0.0_f32, f32::max);
         let phase_drift_median = median_slice(&phase_drift);
-        let motion_flagged =
-            amplitude_z_median > MOTION_AMP_Z_THRESHOLD || phase_drift_median > MOTION_PHASE_DRIFT_THRESHOLD;
-        Ok(CalibrationDeviationScore { amplitude_z_median, amplitude_z_max, phase_drift_median, motion_flagged })
+        let motion_flagged = amplitude_z_median > MOTION_AMP_Z_THRESHOLD
+            || phase_drift_median > MOTION_PHASE_DRIFT_THRESHOLD;
+        Ok(CalibrationDeviationScore {
+            amplitude_z_median,
+            amplitude_z_max,
+            phase_drift_median,
+            motion_flagged,
+        })
     }
 
     /// Deterministic calibration epoch id (ADR-137 `CalibrationId`), derived
@@ -346,7 +395,10 @@ impl BaselineCalibration {
         let n_sc = frame.num_subcarriers();
         let expected = self.subcarriers.len();
         if n_sc != expected && n_sc != self.tier_num_subcarriers() {
-            return Err(CalibrationError::SubcarrierMismatch { expected, got: n_sc });
+            return Err(CalibrationError::SubcarrierMismatch {
+                expected,
+                got: n_sc,
+            });
         }
         let n_streams = frame.num_spatial_streams();
         // ADR-154: this module uses the **sequential active-index convention** —
@@ -375,10 +427,13 @@ impl BaselineCalibration {
     /// Reference complex CSI vector: `amp_mean × exp(j × phase_mean)` per subcarrier.
     /// Pass to `CirEstimator::set_reference_csi()`.
     pub fn reference_csi_vector(&self) -> Vec<Complex32> {
-        self.subcarriers.iter().map(|b| {
-            let (sin, cos) = b.phase_mean.sin_cos();
-            Complex32::new(b.amp_mean * cos, b.amp_mean * sin)
-        }).collect()
+        self.subcarriers
+            .iter()
+            .map(|b| {
+                let (sin, cos) = b.phase_mean.sin_cos();
+                Complex32::new(b.amp_mean * cos, b.amp_mean * sin)
+            })
+            .collect()
     }
 
     /// Serialise to little-endian binary (see module-level format doc).
@@ -405,7 +460,10 @@ impl BaselineCalibration {
     pub fn from_bytes(buf: &[u8]) -> Result<Self, CalibrationError> {
         const MIN_LEN: usize = HEADER_LEN + 8 + 4; // header + frame_count + num_subcarriers
         if buf.len() < MIN_LEN {
-            return Err(CalibrationError::TruncatedBuffer { got: buf.len(), need: MIN_LEN });
+            return Err(CalibrationError::TruncatedBuffer {
+                got: buf.len(),
+                need: MIN_LEN,
+            });
         }
         let magic = u32::from_le_bytes(buf[0..4].try_into().unwrap());
         if magic != MAGIC {
@@ -413,7 +471,10 @@ impl BaselineCalibration {
         }
         let version = buf[4];
         if version != VERSION {
-            return Err(CalibrationError::VersionMismatch { got: version, want: VERSION });
+            return Err(CalibrationError::VersionMismatch {
+                got: version,
+                want: VERSION,
+            });
         }
         let tier_byte = buf[5];
         let tier = PhyTier::from_u8(tier_byte).ok_or(CalibrationError::UnknownTier(tier_byte))?;
@@ -423,18 +484,35 @@ impl BaselineCalibration {
         let n = u32::from_le_bytes(buf[24..28].try_into().unwrap()) as usize;
         let needed = MIN_LEN + n * SUBCARRIER_RECORD_LEN;
         if buf.len() < needed {
-            return Err(CalibrationError::TruncatedBuffer { got: buf.len(), need: needed });
+            return Err(CalibrationError::TruncatedBuffer {
+                got: buf.len(),
+                need: needed,
+            });
         }
         let mut subcarriers = Vec::with_capacity(n);
         let mut off = 28usize;
         for _ in 0..n {
-            let amp_mean = f32::from_le_bytes(buf[off..off + 4].try_into().unwrap()); off += 4;
-            let amp_variance = f32::from_le_bytes(buf[off..off + 4].try_into().unwrap()); off += 4;
-            let phase_mean = f32::from_le_bytes(buf[off..off + 4].try_into().unwrap()); off += 4;
-            let phase_dispersion = f32::from_le_bytes(buf[off..off + 4].try_into().unwrap()); off += 4;
-            subcarriers.push(SubcarrierBaseline { amp_mean, amp_variance, phase_mean, phase_dispersion });
+            let amp_mean = f32::from_le_bytes(buf[off..off + 4].try_into().unwrap());
+            off += 4;
+            let amp_variance = f32::from_le_bytes(buf[off..off + 4].try_into().unwrap());
+            off += 4;
+            let phase_mean = f32::from_le_bytes(buf[off..off + 4].try_into().unwrap());
+            off += 4;
+            let phase_dispersion = f32::from_le_bytes(buf[off..off + 4].try_into().unwrap());
+            off += 4;
+            subcarriers.push(SubcarrierBaseline {
+                amp_mean,
+                amp_variance,
+                phase_mean,
+                phase_dispersion,
+            });
         }
-        Ok(Self { tier, captured_at_unix_s, frame_count, subcarriers })
+        Ok(Self {
+            tier,
+            captured_at_unix_s,
+            frame_count,
+            subcarriers,
+        })
     }
 
     /// Total FFT bins for this tier (used for dual-convention column selection).
@@ -485,18 +563,29 @@ impl CalibrationRecorder {
     /// Create a new recorder for the given configuration.
     pub fn new(config: CalibrationConfig) -> Self {
         let stats = vec![SubcarrierStats::new(); config.num_active];
-        Self { config, started_at_unix_s: unix_now_s(), stats, frame_count: 0 }
+        Self {
+            config,
+            started_at_unix_s: unix_now_s(),
+            stats,
+            frame_count: 0,
+        }
     }
 
     /// Ingest one sanitised CSI frame. Returns a deviation score from the
     /// current partial baseline so the operator can monitor room occupancy
     /// in real time.
-    pub fn record(&mut self, frame: &CsiFrame) -> Result<CalibrationDeviationScore, CalibrationError> {
+    pub fn record(
+        &mut self,
+        frame: &CsiFrame,
+    ) -> Result<CalibrationDeviationScore, CalibrationError> {
         let n_sc = frame.num_subcarriers();
         let expected_active = self.config.num_active;
         let expected_total = self.config.num_subcarriers;
         if n_sc != expected_active && n_sc != expected_total {
-            return Err(CalibrationError::SubcarrierMismatch { expected: expected_active, got: n_sc });
+            return Err(CalibrationError::SubcarrierMismatch {
+                expected: expected_active,
+                got: n_sc,
+            });
         }
         let y = extract_first_stream(frame, expected_active, expected_total);
         for (ki, c) in y.iter().enumerate() {
@@ -516,9 +605,14 @@ impl CalibrationRecorder {
         let amplitude_z_median = median_slice(&z_amp_abs);
         let amplitude_z_max = z_amp_abs.iter().copied().fold(0.0_f32, f32::max);
         let phase_drift_median = median_slice(&phase_drift);
-        let motion_flagged =
-            amplitude_z_median > MOTION_AMP_Z_THRESHOLD || phase_drift_median > MOTION_PHASE_DRIFT_THRESHOLD;
-        Ok(CalibrationDeviationScore { amplitude_z_median, amplitude_z_max, phase_drift_median, motion_flagged })
+        let motion_flagged = amplitude_z_median > MOTION_AMP_Z_THRESHOLD
+            || phase_drift_median > MOTION_PHASE_DRIFT_THRESHOLD;
+        Ok(CalibrationDeviationScore {
+            amplitude_z_median,
+            amplitude_z_max,
+            phase_drift_median,
+            motion_flagged,
+        })
     }
 
     /// Number of frames recorded so far.
@@ -536,12 +630,16 @@ impl CalibrationRecorder {
                 need: self.config.min_frames,
             });
         }
-        let subcarriers = self.stats.iter().map(|st| SubcarrierBaseline {
-            amp_mean: st.amp_mean as f32,
-            amp_variance: st.amp_variance() as f32,
-            phase_mean: st.phase_mean() as f32,
-            phase_dispersion: st.phase_dispersion() as f32,
-        }).collect();
+        let subcarriers = self
+            .stats
+            .iter()
+            .map(|st| SubcarrierBaseline {
+                amp_mean: st.amp_mean as f32,
+                amp_variance: st.amp_variance() as f32,
+                phase_mean: st.phase_mean() as f32,
+                phase_dispersion: st.phase_dispersion() as f32,
+            })
+            .collect();
         Ok(BaselineCalibration {
             tier: self.config.tier,
             captured_at_unix_s: self.started_at_unix_s,
@@ -562,10 +660,12 @@ impl CalibrationRecorder {
 fn extract_first_stream(frame: &CsiFrame, num_active: usize, _num_total: usize) -> Vec<Complex32> {
     let n_sc = frame.num_subcarriers();
     let take = num_active.min(n_sc);
-    (0..take).map(|ki| {
-        let c = frame.data[[0, ki]];
-        Complex32::new(c.re as f32, c.im as f32)
-    }).collect()
+    (0..take)
+        .map(|ki| {
+            let c = frame.data[[0, ki]];
+            Complex32::new(c.re as f32, c.im as f32)
+        })
+        .collect()
 }
 
 /// Signed circular distance wrapped to `[0, π]`.
@@ -590,16 +690,25 @@ fn median_slice(v: &[f32]) -> f32 {
 }
 
 fn median_in_place(v: &mut Vec<f32>) -> f32 {
-    if v.is_empty() { return 0.0; }
+    if v.is_empty() {
+        return 0.0;
+    }
     v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let mid = v.len() / 2;
-    if v.len() % 2 == 0 { (v[mid - 1] + v[mid]) / 2.0 } else { v[mid] }
+    if v.len() % 2 == 0 {
+        (v[mid - 1] + v[mid]) / 2.0
+    } else {
+        v[mid]
+    }
 }
 
 /// Current Unix timestamp in seconds. Falls back to 0 if unavailable.
 fn unix_now_s() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 // ---------------------------------------------------------------------------
@@ -611,20 +720,18 @@ mod tests {
     use super::*;
     use ndarray::Array2;
     use num_complex::Complex64;
-    use wifi_densepose_core::types::{CsiMetadata, CsiFrame};
+    use wifi_densepose_core::types::{CsiFrame, CsiMetadata};
 
     fn make_frame(data: Array2<Complex64>) -> CsiFrame {
         use wifi_densepose_core::types::{DeviceId, FrequencyBand};
-        let meta = CsiMetadata::new(
-            DeviceId::new("test-device"),
-            FrequencyBand::Band2_4GHz,
-            6,
-        );
+        let meta = CsiMetadata::new(DeviceId::new("test-device"), FrequencyBand::Band2_4GHz, 6);
         CsiFrame::new(meta, data)
     }
 
     fn constant_frame(n_sc: usize, amp: f64, phase: f64) -> CsiFrame {
-        let row = (0..n_sc).map(|_| Complex64::from_polar(amp, phase)).collect::<Vec<_>>();
+        let row = (0..n_sc)
+            .map(|_| Complex64::from_polar(amp, phase))
+            .collect::<Vec<_>>();
         let arr = Array2::from_shape_vec((1, n_sc), row).unwrap();
         make_frame(arr)
     }
@@ -638,7 +745,11 @@ mod tests {
             st.update(c);
         }
         assert!((st.amp_mean - 1.0).abs() < 1e-9);
-        assert!(st.amp_variance() < 1e-20, "variance was {}", st.amp_variance());
+        assert!(
+            st.amp_variance() < 1e-20,
+            "variance was {}",
+            st.amp_variance()
+        );
     }
 
     // (b) Circular phase mean recovers known phase from N noisy samples.
@@ -653,9 +764,17 @@ mod tests {
             st.update(Complex32::from_polar(1.0, (target - 0.05) as f32));
         }
         let recovered = st.phase_mean();
-        assert!((recovered - target).abs() < 0.01, "phase error = {}", (recovered - target).abs());
+        assert!(
+            (recovered - target).abs() < 0.01,
+            "phase error = {}",
+            (recovered - target).abs()
+        );
         // Dispersion should be low (close to 0) for tight phase cluster.
-        assert!(st.phase_dispersion() < 0.01, "dispersion = {}", st.phase_dispersion());
+        assert!(
+            st.phase_dispersion() < 0.01,
+            "dispersion = {}",
+            st.phase_dispersion()
+        );
     }
 
     // (c) Round-trip: to_bytes → from_bytes preserves all baseline fields.
@@ -676,10 +795,20 @@ mod tests {
         assert_eq!(recovered.frame_count, baseline.frame_count);
         assert_eq!(recovered.tier, baseline.tier);
         assert_eq!(recovered.subcarriers.len(), baseline.subcarriers.len());
-        for (a, b) in recovered.subcarriers.iter().zip(baseline.subcarriers.iter()) {
+        for (a, b) in recovered
+            .subcarriers
+            .iter()
+            .zip(baseline.subcarriers.iter())
+        {
             assert!((a.amp_mean - b.amp_mean).abs() < 1e-6, "amp_mean mismatch");
-            assert!((a.phase_mean - b.phase_mean).abs() < 1e-6, "phase_mean mismatch");
-            assert!((a.phase_dispersion - b.phase_dispersion).abs() < 1e-6, "dispersion mismatch");
+            assert!(
+                (a.phase_mean - b.phase_mean).abs() < 1e-6,
+                "phase_mean mismatch"
+            );
+            assert!(
+                (a.phase_dispersion - b.phase_dispersion).abs() < 1e-6,
+                "dispersion mismatch"
+            );
         }
     }
 
@@ -701,7 +830,10 @@ mod tests {
         let mut frame = constant_frame(52, 1.0, 0.5);
         assert_eq!(frame.metadata.calibration_id, None);
         baseline.apply(&mut frame).unwrap();
-        assert_eq!(frame.metadata.calibration_id, Some(baseline.calibration_uuid()));
+        assert_eq!(
+            frame.metadata.calibration_id,
+            Some(baseline.calibration_uuid())
+        );
     }
 
     // (d) Tier dispatch: each config constructor produces the correct counts.
@@ -739,8 +871,11 @@ mod tests {
         let mut rec = CalibrationRecorder::new(cfg);
         // Feed a 256-bin frame exactly as ESP-IDF v5.5.2 delivers it.
         let frame = constant_frame(256, 1.0, 0.0);
-        rec.record(&frame).expect("256-bin HE20 frame must be accepted");
-        let baseline = rec.finalize().expect("finalize after 1 frame (min_frames=1)");
+        rec.record(&frame)
+            .expect("256-bin HE20 frame must be accepted");
+        let baseline = rec
+            .finalize()
+            .expect("finalize after 1 frame (min_frames=1)");
         assert_eq!(
             baseline.subcarriers.len(),
             256,
@@ -805,7 +940,10 @@ mod tests {
         let bad = constant_frame(50, 1.0, 0.0); // 50 ≠ 52, 50 ≠ 64
         assert!(matches!(
             rec.record(&bad),
-            Err(CalibrationError::SubcarrierMismatch { expected: 52, got: 50 })
+            Err(CalibrationError::SubcarrierMismatch {
+                expected: 52,
+                got: 50
+            })
         ));
     }
 }

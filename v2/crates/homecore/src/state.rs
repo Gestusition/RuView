@@ -159,7 +159,11 @@ impl StateMachine {
     /// Snapshot all current states. Allocates a new Vec — useful for
     /// the REST GET /api/states path (ADR-130).
     pub fn all(&self) -> Vec<Arc<State>> {
-        self.inner.states.iter().map(|r| Arc::clone(r.value())).collect()
+        self.inner
+            .states
+            .iter()
+            .map(|r| Arc::clone(r.value()))
+            .collect()
     }
 
     /// Snapshot all states whose entity_id matches a domain prefix.
@@ -201,7 +205,12 @@ mod tests {
     async fn set_writes_and_fires() {
         let sm = StateMachine::new();
         let mut rx = sm.subscribe();
-        sm.set(id("light.kitchen"), "on", serde_json::json!({"brightness": 200}), Context::new());
+        sm.set(
+            id("light.kitchen"),
+            "on",
+            serde_json::json!({"brightness": 200}),
+            Context::new(),
+        );
         let evt = rx.recv().await.unwrap();
         assert_eq!(evt.entity_id.as_str(), "light.kitchen");
         assert!(evt.old_state.is_none());
@@ -222,9 +231,19 @@ mod tests {
     #[tokio::test]
     async fn attribute_only_change_fires_but_preserves_last_changed() {
         let sm = StateMachine::new();
-        let s1 = sm.set(id("sensor.t"), "20", serde_json::json!({"unit": "C"}), Context::new());
+        let s1 = sm.set(
+            id("sensor.t"),
+            "20",
+            serde_json::json!({"unit": "C"}),
+            Context::new(),
+        );
         tokio::time::sleep(std::time::Duration::from_millis(2)).await;
-        let s2 = sm.set(id("sensor.t"), "20", serde_json::json!({"unit": "F"}), Context::new());
+        let s2 = sm.set(
+            id("sensor.t"),
+            "20",
+            serde_json::json!({"unit": "F"}),
+            Context::new(),
+        );
         assert_eq!(s1.last_changed, s2.last_changed);
         assert!(s2.last_updated > s1.last_updated);
     }
@@ -367,10 +386,7 @@ mod tests {
             drainer.join().unwrap();
 
             let log = log.lock().unwrap();
-            let dup = log
-                .windows(2)
-                .filter(|w| w[0] == w[1])
-                .count();
+            let dup = log.windows(2).filter(|w| w[0] == w[1]).count();
             assert_eq!(
                 dup, 0,
                 "{dup} consecutive fired state_changed events carried an \

@@ -78,7 +78,11 @@ fn header_only_buffer_at_exactly_header_size_with_zero_payload_len_succeeds() {
     let header = BfldFrameHeader::empty();
     let frame = BfldFrame::new(header, Vec::new());
     let bytes = frame.to_bytes();
-    assert_eq!(bytes.len(), BFLD_HEADER_SIZE, "empty-payload frame is exactly header size");
+    assert_eq!(
+        bytes.len(),
+        BFLD_HEADER_SIZE,
+        "empty-payload frame is exactly header size"
+    );
     let parsed = BfldFrame::from_bytes(&bytes).expect("parse");
     assert!(parsed.payload.is_empty());
 }
@@ -91,7 +95,10 @@ fn header_only_buffer_with_trailing_bytes_but_zero_payload_len_ignores_them() {
     bytes.extend_from_slice(&[0xAA; 100]);
     let parsed = BfldFrame::from_bytes(&bytes).expect("parse");
     assert_eq!({ parsed.header.payload_len }, 0);
-    assert!(parsed.payload.is_empty(), "trailing bytes must not leak into payload");
+    assert!(
+        parsed.payload.is_empty(),
+        "trailing bytes must not leak into payload"
+    );
 }
 
 #[test]

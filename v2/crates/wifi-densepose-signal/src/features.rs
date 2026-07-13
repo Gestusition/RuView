@@ -8,8 +8,8 @@ use chrono::{DateTime, Utc};
 use ndarray::{Array1, Array2};
 use num_complex::Complex64;
 use rustfft::{Fft, FftPlanner};
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// Amplitude-based features
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -731,11 +731,7 @@ impl FeatureExtractor {
 
     /// Extract PSD features only
     pub fn extract_psd(&self, csi_data: &CsiData) -> PowerSpectralDensity {
-        PowerSpectralDensity::from_csi_data_with_fft(
-            csi_data,
-            self.config.fft_size,
-            &self.psd_fft,
-        )
+        PowerSpectralDensity::from_csi_data_with_fft(csi_data, self.config.fft_size, &self.psd_fft)
     }
 
     /// Extract Doppler features from history
@@ -856,15 +852,17 @@ mod tests {
             let fresh = PowerSpectralDensity::from_csi_data(&csi_data, fft_size);
             let mut planner = FftPlanner::<f64>::new();
             let plan = planner.plan_fft_forward(fft_size);
-            let cached =
-                PowerSpectralDensity::from_csi_data_with_fft(&csi_data, fft_size, &plan);
+            let cached = PowerSpectralDensity::from_csi_data_with_fft(&csi_data, fft_size, &plan);
             assert_eq!(
                 fresh.values.to_vec(),
                 cached.values.to_vec(),
                 "PSD values differ for fft_size={fft_size}"
             );
             assert_eq!(fresh.total_power.to_bits(), cached.total_power.to_bits());
-            assert_eq!(fresh.peak_frequency.to_bits(), cached.peak_frequency.to_bits());
+            assert_eq!(
+                fresh.peak_frequency.to_bits(),
+                cached.peak_frequency.to_bits()
+            );
             assert_eq!(fresh.centroid.to_bits(), cached.centroid.to_bits());
             assert_eq!(fresh.bandwidth.to_bits(), cached.bandwidth.to_bits());
         }

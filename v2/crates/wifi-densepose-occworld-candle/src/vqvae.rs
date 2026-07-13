@@ -154,10 +154,7 @@ impl VQCodebook {
 
         // Squared L2: ||z||² - 2*z*Eᵀ + ||E||²
         // z_sq: (N, 1)
-        let z_sq = z_flat
-            .sqr()?
-            .sum(candle_core::D::Minus1)?
-            .unsqueeze(1)?;
+        let z_sq = z_flat.sqr()?.sum(candle_core::D::Minus1)?.unsqueeze(1)?;
         // e_sq: (1, codebook_size)
         let e_sq = self
             .embeddings
@@ -167,7 +164,9 @@ impl VQCodebook {
         // dot: (N, codebook_size)
         let dot = z_flat.matmul(&self.embeddings.t()?)?;
         // distances: (N, codebook_size)
-        let distances = z_sq.broadcast_add(&e_sq)?.broadcast_sub(&dot.affine(2.0, 0.0)?)?;
+        let distances = z_sq
+            .broadcast_add(&e_sq)?
+            .broadcast_sub(&dot.affine(2.0, 0.0)?)?;
         // indices: (N,)
         let indices = distances.argmin(candle_core::D::Minus1)?;
 

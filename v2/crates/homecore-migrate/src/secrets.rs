@@ -90,7 +90,10 @@ mod tests {
         let mut f = NamedTempFile::new().unwrap();
         f.write_all(yaml.as_bytes()).unwrap();
         let secrets = read_secrets(f.path()).unwrap();
-        assert_eq!(secrets.get("mqtt_password").map(String::as_str), Some("hunter2"));
+        assert_eq!(
+            secrets.get("mqtt_password").map(String::as_str),
+            Some("hunter2")
+        );
         assert_eq!(secrets.get("latitude").map(String::as_str), Some("51.5074"));
     }
 
@@ -151,8 +154,14 @@ mod tests {
         f.write_all(yaml.as_bytes()).unwrap();
         let err = read_secrets(f.path()).unwrap_err();
         let rendered = err.to_string();
-        assert!(rendered.contains("line"), "should report a line: {rendered}");
-        assert!(rendered.contains("redacted"), "should signal redaction: {rendered}");
+        assert!(
+            rendered.contains("line"),
+            "should report a line: {rendered}"
+        );
+        assert!(
+            rendered.contains("redacted"),
+            "should signal redaction: {rendered}"
+        );
     }
 
     #[test]

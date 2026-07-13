@@ -113,13 +113,9 @@ pub enum Action {
         seconds: f64,
     },
     /// Activate a named scene entity.
-    Scene {
-        scene: String,
-    },
+    Scene { scene: String },
     /// Block until one of the listed triggers fires (or timeout).
-    WaitForTrigger {
-        timeout_seconds: Option<f64>,
-    },
+    WaitForTrigger { timeout_seconds: Option<f64> },
     /// Conditional branching — first matching branch wins.
     Choose {
         choices: Vec<ChoiceBranch>,
@@ -167,10 +163,20 @@ impl Action {
     pub fn execute<'a>(
         &'a self,
         ctx: &'a mut ExecutionContext,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<serde_json::Value, AutomationError>> + Send + 'a>> {
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<Output = Result<serde_json::Value, AutomationError>>
+                + Send
+                + 'a,
+        >,
+    > {
         Box::pin(async move {
             match self {
-                Action::ServiceCall { domain, service, data } => {
+                Action::ServiceCall {
+                    domain,
+                    service,
+                    data,
+                } => {
                     let call = ServiceCall {
                         name: ServiceName::new(domain.clone(), service.clone()),
                         data: data.clone(),
@@ -231,8 +237,8 @@ impl Action {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use homecore::{HomeCore, ServiceCall, ServiceError, ServiceName};
     use homecore::service::FnHandler;
+    use homecore::{HomeCore, ServiceCall, ServiceError, ServiceName};
     use std::sync::{Arc, Mutex};
 
     #[tokio::test]
@@ -285,7 +291,10 @@ mod tests {
         let hc = HomeCore::new();
         let mut ctx = ExecutionContext::new(hc, "auto");
         let result = Action::Delay { seconds: -1.0 }.execute(&mut ctx).await;
-        assert!(result.is_ok(), "negative delay must be treated as 0, not panic");
+        assert!(
+            result.is_ok(),
+            "negative delay must be treated as 0, not panic"
+        );
     }
 
     #[tokio::test]
@@ -300,8 +309,15 @@ mod tests {
     async fn delay_infinite_seconds_does_not_panic() {
         let hc = HomeCore::new();
         let mut ctx = ExecutionContext::new(hc, "auto");
-        let result = Action::Delay { seconds: f64::INFINITY }.execute(&mut ctx).await;
-        assert!(result.is_ok(), "infinite delay must saturate to 0, not panic");
+        let result = Action::Delay {
+            seconds: f64::INFINITY,
+        }
+        .execute(&mut ctx)
+        .await;
+        assert!(
+            result.is_ok(),
+            "infinite delay must saturate to 0, not panic"
+        );
     }
 
     // Note: the overflow case (1e300) is covered by the synchronous
@@ -314,9 +330,11 @@ mod tests {
     async fn wait_for_trigger_negative_timeout_does_not_panic() {
         let hc = HomeCore::new();
         let mut ctx = ExecutionContext::new(hc, "auto");
-        let result = Action::WaitForTrigger { timeout_seconds: Some(-5.0) }
-            .execute(&mut ctx)
-            .await;
+        let result = Action::WaitForTrigger {
+            timeout_seconds: Some(-5.0),
+        }
+        .execute(&mut ctx)
+        .await;
         assert!(result.is_ok(), "negative wait timeout must not panic");
     }
 
@@ -345,13 +363,19 @@ mod tests {
             data: serde_json::json!({}),
         };
         let err = action.execute(&mut exec_ctx).await.unwrap_err();
-        assert!(matches!(err, AutomationError::ServiceCall(ServiceError::NotRegistered { .. })));
+        assert!(matches!(
+            err,
+            AutomationError::ServiceCall(ServiceError::NotRegistered { .. })
+        ));
     }
 
     /// Register two recording handlers and return their call logs.
     async fn two_recorders(
         hc: &HomeCore,
-    ) -> (Arc<Mutex<Vec<serde_json::Value>>>, Arc<Mutex<Vec<serde_json::Value>>>) {
+    ) -> (
+        Arc<Mutex<Vec<serde_json::Value>>>,
+        Arc<Mutex<Vec<serde_json::Value>>>,
+    ) {
         use homecore::EntityId;
         let _ = EntityId::parse("light.x"); // touch import path
         let mk = |hc: &HomeCore, svc: &'static str| {
@@ -420,8 +444,16 @@ mod tests {
         let mut ctx = ExecutionContext::new(hc, "choose_auto");
         choose_with_match().execute(&mut ctx).await.unwrap();
 
-        assert_eq!(branch_log.lock().unwrap().len(), 1, "matching branch must run");
-        assert_eq!(default_log.lock().unwrap().len(), 0, "default must NOT run when a branch matches");
+        assert_eq!(
+            branch_log.lock().unwrap().len(),
+            1,
+            "matching branch must run"
+        );
+        assert_eq!(
+            default_log.lock().unwrap().len(),
+            0,
+            "default must NOT run when a branch matches"
+        );
     }
 
     #[tokio::test]
@@ -440,7 +472,15 @@ mod tests {
         let mut ctx = ExecutionContext::new(hc, "choose_auto");
         choose_with_match().execute(&mut ctx).await.unwrap();
 
-        assert_eq!(branch_log.lock().unwrap().len(), 0, "branch must not run when condition fails");
-        assert_eq!(default_log.lock().unwrap().len(), 1, "default must run when no branch matches");
+        assert_eq!(
+            branch_log.lock().unwrap().len(),
+            0,
+            "branch must not run when condition fails"
+        );
+        assert_eq!(
+            default_log.lock().unwrap().len(),
+            1,
+            "default must run when no branch matches"
+        );
     }
 }

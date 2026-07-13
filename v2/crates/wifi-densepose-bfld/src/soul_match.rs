@@ -197,11 +197,10 @@ pub fn cosine_sim(a: &[f32], b: &[f32]) -> f32 {
         let x = a[i];
         let y = b[i];
         // Treat non-finite components as 0 — never propagate NaN into the score.
-        let (x, y) = (if x.is_finite() { x } else { 0.0 }, if y.is_finite() {
-            y
-        } else {
-            0.0
-        });
+        let (x, y) = (
+            if x.is_finite() { x } else { 0.0 },
+            if y.is_finite() { y } else { 0.0 },
+        );
         dot += x * y;
         na += x * x;
         nb += y * y;
@@ -338,9 +337,7 @@ mod enrolled {
             match self.best_match() {
                 Some((person_id, ms)) => {
                     let score = ms.score().unwrap_or(f32::NEG_INFINITY);
-                    if score >= self.threshold
-                        && ms.contributing_channels() >= self.min_channels
-                    {
+                    if score >= self.threshold && ms.contributing_channels() >= self.min_channels {
                         MatchOutcome::Match { person_id }
                     } else {
                         MatchOutcome::NotEnrolled

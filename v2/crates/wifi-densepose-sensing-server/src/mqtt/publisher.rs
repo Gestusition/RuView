@@ -72,10 +72,7 @@ struct NodeAvailability {
 
 impl NodeAvailability {
     fn for_builder(b: &DiscoveryBuilder<'_>, entities: &[EntityKind]) -> Self {
-        let online_topics = entities
-            .iter()
-            .map(|e| b.availability_topic(*e))
-            .collect();
+        let online_topics = entities.iter().map(|e| b.availability_topic(*e)).collect();
         Self { online_topics }
     }
 }
@@ -267,7 +264,9 @@ async fn publish_all_discovery(
         let cfg = b.build(e);
         let topic = b.config_topic(e);
         let payload = serde_json::to_string(&cfg).expect("discovery payload always serialises");
-        client.publish(&topic, QoS::AtLeastOnce, true, payload).await?;
+        client
+            .publish(&topic, QoS::AtLeastOnce, true, payload)
+            .await?;
     }
     Ok(())
 }
@@ -314,13 +313,34 @@ async fn publish_snapshot(
 
     // Numeric rate-limited entities.
     for (entity, allowed) in [
-        (EntityKind::PersonCount, rl.allow(EntityKind::PersonCount, elapsed, &cfg.rates)),
-        (EntityKind::HeartRate, !cfg.privacy_mode && rl.allow(EntityKind::HeartRate, elapsed, &cfg.rates)),
-        (EntityKind::BreathingRate, !cfg.privacy_mode && rl.allow(EntityKind::BreathingRate, elapsed, &cfg.rates)),
-        (EntityKind::MotionLevel, rl.allow(EntityKind::MotionLevel, elapsed, &cfg.rates)),
-        (EntityKind::MotionEnergy, rl.allow(EntityKind::MotionEnergy, elapsed, &cfg.rates)),
-        (EntityKind::PresenceScore, rl.allow(EntityKind::PresenceScore, elapsed, &cfg.rates)),
-        (EntityKind::Rssi, rl.allow(EntityKind::Rssi, elapsed, &cfg.rates)),
+        (
+            EntityKind::PersonCount,
+            rl.allow(EntityKind::PersonCount, elapsed, &cfg.rates),
+        ),
+        (
+            EntityKind::HeartRate,
+            !cfg.privacy_mode && rl.allow(EntityKind::HeartRate, elapsed, &cfg.rates),
+        ),
+        (
+            EntityKind::BreathingRate,
+            !cfg.privacy_mode && rl.allow(EntityKind::BreathingRate, elapsed, &cfg.rates),
+        ),
+        (
+            EntityKind::MotionLevel,
+            rl.allow(EntityKind::MotionLevel, elapsed, &cfg.rates),
+        ),
+        (
+            EntityKind::MotionEnergy,
+            rl.allow(EntityKind::MotionEnergy, elapsed, &cfg.rates),
+        ),
+        (
+            EntityKind::PresenceScore,
+            rl.allow(EntityKind::PresenceScore, elapsed, &cfg.rates),
+        ),
+        (
+            EntityKind::Rssi,
+            rl.allow(EntityKind::Rssi, elapsed, &cfg.rates),
+        ),
     ] {
         if !allowed {
             continue;
@@ -337,7 +357,9 @@ async fn publish_state(client: &AsyncClient, m: &StateMessage) -> Result<(), Cli
         1 => QoS::AtLeastOnce,
         _ => QoS::ExactlyOnce,
     };
-    client.publish(&m.topic, qos, m.retain, m.payload.clone()).await
+    client
+        .publish(&m.topic, qos, m.retain, m.payload.clone())
+        .await
 }
 
 #[cfg(test)]
@@ -358,7 +380,10 @@ mod per_node_device_tests {
     }
 
     fn device_identifiers(b: &OwnedDiscoveryBuilder) -> Vec<String> {
-        b.as_borrowed().build(EntityKind::Presence).device.identifiers
+        b.as_borrowed()
+            .build(EntityKind::Presence)
+            .device
+            .identifiers
     }
 
     #[test]

@@ -55,24 +55,35 @@ fn gate_round_trip_serde_equal() {
     let ev = snapshot_to_field_event(&sample_snapshot(), &signer());
     let json = serde_json::to_string(&ev).expect("serialize");
     let back: rufield_core::FieldEvent = serde_json::from_str(&json).expect("deserialize");
-    assert_eq!(ev, back, "FieldEvent must round-trip through serde unchanged");
+    assert_eq!(
+        ev, back,
+        "FieldEvent must round-trip through serde unchanged"
+    );
 }
 
 #[test]
 fn gate_is_fusable_verified_receipt() {
     let ev = snapshot_to_field_event(&sample_snapshot(), &signer());
     // Real (non-synthetic) event must carry a verifying ed25519 signature.
-    assert!(!ev.provenance.synthetic, "live event must NOT be marked synthetic");
+    assert!(
+        !ev.provenance.synthetic,
+        "live event must NOT be marked synthetic"
+    );
     assert!(ev.provenance.signature_hex.is_some(), "must be signed");
     assert!(verify_event(&ev).is_ok(), "signature must verify");
-    assert!(is_fusable(&ev), "verified receipt ⇒ fusable (§11 invariant)");
+    assert!(
+        is_fusable(&ev),
+        "verified receipt ⇒ fusable (§11 invariant)"
+    );
 }
 
 #[test]
 fn gate_fusion_ingest_accepts_and_infers() {
     let ev = snapshot_to_field_event(&sample_snapshot(), &signer());
     let mut engine = RuFieldFusion::new();
-    engine.ingest(ev).expect("fusion engine must accept the signed event");
+    engine
+        .ingest(ev)
+        .expect("fusion engine must accept the signed event");
     // infer() must run without error (may or may not produce inferences).
     let inferences = engine
         .infer(&InferenceQuery::all())
@@ -92,7 +103,10 @@ fn gate_privacy_safety_derived_never_maps_to_low_privacy() {
     let p5 = map_privacy(RuViewPrivacyClass::Derived, true);
     assert_eq!(p4, PrivacyClass::P4);
     assert_eq!(p5, PrivacyClass::P5);
-    assert!(p4 >= PrivacyClass::P4, "Derived must be in the identity tier");
+    assert!(
+        p4 >= PrivacyClass::P4,
+        "Derived must be in the identity tier"
+    );
     assert_ne!(p4, PrivacyClass::P1, "Derived must NEVER be P1");
 
     // And end-to-end: an emitted event from a Derived snapshot must be P4/P5.
@@ -155,8 +169,14 @@ fn no_fabricated_position_when_field_absent() {
     let mut snap = sample_snapshot();
     snap.signal_field = None;
     let ev = snapshot_to_field_event(&snap, &signer());
-    assert!(ev.observation.range_m.is_none(), "no field ⇒ no fabricated range");
-    assert!(ev.observation.space_cell.is_none(), "no field ⇒ no fabricated cell");
+    assert!(
+        ev.observation.range_m.is_none(),
+        "no field ⇒ no fabricated range"
+    );
+    assert!(
+        ev.observation.space_cell.is_none(),
+        "no field ⇒ no fabricated cell"
+    );
     assert!(
         ev.observation.motion_vector.is_none(),
         "no field ⇒ no fabricated motion vector"

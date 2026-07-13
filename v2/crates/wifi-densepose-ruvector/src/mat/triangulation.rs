@@ -42,7 +42,7 @@ pub fn solve_triangulation(
     }
 
     const C: f32 = 3e8_f32; // speed of light, m/s
-    // Guard: empty AP table cannot anchor a reference (ADR-156 §finding 2).
+                            // Guard: empty AP table cannot anchor a reference (ADR-156 §finding 2).
     let &(x_ref, y_ref) = ap_positions.first()?;
 
     let mut col0 = Vec::new();

@@ -91,10 +91,7 @@ impl<P: Publish> Publish for std::sync::Arc<std::sync::Mutex<P>> {
 /// Publish every topic message rendered from `event`. Returns the number of
 /// messages actually published (zero for Raw / Derived class events). Errors
 /// short-circuit — the publisher state at error time may have partial output.
-pub fn publish_event<P: Publish>(
-    publisher: &mut P,
-    event: &BfldEvent,
-) -> Result<usize, P::Error> {
+pub fn publish_event<P: Publish>(publisher: &mut P, event: &BfldEvent) -> Result<usize, P::Error> {
     let mut count = 0;
     for msg in render_events(event) {
         publisher.publish(&msg)?;
@@ -118,7 +115,11 @@ pub fn render_events(event: &BfldEvent) -> Vec<TopicMessage> {
 
     out.push(TopicMessage {
         topic: TopicMessage::ruview_topic(node, "presence"),
-        payload: if event.presence { "true".into() } else { "false".into() },
+        payload: if event.presence {
+            "true".into()
+        } else {
+            "false".into()
+        },
     });
     out.push(TopicMessage {
         topic: TopicMessage::ruview_topic(node, "motion"),

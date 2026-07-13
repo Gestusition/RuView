@@ -105,7 +105,9 @@ impl TemporalVoxelMap {
     /// Build a grid of voxels at the supplied centres.
     #[must_use]
     pub fn new(centers: Vec<[f64; 3]>) -> Self {
-        Self { voxels: centers.into_iter().map(TemporalVoxel::new).collect() }
+        Self {
+            voxels: centers.into_iter().map(TemporalVoxel::new).collect(),
+        }
     }
 
     /// Number of voxels.
@@ -166,7 +168,11 @@ impl VoxelGate {
     /// - `Restricted`: produce an occupancy histogram (`bins` buckets over
     ///   [0,1]) and clear every voxel's occupancy/doppler/confidence so only the
     ///   aggregate survives.
-    pub fn demote(map: &mut TemporalVoxelMap, posture: VoxelPrivacy, bins: usize) -> Option<Vec<u32>> {
+    pub fn demote(
+        map: &mut TemporalVoxelMap,
+        posture: VoxelPrivacy,
+        bins: usize,
+    ) -> Option<Vec<u32>> {
         match posture {
             VoxelPrivacy::Full => None,
             VoxelPrivacy::Anonymous => {
@@ -264,7 +270,10 @@ impl EvolutionTracker {
             w.update(v);
         }
         if diverging >= self.min_links {
-            Some(ChangePoint { diverging_links: diverging, sigma_threshold: self.sigma_threshold })
+            Some(ChangePoint {
+                diverging_links: diverging,
+                sigma_threshold: self.sigma_threshold,
+            })
         } else {
             None
         }
@@ -283,7 +292,10 @@ mod tests {
         for ns in 0..10 {
             v.observe(0.8, Some(0.3), ns);
         }
-        assert!(v.occupancy > 0.9, "repeated positive evidence → high occupancy");
+        assert!(
+            v.occupancy > 0.9,
+            "repeated positive evidence → high occupancy"
+        );
         assert!(!v.is_low_confidence(), "10 updates ⇒ confident");
         assert!(v.confidence > 0.8);
         assert_eq!(v.last_update_ns, 9);
@@ -323,7 +335,10 @@ mod tests {
         let v = m.voxel(0).unwrap();
         assert_eq!(v.doppler_velocity, None);
         assert_eq!(v.confidence, 0.0);
-        assert!((v.occupancy - occ_before).abs() < 1e-9, "occupancy retained");
+        assert!(
+            (v.occupancy - occ_before).abs() < 1e-9,
+            "occupancy retained"
+        );
     }
 
     #[test]
@@ -352,7 +367,10 @@ mod tests {
         // 30 jittered baseline frames (non-zero std so divergence is defined).
         for i in 0..30u32 {
             let j = if i % 2 == 0 { 0.99 } else { 1.01 };
-            assert!(tracker.observe_window(&[j, j, j]).is_none(), "baseline is quiet");
+            assert!(
+                tracker.observe_window(&[j, j, j]).is_none(),
+                "baseline is quiet"
+            );
         }
         // Three links drift simultaneously → ChangePoint fires.
         let cp = tracker
@@ -367,24 +385,36 @@ mod tests {
             map.observe(1, 0.90, None, ns);
             // voxel 2 deliberately under-observed.
         }
-        assert!(map.voxel(0).unwrap().occupancy > 0.9, "evidence accumulated");
+        assert!(
+            map.voxel(0).unwrap().occupancy > 0.9,
+            "evidence accumulated"
+        );
 
         // Low-confidence voxels (under 5 frames) are suppressed from output.
         let low = map.low_confidence_indices();
-        assert!(low.contains(&2) && !low.contains(&0), "voxel 2 suppressed, voxel 0 kept");
+        assert!(
+            low.contains(&2) && !low.contains(&0),
+            "voxel 2 suppressed, voxel 0 kept"
+        );
 
         // ADR-137 contradiction recorded from the change-point (drift conflict).
         let contradictions = vec![ContradictionFlag::DriftProfileConflict {
             node_idx: 0,
             drift_score: cp.diverging_links as f32,
         }];
-        assert!(!contradictions.is_empty(), "change-point recorded as an ADR-137 contradiction");
+        assert!(
+            !contradictions.is_empty(),
+            "change-point recorded as an ADR-137 contradiction"
+        );
 
         // VoxelGate Restricted → histogram only; the raw map never leaves the node.
         let hist = VoxelGate::demote(&mut map, VoxelPrivacy::Restricted, 4)
             .expect("Restricted yields an occupancy histogram");
         assert_eq!(hist.iter().sum::<u32>(), 3, "all voxels binned");
-        assert!(map.occupancies().iter().all(|&o| o == 0.0), "raw occupancy cleared");
+        assert!(
+            map.occupancies().iter().all(|&o| o == 0.0),
+            "raw occupancy cleared"
+        );
     }
 
     #[test]
@@ -395,7 +425,9 @@ mod tests {
         // divergence is undefined).
         for i in 0..30 {
             let jitter = if i % 2 == 0 { 0.99 } else { 1.01 };
-            assert!(t.observe_window(&[jitter, jitter, jitter, jitter]).is_none());
+            assert!(t
+                .observe_window(&[jitter, jitter, jitter, jitter])
+                .is_none());
         }
         // A divergence on a single link must NOT trip a change-point (< min_links).
         assert!(t.observe_window(&[5.0, 1.0, 1.0, 1.0]).is_none());

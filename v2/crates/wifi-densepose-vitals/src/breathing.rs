@@ -407,7 +407,10 @@ mod tests {
             "expected weighted average {expected}, got {fused}"
         );
         // Must lie within the residual range [0, 2] — a scale-mixed sum would not.
-        assert!((0.0..=2.0).contains(&fused), "weighted average must be in-range: {fused}");
+        assert!(
+            (0.0..=2.0).contains(&fused),
+            "weighted average must be in-range: {fused}"
+        );
     }
 
     /// ADR-158 §A1 bug-catching test: a single non-finite residual must NOT
@@ -440,7 +443,10 @@ mod tests {
         let mut control = BreathingExtractor::new(1, sr, 60.0);
         let control_res = feed_clean(&mut control);
         assert!(control.history_len() > 0);
-        assert!(control_res.is_some(), "control clean run must produce an estimate");
+        assert!(
+            control_res.is_some(),
+            "control clean run must produce an estimate"
+        );
 
         // A leading NaN frame must not kill the extractor.
         let mut ext = BreathingExtractor::new(1, sr, 60.0);
@@ -451,7 +457,10 @@ mod tests {
             "extractor must recover and refill history after a NaN frame (got {})",
             ext.history_len()
         );
-        assert!(res.is_some(), "extractor must recover an estimate after a NaN frame");
+        assert!(
+            res.is_some(),
+            "extractor must recover an estimate after a NaN frame"
+        );
     }
 
     /// ADR-158 §A1: a mid-stream `inf` must not freeze the history buffer.
@@ -498,7 +507,10 @@ mod tests {
         }
         assert!(ext.history_len() > 0, "history should accumulate");
         for (i, &v) in ext.filtered_history.iter().enumerate() {
-            assert!(v.is_finite(), "filtered_history[{i}] must be finite, got {v}");
+            assert!(
+                v.is_finite(),
+                "filtered_history[{i}] must be finite, got {v}"
+            );
         }
     }
 }

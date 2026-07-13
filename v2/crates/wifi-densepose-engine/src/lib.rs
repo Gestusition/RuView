@@ -42,8 +42,8 @@ use wifi_densepose_signal::ruvsense::{
     EvolutionTracker, MultiBandCsiFrame, QualityScore, ReflectorObservation, RfSlam,
 };
 use wifi_densepose_worldgraph::{
-    AnchorKind, EnuPoint, PrivacyRollup, SemanticProvenance, WorldEdge, WorldGraph, WorldGraphError,
-    WorldId, WorldNode, ZoneBoundsEnu,
+    AnchorKind, EnuPoint, PrivacyRollup, SemanticProvenance, WorldEdge, WorldGraph,
+    WorldGraphError, WorldId, WorldNode, ZoneBoundsEnu,
 };
 
 pub mod mesh_guard;
@@ -307,17 +307,26 @@ impl StreamingEngine {
         let node = WorldNode::PersonTrack {
             id: existing.unwrap_or(WorldId::UNASSIGNED),
             track_id,
-            last_position: EnuPoint { east_m: f64::from(x), north_m: f64::from(y), up_m: 0.0 },
+            last_position: EnuPoint {
+                east_m: f64::from(x),
+                north_m: f64::from(y),
+                up_m: 0.0,
+            },
             reid_embedding_ref: None,
         };
         let id = self.world.upsert_node(node);
         if existing.is_none() {
             self.person_tracks.insert(track_id, id);
-            let _ = self.world.add_edge(id, room, WorldEdge::LocatedIn { since_unix_ms: 0 });
+            let _ = self
+                .world
+                .add_edge(id, room, WorldEdge::LocatedIn { since_unix_ms: 0 });
             let _ = self.world.add_edge(
                 sensor,
                 id,
-                WorldEdge::Observes { quality: 1.0, last_seen_unix_ms: 0 },
+                WorldEdge::Observes {
+                    quality: 1.0,
+                    last_seen_unix_ms: 0,
+                },
             );
         }
         id
@@ -328,7 +337,9 @@ impl StreamingEngine {
     /// observations are denied; the rollup names what was suppressed.
     pub fn apply_active_privacy_mode(&mut self) -> PrivacyRollup {
         let mode = self.privacy.active_mode();
-        let suppress_identity = self.privacy.is_action_enforced(PrivacyAction::SuppressIdentity);
+        let suppress_identity = self
+            .privacy
+            .is_action_enforced(PrivacyAction::SuppressIdentity);
         self.world.apply_privacy_mode(
             &format!("{mode:?}"),
             "SuppressIdentity",
@@ -360,8 +371,9 @@ impl StreamingEngine {
             self.slam.observe(obs);
         }
         let mut written = Vec::new();
-        for (pos, class) in
-            self.slam.static_anchors(Self::ANCHOR_WALL_CEILING, Self::ANCHOR_MOBILE_FLOOR)
+        for (pos, class) in self
+            .slam
+            .static_anchors(Self::ANCHOR_WALL_CEILING, Self::ANCHOR_MOBILE_FLOOR)
         {
             let kind = match class {
                 wifi_densepose_signal::ruvsense::ReflectorClass::Wall => AnchorKind::Reflector,
@@ -370,7 +382,11 @@ impl StreamingEngine {
             };
             let id = self.world.upsert_node(WorldNode::ObjectAnchor {
                 id: WorldId::UNASSIGNED,
-                position: EnuPoint { east_m: pos[0], north_m: pos[1], up_m: pos[2] },
+                position: EnuPoint {
+                    east_m: pos[0],
+                    north_m: pos[1],
+                    up_m: pos[2],
+                },
                 anchor_kind: kind,
                 confidence: 0.9,
             });
@@ -385,7 +401,12 @@ impl StreamingEngine {
             id: WorldId::UNASSIGNED,
             area_id: Some(area_id.to_string()),
             name: name.to_string(),
-            bounds_enu: ZoneBoundsEnu::Rectangle { min_e: 0.0, min_n: 0.0, max_e: 5.0, max_n: 4.0 },
+            bounds_enu: ZoneBoundsEnu::Rectangle {
+                min_e: 0.0,
+                min_n: 0.0,
+                max_e: 5.0,
+                max_n: 4.0,
+            },
             floor: 0,
         })
     }
@@ -395,13 +416,20 @@ impl StreamingEngine {
         let id = self.world.upsert_node(WorldNode::Sensor {
             id: WorldId::UNASSIGNED,
             device_id: device_id.to_string(),
-            position: EnuPoint { east_m: 0.0, north_m: 0.0, up_m: 0.0 },
+            position: EnuPoint {
+                east_m: 0.0,
+                north_m: 0.0,
+                up_m: 0.0,
+            },
             modality: wifi_densepose_worldgraph::SensorModality::WifiCsi,
         });
         let _ = self.world.add_edge(
             id,
             room,
-            WorldEdge::Observes { quality: 1.0, last_seen_unix_ms: 0 },
+            WorldEdge::Observes {
+                quality: 1.0,
+                last_seen_unix_ms: 0,
+            },
         );
         id
     }
@@ -466,12 +494,14 @@ impl StreamingEngine {
         // 1. Array coordination (ADR-138) — only when geometry is known for
         //    every contributing node. Its contradictions feed the privacy gate.
         let directional = self.coordinate_array(node_frames);
-        let array_contradiction =
-            directional.as_ref().is_some_and(|d| !d.contradictions.is_empty());
+        let array_contradiction = directional
+            .as_ref()
+            .is_some_and(|d| !d.contradictions.is_empty());
 
         // 2. Fuse + score with per-node calibration (ADR-137 §2.3).
         let (fused, quality) =
-            self.fuser.fuse_scored_calibrated(node_frames, calibrations, self.coherence_accept)?;
+            self.fuser
+                .fuse_scored_calibrated(node_frames, calibrations, self.coherence_accept)?;
 
         // 4. Evolution change-point (ADR-142) over per-node mean amplitude.
         let change_point = self.track_evolution(node_frames, now_ms, room);
@@ -499,7 +529,11 @@ impl StreamingEngine {
         //    removed — and the demotion is part of the witness.
         let base_class = self.privacy.active_class();
         let demoted = quality.forces_privacy_demotion() || array_contradiction || mesh_at_risk;
-        let effective_class = if demoted { demote_one(base_class) } else { base_class };
+        let effective_class = if demoted {
+            demote_one(base_class)
+        } else {
+            base_class
+        };
 
         // 7. Semantic state with mandatory provenance (ADR-139/140). The
         //    calibration version comes from the *agreed* epoch (None on mismatch).
@@ -515,7 +549,11 @@ impl StreamingEngine {
             None => format!("rfenc-v{}", self.model_version),
         };
         let provenance = SemanticProvenance {
-            evidence: quality.evidence_refs.iter().map(|e| format!("{e:?}")).collect(),
+            evidence: quality
+                .evidence_refs
+                .iter()
+                .map(|e| format!("{e:?}"))
+                .collect(),
             model_version,
             calibration_version,
             privacy_decision: format!("{:?}/{:?}", self.privacy.active_mode(), effective_class),
@@ -544,9 +582,10 @@ impl StreamingEngine {
         // 9. Drift→recalibration advisor (ADR-135 → ADR-150 §3.4): sustained
         //    low coherence, an environment change-point, or a mesh close to
         //    partitioning recommends refit.
-        let recalibration_recommended = self
-            .recal
-            .observe(quality.base_coherence, change_point.is_some() || mesh_at_risk);
+        let recalibration_recommended = self.recal.observe(
+            quality.base_coherence,
+            change_point.is_some() || mesh_at_risk,
+        );
 
         self.cycle += 1;
         Ok(TrustedOutput {
@@ -577,7 +616,11 @@ impl StreamingEngine {
                 position: (g.x, g.y),
                 azimuth: g.azimuth,
                 coherence: f.coherence,
-                clock: ClockQualityScore { offset_stdev_us: 50.0, age_us: 1_000, valid: true },
+                clock: ClockQualityScore {
+                    offset_stdev_us: 50.0,
+                    age_us: 1_000,
+                    valid: true,
+                },
                 amplitude: f.channel_frames.first().map(|cf| cf.amplitude.clone()),
             });
         }
@@ -599,7 +642,8 @@ impl StreamingEngine {
                 if cf.amplitude.is_empty() {
                     0.0
                 } else {
-                    cf.amplitude.iter().map(|&a| f64::from(a)).sum::<f64>() / cf.amplitude.len() as f64
+                    cf.amplitude.iter().map(|&a| f64::from(a)).sum::<f64>()
+                        / cf.amplitude.len() as f64
                 }
             })
             .collect();
@@ -621,7 +665,13 @@ impl StreamingEngine {
             at_unix_ms: now_ms,
             located_in: Some(room),
         });
-        let _ = self.world.add_edge(event, room, WorldEdge::LocatedIn { since_unix_ms: now_ms });
+        let _ = self.world.add_edge(
+            event,
+            room,
+            WorldEdge::LocatedIn {
+                since_unix_ms: now_ms,
+            },
+        );
         Some((cp, event))
     }
 }
@@ -765,7 +815,10 @@ mod tests {
         let (mut e2, r2) = engine();
         let o2 = e2.process_cycle(&frames, cal, r2, 5_000).unwrap();
 
-        assert_eq!(o1.provenance.calibration_version, o2.provenance.calibration_version);
+        assert_eq!(
+            o1.provenance.calibration_version,
+            o2.provenance.calibration_version
+        );
         assert_eq!(o1.provenance.evidence, o2.provenance.evidence);
         assert_eq!(o1.effective_class, o2.effective_class);
         assert_eq!(o1.quality.per_node_weights, o2.quality.per_node_weights);
@@ -793,7 +846,10 @@ mod tests {
             adapted.provenance.model_version,
             "rfenc-v1+adapter:a1b2c3d4e5f60718"
         );
-        assert_ne!(adapted.witness, base.witness, "adapter must shift the witness");
+        assert_ne!(
+            adapted.witness, base.witness,
+            "adapter must shift the witness"
+        );
 
         // A different adapter id yields a different witness again.
         e.set_room_adapter(AdapterInfo {
@@ -880,7 +936,12 @@ mod tests {
 
         // Balanced 2-node mesh: report present, no risk.
         let out = e
-            .process_cycle(&[node_frame(0, 1000, 56), node_frame(1, 1001, 56)], cal, room, 1)
+            .process_cycle(
+                &[node_frame(0, 1000, 56), node_frame(1, 1001, 56)],
+                cal,
+                room,
+                1,
+            )
             .unwrap();
         let mesh = out.mesh.expect("2-node mesh reports");
         assert!(!mesh.at_risk);
@@ -959,7 +1020,9 @@ mod tests {
                 node_frame(0, 1000 + i * 50_000, 56),
                 node_frame(1, 1001 + i * 50_000, 56),
             ];
-            let out = e.process_cycle(&frames, cal, room, 5_000 + i as i64).unwrap();
+            let out = e
+                .process_cycle(&frames, cal, room, 5_000 + i as i64)
+                .unwrap();
             last_id = Some(out.semantic_id);
             assert!(e.world().node_count() <= baseline_nodes + 5);
         }
@@ -993,9 +1056,16 @@ mod tests {
         e.register_node_geometry(0, 1.0, 0.0, 0.0);
         e.register_node_geometry(1, -1.0, 0.0, PI); // opposite → good diversity
         let out = e
-            .process_cycle(&[node_frame(0, 1000, 56), node_frame(1, 1001, 56)], CalibrationId(1), room, 1)
+            .process_cycle(
+                &[node_frame(0, 1000, 56), node_frame(1, 1001, 56)],
+                CalibrationId(1),
+                room,
+                1,
+            )
             .unwrap();
-        let d = out.directional.expect("geometry registered → directional evidence");
+        let d = out
+            .directional
+            .expect("geometry registered → directional evidence");
         assert_eq!(d.n_admitted, 2);
         assert!((d.weights.iter().map(|(_, w)| *w).sum::<f32>() - 1.0).abs() < 1e-3);
         // Well-separated, coherent nodes → no array contradiction → no demotion.
@@ -1010,10 +1080,18 @@ mod tests {
         e.register_node_geometry(0, 1.0, 0.0, 0.0);
         e.register_node_geometry(1, 1.0, 0.01, 0.01); // nearly colinear → low GDI
         let out = e
-            .process_cycle(&[node_frame(0, 1000, 56), node_frame(1, 1001, 56)], CalibrationId(1), room, 1)
+            .process_cycle(
+                &[node_frame(0, 1000, 56), node_frame(1, 1001, 56)],
+                CalibrationId(1),
+                room,
+                1,
+            )
             .unwrap();
         let d = out.directional.unwrap();
-        assert!(!d.contradictions.is_empty(), "insufficient geometry flagged");
+        assert!(
+            !d.contradictions.is_empty(),
+            "insufficient geometry flagged"
+        );
         assert!(out.demoted && out.effective_class == PrivacyClass::Restricted);
     }
 
@@ -1027,13 +1105,32 @@ mod tests {
         for i in 0..30u64 {
             let s = if i % 2 == 0 { 0.99 } else { 1.01 };
             let out = e
-                .process_cycle(&[node_frame_scaled(0, 1000, 56, s), node_frame_scaled(1, 1001, 56, s)], cal, room, i as i64)
+                .process_cycle(
+                    &[
+                        node_frame_scaled(0, 1000, 56, s),
+                        node_frame_scaled(1, 1001, 56, s),
+                    ],
+                    cal,
+                    room,
+                    i as i64,
+                )
                 .unwrap();
-            assert!(out.change_point.is_none(), "baseline must not trip a change-point");
+            assert!(
+                out.change_point.is_none(),
+                "baseline must not trip a change-point"
+            );
         }
         // Large simultaneous excursion on both links → change-point.
         let out = e
-            .process_cycle(&[node_frame_scaled(0, 1000, 56, 1.6), node_frame_scaled(1, 1001, 56, 1.6)], cal, room, 99)
+            .process_cycle(
+                &[
+                    node_frame_scaled(0, 1000, 56, 1.6),
+                    node_frame_scaled(1, 1001, 56, 1.6),
+                ],
+                cal,
+                room,
+                99,
+            )
             .unwrap();
         let (_, event_id) = out.change_point.expect("simultaneous shift → change-point");
         assert!(matches!(
@@ -1053,11 +1150,19 @@ mod tests {
         let obs: Vec<ReflectorObservation> = (0..8u64)
             .map(|i| {
                 let j = if i % 2 == 0 { 0.005 } else { -0.005 };
-                ReflectorObservation { position: [3.0 + j, 1.0, 0.0], delay_ns: 12.0, coherence: 0.9, at_ns: i * (day_ns / 8) }
+                ReflectorObservation {
+                    position: [3.0 + j, 1.0, 0.0],
+                    delay_ns: 12.0,
+                    coherence: 0.9,
+                    at_ns: i * (day_ns / 8),
+                }
             })
             .collect();
         let written = e.ingest_reflectors(&obs);
-        assert!(!written.is_empty(), "stable reflector → ObjectAnchor written");
+        assert!(
+            !written.is_empty(),
+            "stable reflector → ObjectAnchor written"
+        );
         assert!(matches!(
             e.world().node(written[0]),
             Some(WorldNode::ObjectAnchor { .. })
@@ -1124,21 +1229,32 @@ mod tests {
 
         // live_frame -> fusion_event -> worldgraph_update (SemanticState).
         let out = e
-            .process_cycle(&[node_frame(0, 1000, 56), node_frame(1, 1001, 56)], CalibrationId(9), room, 100)
+            .process_cycle(
+                &[node_frame(0, 1000, 56), node_frame(1, 1001, 56)],
+                CalibrationId(9),
+                room,
+                100,
+            )
             .unwrap();
         // person track feeding.
         let pt = e.update_person_track(7, 2.0, 2.0, room, sensor);
 
         // privacy_rollup: StrictNoIdentity suppresses the person_track.
         let rollup = e.apply_active_privacy_mode();
-        assert!(rollup.suppressed_nodes.contains(&pt), "person track suppressed");
+        assert!(
+            rollup.suppressed_nodes.contains(&pt),
+            "person track suppressed"
+        );
         assert!(rollup.denied_pairs.iter().any(|(_s, n)| *n == pt));
 
         // persist.
         let bytes = e.snapshot_json().unwrap();
         // No raw RF frame persisted — the snapshot is graph nodes/edges only.
         let json = String::from_utf8(bytes.clone()).unwrap();
-        assert!(!json.contains("\"amplitude\"") && !json.contains("\"data\""), "no raw RF in snapshot");
+        assert!(
+            !json.contains("\"amplitude\"") && !json.contains("\"data\""),
+            "no raw RF in snapshot"
+        );
 
         // reload.
         let reloaded = WorldGraph::from_json(&bytes).unwrap();
@@ -1146,7 +1262,10 @@ mod tests {
         // same_contents: node count, area resolution, the SemanticState + track,
         // and an identical room-contents query before vs after reload.
         assert_eq!(reloaded.node_count(), e.world().node_count());
-        assert_eq!(reloaded.room_for_area("living_room"), e.world().room_for_area("living_room"));
+        assert_eq!(
+            reloaded.room_for_area("living_room"),
+            e.world().room_for_area("living_room")
+        );
         assert!(reloaded.node(out.semantic_id).is_some());
         assert!(reloaded.node(pt).is_some());
         let mut before = e.world().contents_of(room);
@@ -1166,7 +1285,12 @@ mod tests {
         e.set_privacy_mode(PrivacyMode::StrictNoIdentity);
         assert!(e.privacy().verify_chain());
         let out = e
-            .process_cycle(&[node_frame(0, 1000, 56), node_frame(1, 1001, 56)], CalibrationId(1), room, 1)
+            .process_cycle(
+                &[node_frame(0, 1000, 56), node_frame(1, 1001, 56)],
+                CalibrationId(1),
+                room,
+                1,
+            )
             .unwrap();
         // StrictNoIdentity base = Restricted, even with no contradiction.
         assert_eq!(out.effective_class, PrivacyClass::Restricted);
@@ -1249,10 +1373,17 @@ mod tests {
     fn empty_cycle_fails_closed() {
         let (mut e, room) = engine();
         let err = e.process_cycle(&[], CalibrationId(1), room, 1);
-        assert!(matches!(err, Err(EngineError::Fusion(_))), "empty cycle must error, got {err:?}");
+        assert!(
+            matches!(err, Err(EngineError::Fusion(_))),
+            "empty cycle must error, got {err:?}"
+        );
         // No SemanticState was appended (room + sensor only).
         assert_eq!(e.world().node_count(), 2);
-        assert_eq!(e.cycle_count(), 0, "a failed cycle must not advance the counter");
+        assert_eq!(
+            e.cycle_count(),
+            0,
+            "a failed cycle must not advance the counter"
+        );
     }
 
     /// Single-node boundary characterization: a one-node cycle fuses (no

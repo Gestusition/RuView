@@ -139,7 +139,11 @@ fn motion_topic_never_appears_for_class_below_anonymous_publishing() {
 
     let log = pub_arc.lock().unwrap();
     let motions = motion_messages(&log.published);
-    assert_eq!(motions.len(), 1, "Restricted still publishes motion (sensing)");
+    assert_eq!(
+        motions.len(),
+        1,
+        "Restricted still publishes motion (sensing)"
+    );
     assert!(
         !log.published
             .iter()

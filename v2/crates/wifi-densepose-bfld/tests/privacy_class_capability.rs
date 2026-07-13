@@ -60,11 +60,7 @@ fn allows_network_strictly_excludes_raw() {
     // refactor that lets Raw cross a NetworkSink violates ADR-118 invariant I1.
     for c in ALL_CLASSES {
         let expected = !matches!(c, PrivacyClass::Raw);
-        assert_eq!(
-            c.allows_network(),
-            expected,
-            "{c:?}: allows_network drift",
-        );
+        assert_eq!(c.allows_network(), expected, "{c:?}: allows_network drift",);
     }
 }
 

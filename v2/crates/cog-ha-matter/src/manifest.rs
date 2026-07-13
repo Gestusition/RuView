@@ -66,8 +66,7 @@ mod tests {
             )
             .into(),
             binary_bytes: 4_200_000,
-            binary_sha256:
-                "a".repeat(64),
+            binary_sha256: "a".repeat(64),
             binary_signature: "Zm9v".into(),
             installed_at: 1_779_512_400,
             status: "installed".into(),

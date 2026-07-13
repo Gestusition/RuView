@@ -48,9 +48,7 @@ pub fn check_class<S: Sink>(class: PrivacyClass) -> Result<(), BfldError> {
     if class.as_u8() >= S::MIN_CLASS.as_u8() {
         Ok(())
     } else {
-        Err(BfldError::PrivacyViolation {
-            reason: S::KIND,
-        })
+        Err(BfldError::PrivacyViolation { reason: S::KIND })
     }
 }
 

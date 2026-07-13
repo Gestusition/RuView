@@ -12,7 +12,11 @@ fn sample_event(class: PrivacyClass, with_zone: bool) -> BfldEvent {
         0.72,
         2,
         0.91,
-        if with_zone { Some("living_room".into()) } else { None },
+        if with_zone {
+            Some("living_room".into())
+        } else {
+            None
+        },
         class,
         Some(0.34),
         Some([0xAB; 32]),

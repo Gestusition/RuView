@@ -65,7 +65,9 @@ fn motion_payload_marked_as_diagnostic() {
         .iter()
         .find(|m| m.topic.contains("motion"))
         .expect("motion config");
-    assert!(motion.payload.contains("\"entity_category\":\"diagnostic\""));
+    assert!(motion
+        .payload
+        .contains("\"entity_category\":\"diagnostic\""));
 }
 
 #[test]
@@ -89,7 +91,8 @@ fn every_payload_contains_unique_id_and_state_topic_pointing_at_correct_state_to
         );
         // state_topic must point back at the BFLD `ruview/<node>/bfld/<entity>/state` path.
         assert!(
-            msg.payload.contains("\"state_topic\":\"ruview/seed-99/bfld/"),
+            msg.payload
+                .contains("\"state_topic\":\"ruview/seed-99/bfld/"),
             "state_topic wrong in {msg:?}",
         );
         // Device block ties all six entities to one HA device.

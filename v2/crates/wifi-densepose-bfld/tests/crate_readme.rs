@@ -16,14 +16,20 @@ fn readme_documents_three_structural_invariants() {
         "Identity embedding is in-RAM-only",
         "Cross-site identity correlation",
     ] {
-        assert!(README.contains(needle), "README missing invariant text: {needle}");
+        assert!(
+            README.contains(needle),
+            "README missing invariant text: {needle}"
+        );
     }
 }
 
 #[test]
 fn readme_documents_feature_flag_matrix() {
     for needle in ["`std`", "`serde-json`", "`mqtt`", "`soul-signature`"] {
-        assert!(README.contains(needle), "feature flag {needle} missing from README");
+        assert!(
+            README.contains(needle),
+            "feature flag {needle} missing from README"
+        );
     }
 }
 
@@ -66,7 +72,10 @@ fn readme_quickstart_uses_canonical_public_api() {
         "BfldPipelineHandle::spawn",
         "PipelineInput",
     ] {
-        assert!(readme.contains(needle), "quickstart missing canonical API: {needle}");
+        assert!(
+            readme.contains(needle),
+            "quickstart missing canonical API: {needle}"
+        );
     }
 }
 

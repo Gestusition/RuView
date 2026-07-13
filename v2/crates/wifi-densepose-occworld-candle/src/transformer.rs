@@ -61,8 +61,8 @@ fn scaled_dot_product_attention(q: &Tensor, k: &Tensor, v: &Tensor) -> Result<Te
     let head_dim = q.dim(candle_core::D::Minus1)? as f64;
     let scale = (head_dim).sqrt();
     // (B, heads, q_len, k_len)
-    let attn_weights = (q.matmul(&k.transpose(candle_core::D::Minus2, candle_core::D::Minus1)?)?
-        / scale)?;
+    let attn_weights =
+        (q.matmul(&k.transpose(candle_core::D::Minus2, candle_core::D::Minus1)?)? / scale)?;
     let attn_probs = softmax(&attn_weights, candle_core::D::Minus1)?;
     attn_probs.matmul(v)
 }
@@ -140,9 +140,10 @@ impl SpatialCrossAttn {
         // (B, heads, q_len, head_dim)
         let attended = scaled_dot_product_attention(&q, &k, &v)?;
         // → (B, q_len, C)
-        let merged = attended
-            .permute((0, 2, 1, 3))?
-            .reshape((b, q_len, self.num_heads * self.head_dim))?;
+        let merged =
+            attended
+                .permute((0, 2, 1, 3))?
+                .reshape((b, q_len, self.num_heads * self.head_dim))?;
         self.out_proj.forward(&merged)
     }
 }
@@ -361,10 +362,7 @@ impl OccWorldTransformer {
     /// # Returns
     /// Predicted logits: `(B, F_out, vocab, H, W)` where `F_out = F` and
     /// `vocab = codebook_size`.
-    pub fn forward(
-        &self,
-        z_q: &Tensor,
-    ) -> std::result::Result<Tensor, OccWorldError> {
+    pub fn forward(&self, z_q: &Tensor) -> std::result::Result<Tensor, OccWorldError> {
         let (b, f, c, h, w) = z_q.dims5().map_err(OccWorldError::Candle)?;
         let device = z_q.device();
 
@@ -381,7 +379,7 @@ impl OccWorldTransformer {
             .temporal_embed
             .forward(f, device)
             .map_err(OccWorldError::Candle)?; // (F, C)
-        // Expand to (B*F, 1, C) for broadcast addition
+                                              // Expand to (B*F, 1, C) for broadcast addition
         let temp_pos = temp_pos
             .reshape((f, 1, c))
             .map_err(OccWorldError::Candle)?
@@ -447,8 +445,8 @@ mod tests {
             ..OccWorldConfig::default()
         };
 
-        let transformer = OccWorldTransformer::dummy(cfg.clone(), &device)
-            .map_err(OccWorldError::Candle)?;
+        let transformer =
+            OccWorldTransformer::dummy(cfg.clone(), &device).map_err(OccWorldError::Candle)?;
 
         // (B=1, F=4, C=16, H=4, W=4)
         let z_q = Tensor::randn(
@@ -463,7 +461,13 @@ mod tests {
         // Expected: (1, 4, 8, 4, 4)
         assert_eq!(
             logits.dims(),
-            &[1, cfg.num_frames, cfg.codebook_size, cfg.token_h, cfg.token_w]
+            &[
+                1,
+                cfg.num_frames,
+                cfg.codebook_size,
+                cfg.token_h,
+                cfg.token_w
+            ]
         );
 
         Ok(())

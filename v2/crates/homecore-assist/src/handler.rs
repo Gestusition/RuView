@@ -38,8 +38,7 @@ pub trait IntentHandler: Send + Sync + 'static {
     fn intent_name(&self) -> &str;
 
     /// Handle the intent and return a response.
-    async fn handle(&self, intent: Intent, hc: &HomeCore)
-        -> Result<IntentResponse, HandlerError>;
+    async fn handle(&self, intent: Intent, hc: &HomeCore) -> Result<IntentResponse, HandlerError>;
 }
 
 // ---- HassTurnOn ----
@@ -53,11 +52,7 @@ impl IntentHandler for HassTurnOn {
         "HassTurnOn"
     }
 
-    async fn handle(
-        &self,
-        intent: Intent,
-        hc: &HomeCore,
-    ) -> Result<IntentResponse, HandlerError> {
+    async fn handle(&self, intent: Intent, hc: &HomeCore) -> Result<IntentResponse, HandlerError> {
         let entity_id = intent
             .entity_id()
             .ok_or_else(|| HandlerError::MissingSlot("entity_id".into()))?
@@ -71,7 +66,9 @@ impl IntentHandler for HassTurnOn {
             .call(call)
             .await
             .map_err(|e| HandlerError::ServiceFailed(e.to_string()))?;
-        Ok(IntentResponse::speech_only(format!("Turned on {entity_id}.")))
+        Ok(IntentResponse::speech_only(format!(
+            "Turned on {entity_id}."
+        )))
     }
 }
 
@@ -86,11 +83,7 @@ impl IntentHandler for HassTurnOff {
         "HassTurnOff"
     }
 
-    async fn handle(
-        &self,
-        intent: Intent,
-        hc: &HomeCore,
-    ) -> Result<IntentResponse, HandlerError> {
+    async fn handle(&self, intent: Intent, hc: &HomeCore) -> Result<IntentResponse, HandlerError> {
         let entity_id = intent
             .entity_id()
             .ok_or_else(|| HandlerError::MissingSlot("entity_id".into()))?
@@ -104,7 +97,9 @@ impl IntentHandler for HassTurnOff {
             .call(call)
             .await
             .map_err(|e| HandlerError::ServiceFailed(e.to_string()))?;
-        Ok(IntentResponse::speech_only(format!("Turned off {entity_id}.")))
+        Ok(IntentResponse::speech_only(format!(
+            "Turned off {entity_id}."
+        )))
     }
 }
 
@@ -119,11 +114,7 @@ impl IntentHandler for HassLightSet {
         "HassLightSet"
     }
 
-    async fn handle(
-        &self,
-        intent: Intent,
-        hc: &HomeCore,
-    ) -> Result<IntentResponse, HandlerError> {
+    async fn handle(&self, intent: Intent, hc: &HomeCore) -> Result<IntentResponse, HandlerError> {
         let entity_id = intent
             .entity_id()
             .ok_or_else(|| HandlerError::MissingSlot("entity_id".into()))?
@@ -144,7 +135,9 @@ impl IntentHandler for HassLightSet {
             .call(call)
             .await
             .map_err(|e| HandlerError::ServiceFailed(e.to_string()))?;
-        Ok(IntentResponse::speech_only(format!("Done, adjusted {entity_id}.")))
+        Ok(IntentResponse::speech_only(format!(
+            "Done, adjusted {entity_id}."
+        )))
     }
 }
 
@@ -179,11 +172,7 @@ impl IntentHandler for HassCancelAll {
         "HassCancelAll"
     }
 
-    async fn handle(
-        &self,
-        _intent: Intent,
-        hc: &HomeCore,
-    ) -> Result<IntentResponse, HandlerError> {
+    async fn handle(&self, _intent: Intent, hc: &HomeCore) -> Result<IntentResponse, HandlerError> {
         use homecore::{Context, DomainEvent};
         let event = DomainEvent::new(
             "homeassistant_stop_all_scripts",
@@ -192,7 +181,9 @@ impl IntentHandler for HassCancelAll {
         );
         // fire_domain is synchronous and infallible (returns receiver count).
         let _receivers = hc.bus().fire_domain(event);
-        Ok(IntentResponse::speech_only("Cancelled all running automations."))
+        Ok(IntentResponse::speech_only(
+            "Cancelled all running automations.",
+        ))
     }
 }
 
@@ -206,7 +197,10 @@ mod tests {
     /// Build a `HomeCore` pre-registered with a spy handler for the given
     /// service.  Returns `(HomeCore, Arc<AtomicBool>)` so tests can assert
     /// the handler was called.
-    async fn hc_with_spy(domain: &str, service: &str) -> (HomeCore, std::sync::Arc<std::sync::atomic::AtomicBool>) {
+    async fn hc_with_spy(
+        domain: &str,
+        service: &str,
+    ) -> (HomeCore, std::sync::Arc<std::sync::atomic::AtomicBool>) {
         let hc = HomeCore::new();
         let called = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let called2 = called.clone();
@@ -264,9 +258,11 @@ mod tests {
             language: "en".into(),
         };
         let resp = HassNevermind.handle(intent, &hc).await.unwrap();
-        assert!(resp.speech.to_lowercase().contains("never mind")
-            || resp.speech.to_lowercase().contains("nevermind")
-            || resp.speech.to_lowercase().contains("okay"));
+        assert!(
+            resp.speech.to_lowercase().contains("never mind")
+                || resp.speech.to_lowercase().contains("nevermind")
+                || resp.speech.to_lowercase().contains("okay")
+        );
     }
 
     #[tokio::test]

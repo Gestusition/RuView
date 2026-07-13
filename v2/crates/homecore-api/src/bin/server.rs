@@ -46,7 +46,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let s = LongLivedTokenStore::from_env();
         let n = s.len().await;
-        tracing::info!("LongLivedTokenStore provisioned with {n} bearer token(s) from HOMECORE_TOKENS");
+        tracing::info!(
+            "LongLivedTokenStore provisioned with {n} bearer token(s) from HOMECORE_TOKENS"
+        );
         s
     } else {
         tracing::warn!(

@@ -29,8 +29,14 @@ fn anonymous_event_retains_identity_risk_and_hash() {
 #[test]
 fn restricted_event_strips_identity_fields() {
     let e = sample_at(PrivacyClass::Restricted);
-    assert!(e.identity_risk_score.is_none(), "risk score must be None at class 3");
-    assert!(e.rf_signature_hash.is_none(), "rf hash must be None at class 3");
+    assert!(
+        e.identity_risk_score.is_none(),
+        "risk score must be None at class 3"
+    );
+    assert!(
+        e.rf_signature_hash.is_none(),
+        "rf hash must be None at class 3"
+    );
     // Sensing fields still present.
     assert!(e.presence);
     assert_eq!(e.person_count, 1);
@@ -111,6 +117,9 @@ mod json {
         let mut e = sample_at(PrivacyClass::Anonymous);
         e.zone_id = None;
         let json = e.to_json().unwrap();
-        assert!(!json.contains("zone_id"), "None zone_id must be omitted: {json}");
+        assert!(
+            !json.contains("zone_id"),
+            "None zone_id must be omitted: {json}"
+        );
     }
 }

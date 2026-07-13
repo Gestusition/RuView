@@ -215,7 +215,7 @@ mod tests {
         assert_eq!(req_status("bearer s3cr3t").await, StatusCode::OK);
         assert_eq!(req_status("BEARER s3cr3t").await, StatusCode::OK);
         assert_eq!(req_status("Bearer  s3cr3t").await, StatusCode::OK); // extra space
-        // Scheme leniency must NOT weaken the token check.
+                                                                        // Scheme leniency must NOT weaken the token check.
         assert_eq!(req_status("bearer nope").await, StatusCode::UNAUTHORIZED);
         assert_eq!(req_status("Basic s3cr3t").await, StatusCode::UNAUTHORIZED);
     }
@@ -275,26 +275,14 @@ mod tests {
             "?token= in the query string must not authenticate (CWE-598)"
         );
         assert_eq!(
-            status(
-                r.clone(),
-                "GET",
-                "/api/v1/info?access_token=s3cr3t",
-                None
-            )
-            .await,
+            status(r.clone(), "GET", "/api/v1/info?access_token=s3cr3t", None).await,
             StatusCode::UNAUTHORIZED,
             "?access_token= in the query string must not authenticate (CWE-598)"
         );
         // A query token must not "help" a request that also lacks the header,
         // even combined with an unrelated param.
         assert_eq!(
-            status(
-                r.clone(),
-                "GET",
-                "/api/v1/info?foo=bar&token=s3cr3t",
-                None
-            )
-            .await,
+            status(r.clone(), "GET", "/api/v1/info?foo=bar&token=s3cr3t", None).await,
             StatusCode::UNAUTHORIZED
         );
         // The header path is the only accepted channel — same token, header,

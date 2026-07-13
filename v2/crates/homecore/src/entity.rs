@@ -273,9 +273,18 @@ mod tests {
     #[test]
     fn state_next_preserves_last_changed_when_state_unchanged() {
         let id = EntityId::parse("sensor.temp").unwrap();
-        let s1 = State::new(id.clone(), "20.0", serde_json::json!({}), Context::default());
+        let s1 = State::new(
+            id.clone(),
+            "20.0",
+            serde_json::json!({}),
+            Context::default(),
+        );
         std::thread::sleep(std::time::Duration::from_millis(2));
-        let s2 = s1.next("20.0", serde_json::json!({"updated": true}), Context::default());
+        let s2 = s1.next(
+            "20.0",
+            serde_json::json!({"updated": true}),
+            Context::default(),
+        );
         assert_eq!(s1.last_changed, s2.last_changed);
         assert!(s2.last_updated > s1.last_updated);
     }

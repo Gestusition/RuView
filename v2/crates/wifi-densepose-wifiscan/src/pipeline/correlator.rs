@@ -68,7 +68,10 @@ impl BssidCorrelator {
         for i in 0..n {
             corr_matrix[i][i] = 1.0;
             for j in (i + 1)..n {
-                let r = pearson_r(self.histories[i].as_slices().0, self.histories[j].as_slices().0);
+                let r = pearson_r(
+                    self.histories[i].as_slices().0,
+                    self.histories[j].as_slices().0,
+                );
                 corr_matrix[i][j] = r;
                 corr_matrix[j][i] = r;
             }

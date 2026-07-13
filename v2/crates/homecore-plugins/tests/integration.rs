@@ -233,11 +233,7 @@ mod wasmtime_tests {
     }
 
     fn state_changed_event(entity_id: &str, new_state: &str) -> StateChangedEventJson {
-        StateChangedEventJson::state_changed(
-            entity_id,
-            Some(new_state),
-            serde_json::json!({}),
-        )
+        StateChangedEventJson::state_changed(entity_id, Some(new_state), serde_json::json!({}))
     }
 
     fn assert_alert_state(hc: &HomeCore, expected: &str) {
@@ -268,8 +264,8 @@ mod wasmtime_tests {
             return; // skip — binary not built yet
         }
 
-        let wasm_bytes = std::fs::read(wasm_path)
-            .expect("failed to read homecore_plugin_example.wasm");
+        let wasm_bytes =
+            std::fs::read(wasm_path).expect("failed to read homecore_plugin_example.wasm");
 
         let (rt, hc) = build_rt_and_hc();
         let plugin = rt
@@ -284,7 +280,9 @@ mod wasmtime_tests {
 
         // Verify subscription was recorded.
         assert!(
-            plugin.subscriptions().contains(&"sensor.test_temp".to_owned()),
+            plugin
+                .subscriptions()
+                .contains(&"sensor.test_temp".to_owned()),
             "plugin should have subscribed to sensor.test_temp"
         );
 
@@ -425,18 +423,13 @@ mod wasmtime_tests {
 
     /// Build a manifest signed by `key` over the SHA-256 of `wasm_bytes`,
     /// with the given write-permission grants.
-    fn signed_manifest(
-        wasm_bytes: &[u8],
-        key: &SigningKey,
-        perms: &[&str],
-    ) -> PluginManifest {
+    fn signed_manifest(wasm_bytes: &[u8], key: &SigningKey, perms: &[&str]) -> PluginManifest {
         use sha2::{Digest, Sha256};
         let digest: [u8; 32] = Sha256::digest(wasm_bytes).into();
         let sig = key.sign(&digest);
-        let mut m = PluginManifest::parse_json(
-            r#"{"domain":"demo","name":"Demo","version":"1.0.0"}"#,
-        )
-        .unwrap();
+        let mut m =
+            PluginManifest::parse_json(r#"{"domain":"demo","name":"Demo","version":"1.0.0"}"#)
+                .unwrap();
         m.wasm_module = Some("demo.wasm".into());
         m.wasm_module_hash = Some(encode_sha256(wasm_bytes));
         m.wasm_module_sig = Some(encode_signature(&sig));
@@ -450,8 +443,7 @@ mod wasmtime_tests {
         let wasm = wat::parse_str(WRITE_LIGHT_WAT).expect("WAT");
         let key = publisher_key();
         let manifest = signed_manifest(&wasm, &key, &["light.*"]);
-        let policy =
-            PluginPolicy::trusted(&[&encode_verifying_key(&key.verifying_key())]).unwrap();
+        let policy = PluginPolicy::trusted(&[&encode_verifying_key(&key.verifying_key())]).unwrap();
 
         let rt = WasmtimeRuntime::new().expect("rt");
         let hc = HomeCore::new();
@@ -465,8 +457,7 @@ mod wasmtime_tests {
         let key = publisher_key();
         // Manifest signs the original bytes; we then load DIFFERENT bytes.
         let manifest = signed_manifest(&wasm, &key, &["light.*"]);
-        let policy =
-            PluginPolicy::trusted(&[&encode_verifying_key(&key.verifying_key())]).unwrap();
+        let policy = PluginPolicy::trusted(&[&encode_verifying_key(&key.verifying_key())]).unwrap();
 
         // Re-compile a byte-different module (writes "off" not "on").
         let tampered_src = WRITE_LIGHT_WAT.replace(r#""on""#, r#""of""#);
@@ -503,10 +494,8 @@ mod wasmtime_tests {
     #[test]
     fn p4_unsigned_module_rejected_by_default_loads_only_under_allow_unsigned() {
         let wasm = wat::parse_str(WRITE_LIGHT_WAT).expect("WAT");
-        let mut manifest = PluginManifest::parse_json(
-            r#"{"domain":"u","name":"U","version":"1"}"#,
-        )
-        .unwrap();
+        let mut manifest =
+            PluginManifest::parse_json(r#"{"domain":"u","name":"U","version":"1"}"#).unwrap();
         manifest.wasm_module = Some("u.wasm".into());
         manifest.homecore_permissions = vec!["light.*".into()];
         // No hash/sig/key → unsigned.
@@ -566,7 +555,8 @@ mod wasmtime_tests {
     #[test]
     fn p5_declared_light_plugin_may_write_light_but_not_lock() {
         let key = publisher_key();
-        let trusted = PluginPolicy::trusted(&[&encode_verifying_key(&key.verifying_key())]).unwrap();
+        let trusted =
+            PluginPolicy::trusted(&[&encode_verifying_key(&key.verifying_key())]).unwrap();
         let rt = WasmtimeRuntime::new().expect("rt");
 
         // (a) A `light.*` plugin writing `light.kitchen` → ALLOWED.
@@ -580,7 +570,10 @@ mod wasmtime_tests {
         assert_eq!(r, 0, "write to declared light.kitchen should succeed");
         let kitchen = homecore::EntityId::parse("light.kitchen").unwrap();
         assert_eq!(
-            hc_a.states().get(&kitchen).expect("light.kitchen written").state,
+            hc_a.states()
+                .get(&kitchen)
+                .expect("light.kitchen written")
+                .state,
             "on"
         );
 
@@ -592,7 +585,9 @@ mod wasmtime_tests {
         let plugin_b = rt
             .load_plugin(&lock_manifest, &lock_wasm, hc_b.clone(), &trusted)
             .expect("module loads (verification ok); the WRITE is what's gated");
-        let denied = plugin_b.call_setup("{}").expect("setup runs without trapping host");
+        let denied = plugin_b
+            .call_setup("{}")
+            .expect("setup runs without trapping host");
         assert_eq!(
             denied, -3,
             "over-privileged write to lock.front_door must return -3 (permission denied)"
@@ -607,7 +602,8 @@ mod wasmtime_tests {
     #[test]
     fn p5_plugin_with_no_permissions_can_write_nothing() {
         let key = publisher_key();
-        let trusted = PluginPolicy::trusted(&[&encode_verifying_key(&key.verifying_key())]).unwrap();
+        let trusted =
+            PluginPolicy::trusted(&[&encode_verifying_key(&key.verifying_key())]).unwrap();
         let rt = WasmtimeRuntime::new().expect("rt");
 
         let wasm = wat::parse_str(WRITE_LIGHT_WAT).expect("WAT");
@@ -619,7 +615,9 @@ mod wasmtime_tests {
             .expect("module loads; the write is gated");
         // WRITE_LIGHT_WAT drops the host-import result and returns 0, so we
         // assert the denial via the side-effect: the write must NOT land.
-        plugin.call_setup("{}").expect("setup runs without trapping host");
+        plugin
+            .call_setup("{}")
+            .expect("setup runs without trapping host");
         let kitchen = homecore::EntityId::parse("light.kitchen").unwrap();
         assert!(
             hc.states().get(&kitchen).is_none(),

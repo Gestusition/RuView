@@ -80,7 +80,10 @@ async fn wrong_token_is_rejected() {
         resp["type"], "auth_invalid",
         "wrong token must be rejected with auth_invalid, got: {resp}"
     );
-    assert_ne!(resp["type"], "auth_ok", "wrong token must NOT receive auth_ok");
+    assert_ne!(
+        resp["type"], "auth_ok",
+        "wrong token must NOT receive auth_ok"
+    );
 }
 
 #[tokio::test]
@@ -99,7 +102,10 @@ async fn correct_token_is_accepted() {
     .unwrap();
 
     let resp = next_json(&mut ws).await;
-    assert_eq!(resp["type"], "auth_ok", "correct token should be accepted, got: {resp}");
+    assert_eq!(
+        resp["type"], "auth_ok",
+        "correct token should be accepted, got: {resp}"
+    );
 }
 
 #[tokio::test]
@@ -133,7 +139,10 @@ async fn result_reply_is_received() {
     let reply = tokio::time::timeout(std::time::Duration::from_secs(5), next_json(&mut ws))
         .await
         .expect("did not receive a reply within 5s — reply theater (HC-WS-02)");
-    assert_eq!(reply["type"], "result", "expected a result reply, got: {reply}");
+    assert_eq!(
+        reply["type"], "result",
+        "expected a result reply, got: {reply}"
+    );
     assert_eq!(reply["id"], 1);
     assert_eq!(reply["success"], true);
 }

@@ -449,7 +449,10 @@ mod tests {
         ];
         let gdop_bad = t.compute_gdop(&target, &bad).expect("bad geometry");
 
-        assert!(gdop_good >= 1.0, "GDOP must be >= 1 (dilution, dimensionless)");
+        assert!(
+            gdop_good >= 1.0,
+            "GDOP must be >= 1 (dilution, dimensionless)"
+        );
         assert!(
             gdop_good < gdop_bad,
             "well-spread GDOP {gdop_good} must be < near-collinear GDOP {gdop_bad}"

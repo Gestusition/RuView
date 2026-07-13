@@ -48,13 +48,23 @@ pub struct StateMessage {
 }
 
 impl StateMessage {
-    pub fn new(topic: String, payload: String, component: DiscoveryComponent, is_change_only: bool) -> Self {
+    pub fn new(
+        topic: String,
+        payload: String,
+        component: DiscoveryComponent,
+        is_change_only: bool,
+    ) -> Self {
         let (qos, retain) = match component {
             DiscoveryComponent::BinarySensor => (1, is_change_only),
             DiscoveryComponent::Event => (1, false),
             DiscoveryComponent::Sensor => (0, false),
         };
-        Self { topic, payload, qos, retain }
+        Self {
+            topic,
+            payload,
+            qos,
+            retain,
+        }
     }
 }
 
@@ -69,7 +79,9 @@ pub struct RateLimiter {
 impl RateLimiter {
     /// Build a fresh limiter with no per-entity history.
     pub fn new() -> Self {
-        Self { last: HashMap::new() }
+        Self {
+            last: HashMap::new(),
+        }
     }
 
     /// Decide whether a sample for `entity` is allowed to publish at
@@ -140,14 +152,14 @@ pub struct VitalsSnapshot {
     pub timestamp_ms: i64,
     pub presence: bool,
     pub fall_detected: bool,
-    pub motion: f64,             // 0.0–1.0
+    pub motion: f64, // 0.0–1.0
     pub motion_energy: f64,
-    pub presence_score: f64,     // 0.0–1.0
+    pub presence_score: f64, // 0.0–1.0
     pub breathing_rate_bpm: Option<f64>,
     pub heartrate_bpm: Option<f64>,
     pub n_persons: u32,
     pub rssi_dbm: Option<f64>,
-    pub vital_confidence: f64,   // 0.0–1.0
+    pub vital_confidence: f64, // 0.0–1.0
 }
 
 #[derive(Serialize, Debug)]
@@ -231,14 +243,16 @@ impl<'a> StateEncoder<'a> {
             EntityKind::PersonCount => serde_json::to_value(CountStatePayload {
                 n_persons: snap.n_persons,
                 ts: ts.clone(),
-            }).ok()?,
+            })
+            .ok()?,
             EntityKind::BreathingRate => {
                 let bpm = snap.breathing_rate_bpm?;
                 serde_json::to_value(NumberWithConfidence {
                     bpm,
                     confidence: snap.vital_confidence,
                     ts: ts.clone(),
-                }).ok()?
+                })
+                .ok()?
             }
             EntityKind::HeartRate => {
                 let bpm = snap.heartrate_bpm?;
@@ -246,23 +260,31 @@ impl<'a> StateEncoder<'a> {
                     bpm,
                     confidence: snap.vital_confidence,
                     ts: ts.clone(),
-                }).ok()?
+                })
+                .ok()?
             }
             EntityKind::MotionLevel => serde_json::to_value(MotionStatePayload {
                 level_pct: (snap.motion.clamp(0.0, 1.0)) * 100.0,
                 ts: ts.clone(),
-            }).ok()?,
+            })
+            .ok()?,
             EntityKind::MotionEnergy => serde_json::to_value(EnergyStatePayload {
                 energy: snap.motion_energy,
                 ts: ts.clone(),
-            }).ok()?,
+            })
+            .ok()?,
             EntityKind::PresenceScore => serde_json::to_value(PresenceScorePayload {
                 score_pct: snap.presence_score.clamp(0.0, 1.0) * 100.0,
                 ts: ts.clone(),
-            }).ok()?,
+            })
+            .ok()?,
             EntityKind::Rssi => {
                 let dbm = snap.rssi_dbm?;
-                serde_json::to_value(RssiPayload { dbm, ts: ts.clone() }).ok()?
+                serde_json::to_value(RssiPayload {
+                    dbm,
+                    ts: ts.clone(),
+                })
+                .ok()?
             }
             _ => return None,
         };
@@ -274,16 +296,31 @@ impl<'a> StateEncoder<'a> {
             entity.topic_slug(),
         );
         let payload = serde_json::to_string(&payload_value).ok()?;
-        Some(StateMessage::new(topic, payload, DiscoveryComponent::Sensor, false))
+        Some(StateMessage::new(
+            topic,
+            payload,
+            DiscoveryComponent::Sensor,
+            false,
+        ))
     }
 
     /// One-shot event encoder. Used for fall, bed exit, multi-room
     /// transition.
-    pub fn event(&self, entity: EntityKind, event_type: &'static str, ts_ms: i64, confidence: Option<f64>) -> Option<StateMessage> {
+    pub fn event(
+        &self,
+        entity: EntityKind,
+        event_type: &'static str,
+        ts_ms: i64,
+        confidence: Option<f64>,
+    ) -> Option<StateMessage> {
         if !matches!(entity.component(), DiscoveryComponent::Event) {
             return None;
         }
-        let payload_json = FallEventPayload { event_type, ts: iso_ts(ts_ms), confidence };
+        let payload_json = FallEventPayload {
+            event_type,
+            ts: iso_ts(ts_ms),
+            confidence,
+        };
         let payload = serde_json::to_string(&payload_json).ok()?;
         let topic = format!(
             "{}/{}/wifi_densepose_{}/{}/state",
@@ -292,7 +329,12 @@ impl<'a> StateEncoder<'a> {
             self.builder.node_id,
             entity.topic_slug(),
         );
-        Some(StateMessage::new(topic, payload, DiscoveryComponent::Event, false))
+        Some(StateMessage::new(
+            topic,
+            payload,
+            DiscoveryComponent::Event,
+            false,
+        ))
     }
 }
 
@@ -502,13 +544,21 @@ mod tests {
         let b = builder();
         let enc = StateEncoder { builder: &b };
         let msg = enc
-            .event(EntityKind::FallDetected, "fall_detected", 1779_512_400_000, Some(0.87))
+            .event(
+                EntityKind::FallDetected,
+                "fall_detected",
+                1779_512_400_000,
+                Some(0.87),
+            )
             .unwrap();
         let json: serde_json::Value = serde_json::from_str(&msg.payload).unwrap();
         assert_eq!(json["event_type"], "fall_detected");
         assert_eq!(json["confidence"], 0.87);
         assert_eq!(msg.qos, 1);
-        assert!(!msg.retain, "events must never be retained — HA would replay old falls");
+        assert!(
+            !msg.retain,
+            "events must never be retained — HA would replay old falls"
+        );
     }
 
     #[test]

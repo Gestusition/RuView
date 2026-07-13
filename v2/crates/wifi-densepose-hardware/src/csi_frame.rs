@@ -165,17 +165,30 @@ impl Adr018Flags {
     }
     pub fn to_byte(self) -> u8 {
         let mut b = 0u8;
-        if self.bw40 { b |= 0x01; }
-        if self.stbc { b |= 0x04; }
-        if self.ldpc { b |= 0x08; }
-        if self.ieee802154_sync_valid { b |= 0x10; }
+        if self.bw40 {
+            b |= 0x01;
+        }
+        if self.stbc {
+            b |= 0x04;
+        }
+        if self.ldpc {
+            b |= 0x08;
+        }
+        if self.ieee802154_sync_valid {
+            b |= 0x10;
+        }
         b
     }
 }
 
 impl Default for Adr018Flags {
     fn default() -> Self {
-        Self { bw40: false, stbc: false, ldpc: false, ieee802154_sync_valid: false }
+        Self {
+            bw40: false,
+            stbc: false,
+            ldpc: false,
+            ieee802154_sync_valid: false,
+        }
     }
 }
 

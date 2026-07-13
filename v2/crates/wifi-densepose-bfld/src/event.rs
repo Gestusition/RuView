@@ -67,7 +67,10 @@ pub struct BfldEvent {
     /// Serializes as the JSON string `"blake3:<64-hex>"` per the BFLD wire spec.
     #[cfg_attr(
         feature = "serde-json",
-        serde(skip_serializing_if = "Option::is_none", serialize_with = "ser_rf_signature_hash")
+        serde(
+            skip_serializing_if = "Option::is_none",
+            serialize_with = "ser_rf_signature_hash"
+        )
     )]
     pub rf_signature_hash: Option<[u8; 32]>,
 }
@@ -126,10 +129,7 @@ impl BfldEvent {
 }
 
 #[cfg(feature = "serde-json")]
-fn ser_privacy_class<S: serde::Serializer>(
-    class: &PrivacyClass,
-    s: S,
-) -> Result<S::Ok, S::Error> {
+fn ser_privacy_class<S: serde::Serializer>(class: &PrivacyClass, s: S) -> Result<S::Ok, S::Error> {
     let name = match class {
         PrivacyClass::Raw => "raw",
         PrivacyClass::Derived => "derived",
@@ -149,7 +149,9 @@ fn ser_rf_signature_hash<S: serde::Serializer>(
     s: S,
 ) -> Result<S::Ok, S::Error> {
     // The unwrap is safe: skip_serializing_if guarantees we only run with Some.
-    let bytes = hash.as_ref().expect("ser_rf_signature_hash called with None");
+    let bytes = hash
+        .as_ref()
+        .expect("ser_rf_signature_hash called with None");
     let mut out = String::with_capacity(7 + 64); // "blake3:" + 32*2 hex chars
     out.push_str("blake3:");
     for b in bytes {

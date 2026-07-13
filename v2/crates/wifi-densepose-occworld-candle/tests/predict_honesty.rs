@@ -72,19 +72,30 @@ fn predict_is_deterministic_for_same_input() {
     let past = occ_tensor(&cfg, &device, 1);
     let a = engine.predict(&past).unwrap();
     let b = engine.predict(&past).unwrap();
-    assert_eq!(sem_vec(&a), sem_vec(&b), "same input must give identical sem_pred");
+    assert_eq!(
+        sem_vec(&a),
+        sem_vec(&b),
+        "same input must give identical sem_pred"
+    );
 
     // Trajectory priors identical run-to-run.
     assert_eq!(a.trajectory_priors.len(), b.trajectory_priors.len());
     for (wa, wb) in a.trajectory_priors.iter().zip(b.trajectory_priors.iter()) {
-        assert_eq!((wa.grid_x, wa.grid_y, wa.grid_z), (wb.grid_x, wb.grid_y, wb.grid_z));
+        assert_eq!(
+            (wa.grid_x, wa.grid_y, wa.grid_z),
+            (wb.grid_x, wb.grid_y, wb.grid_z)
+        );
         assert_eq!(wa.confidence, wb.confidence);
     }
 
     // Deterministic init ⇒ a fresh engine reproduces the prediction exactly.
     let engine2 = OccWorldCandle::dummy(cfg, device).unwrap();
     let c = engine2.predict(&past).unwrap();
-    assert_eq!(sem_vec(&a), sem_vec(&c), "independent untrained engines must agree");
+    assert_eq!(
+        sem_vec(&a),
+        sem_vec(&c),
+        "independent untrained engines must agree"
+    );
 }
 
 /// CENTERPIECE — input-dependence: different occupancy → different encoder
@@ -94,8 +105,7 @@ fn encoder_latent_is_input_dependent() {
     let device = Device::Cpu;
     let cfg = small_cfg();
     let enc = Encoder2D::dummy(&cfg, &device).unwrap();
-    let class_embed =
-        ClassEmbedding::dummy(cfg.num_classes, cfg.base_channels, &device).unwrap();
+    let class_embed = ClassEmbedding::dummy(cfg.num_classes, cfg.base_channels, &device).unwrap();
 
     let latent = |fill: u8| -> Tensor {
         let occ = occ_tensor(&cfg, &device, fill)
@@ -111,9 +121,20 @@ fn encoder_latent_is_input_dependent() {
     let z0b = latent(0);
     let z1 = latent(13);
     let l1 = |a: &Tensor, b: &Tensor| {
-        (a - b).unwrap().abs().unwrap().sum_all().unwrap().to_scalar::<f32>().unwrap()
+        (a - b)
+            .unwrap()
+            .abs()
+            .unwrap()
+            .sum_all()
+            .unwrap()
+            .to_scalar::<f32>()
+            .unwrap()
     };
-    assert_eq!(l1(&z0, &z0b), 0.0, "identical input must give identical latent");
+    assert_eq!(
+        l1(&z0, &z0b),
+        0.0,
+        "identical input must give identical latent"
+    );
     assert!(
         l1(&z0, &z1) > 1e-3,
         "different occupancy must give different latent (got L1={})",
@@ -135,13 +156,19 @@ fn predict_flags_untrained_and_returns_real_priors() {
 
     let past = occ_tensor(&cfg, &device, 2);
     let out = engine.predict(&past).unwrap();
-    assert!(!out.weights_trained, "untrained engine must flag predictions");
+    assert!(
+        !out.weights_trained,
+        "untrained engine must flag predictions"
+    );
     assert!(
         !out.trajectory_priors.is_empty(),
         "real forward pass should yield priors for a non-empty input"
     );
     // sem_pred has the right shape and class range.
-    assert_eq!(out.sem_pred.dims(), &[1, cfg.num_frames, cfg.grid_h, cfg.grid_w, cfg.grid_d]);
+    assert_eq!(
+        out.sem_pred.dims(),
+        &[1, cfg.num_frames, cfg.grid_h, cfg.grid_w, cfg.grid_d]
+    );
     for &c in &sem_vec(&out) {
         assert!((c as usize) < cfg.num_classes, "class index in range");
     }

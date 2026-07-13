@@ -31,23 +31,23 @@
 //!
 //! Each is marked `// TODO P2:` at the relevant call site.
 
+pub mod bus;
 pub mod entity;
 pub mod event;
-pub mod state;
-pub mod bus;
-pub mod service;
 pub mod registry;
+pub mod service;
+pub mod state;
 
 mod homecore;
 
 pub use homecore::HomeCore;
 
+pub use bus::EventBus;
 pub use entity::{EntityId, EntityIdError, State};
 pub use event::{Context, DomainEvent, EventType, StateChangedEvent, SystemEvent};
-pub use state::StateMachine;
-pub use bus::EventBus;
-pub use service::{ServiceCall, ServiceError, ServiceName, ServiceRegistry};
 pub use registry::{EntityCategory, EntityEntry, EntityRegistry};
+pub use service::{ServiceCall, ServiceError, ServiceName, ServiceRegistry};
+pub use state::StateMachine;
 
 /// HOMECORE protocol/data-model version. Bumped when the public surface
 /// or on-disk persistence schema changes in a backwards-incompatible way.

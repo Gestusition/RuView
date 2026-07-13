@@ -74,18 +74,15 @@ pub mod rf_slam;
 pub mod calibration;
 
 // Re-export core types for ergonomic access
-pub use coherence::CoherenceState;
-pub use coherence_gate::{GateDecision, GatePolicy};
 pub use array_coordinator::{
     ArrayCoordinator, ArrayCoordinatorConfig, ArrayNodeInput, DirectionalEvidence,
 };
+pub use coherence::CoherenceState;
+pub use coherence_gate::{GateDecision, GatePolicy};
 pub use evolution::{
     ChangePoint, EvolutionTracker, TemporalVoxel, TemporalVoxelMap, VoxelGate, VoxelPrivacy,
 };
-pub use rf_slam::{PersistentReflector, ReflectorClass, ReflectorObservation, RfSlam};
-pub use fusion_quality::{
-    CalibrationId, ContradictionFlag, EvidenceRef, FamilyId, QualityScore,
-};
+pub use fusion_quality::{CalibrationId, ContradictionFlag, EvidenceRef, FamilyId, QualityScore};
 pub use multiband::MultiBandCsiFrame;
 pub use multistatic::FusedSensingFrame;
 pub use phase_align::{PhaseAlignError, PhaseAligner};
@@ -93,6 +90,7 @@ pub use pose_tracker::{
     CompressedPoseHistory, KeypointState, PoseTrack, SkeletonConstraints,
     TemporalKeypointAttention, TrackLifecycleState, TrackerConfig,
 };
+pub use rf_slam::{PersistentReflector, ReflectorClass, ReflectorObservation, RfSlam};
 
 /// Number of keypoints in a full-body pose skeleton (COCO-17).
 pub const NUM_KEYPOINTS: usize = 17;
@@ -435,8 +433,14 @@ mod tests {
     fn ac5_versioned_compatibility() {
         let v = V(1, 3);
         assert!(v.is_compatible_with((1, 3)), "equal");
-        assert!(v.is_compatible_with((1, 0)), "newer minor accepts older consumer");
-        assert!(!v.is_compatible_with((1, 4)), "older producer rejects newer consumer");
+        assert!(
+            v.is_compatible_with((1, 0)),
+            "newer minor accepts older consumer"
+        );
+        assert!(
+            !v.is_compatible_with((1, 4)),
+            "older producer rejects newer consumer"
+        );
         assert!(!v.is_compatible_with((2, 0)), "major mismatch rejected");
         assert_eq!(v.reserved_flags(), 0);
     }

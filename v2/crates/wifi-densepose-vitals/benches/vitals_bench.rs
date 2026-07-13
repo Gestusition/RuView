@@ -71,5 +71,9 @@ fn bench_breathing_full_window(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_heartrate_full_window, bench_breathing_full_window);
+criterion_group!(
+    benches,
+    bench_heartrate_full_window,
+    bench_breathing_full_window
+);
 criterion_main!(benches);

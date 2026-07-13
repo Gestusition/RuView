@@ -190,9 +190,20 @@ mod tests {
         assert_eq!(splats.len(), 1, "both points fall in one voxel");
         let s = &splats[0];
         for axis in 0..3 {
-            assert!((s.center[axis] - 0.02).abs() < 1e-5, "center[{axis}]={}", s.center[axis]);
-            assert!((s.scale[axis] - 0.02).abs() < 1e-5, "scale[{axis}]={}", s.scale[axis]);
-            assert!((s.color[axis] - 127.5 / 255.0).abs() < 1e-5, "color[{axis}]");
+            assert!(
+                (s.center[axis] - 0.02).abs() < 1e-5,
+                "center[{axis}]={}",
+                s.center[axis]
+            );
+            assert!(
+                (s.scale[axis] - 0.02).abs() < 1e-5,
+                "scale[{axis}]={}",
+                s.scale[axis]
+            );
+            assert!(
+                (s.color[axis] - 127.5 / 255.0).abs() < 1e-5,
+                "color[{axis}]"
+            );
         }
         // opacity = n/10 = 0.2
         assert!((s.opacity - 0.2).abs() < 1e-6);

@@ -78,11 +78,17 @@ fn soul_match_oracle_trait_re_exported() {
 fn bfld_error_re_exported_with_all_named_variants() {
     let _ = BfldError::InvalidMagic(0);
     let _ = BfldError::UnsupportedVersion(0);
-    let _ = BfldError::Crc { expected: 0, actual: 0 };
+    let _ = BfldError::Crc {
+        expected: 0,
+        actual: 0,
+    };
     let _ = BfldError::PrivacyViolation { reason: "X" };
     let _ = BfldError::InvalidPrivacyClass(0);
     let _ = BfldError::TruncatedFrame { got: 0, need: 0 };
-    let _ = BfldError::MalformedSection { offset: 0, reason: "X" };
+    let _ = BfldError::MalformedSection {
+        offset: 0,
+        reason: "X",
+    };
     let _ = BfldError::InvalidDemote { from: 0, to: 0 };
 }
 
@@ -91,12 +97,12 @@ fn bfld_error_re_exported_with_all_named_variants() {
 #[cfg(feature = "std")]
 mod std_surface {
     use wifi_densepose_bfld::{
-        availability_topic, identity_risk_score, offline_message, online_message, publish_event,
+        availability_topic, identity_risk_score, offline_message, online_message,
         publish_availability_offline, publish_availability_online, publish_discovery,
-        render_discovery_payloads, render_events, BfldConfig, BfldEmitter, BfldEvent, BfldFrame,
-        BfldPayload, BfldPipeline, BfldPipelineHandle, CapturePublisher, IdentityFeatures,
-        PipelineInput, PrivacyClass, PrivacyGate, Publish, SensingInputs, TopicMessage,
-        PAYLOAD_AVAILABLE, PAYLOAD_NOT_AVAILABLE, RISK_FACTOR_BYTES,
+        publish_event, render_discovery_payloads, render_events, BfldConfig, BfldEmitter,
+        BfldEvent, BfldFrame, BfldPayload, BfldPipeline, BfldPipelineHandle, CapturePublisher,
+        IdentityFeatures, PipelineInput, PrivacyClass, PrivacyGate, Publish, SensingInputs,
+        TopicMessage, PAYLOAD_AVAILABLE, PAYLOAD_NOT_AVAILABLE, RISK_FACTOR_BYTES,
     };
 
     #[test]
@@ -126,16 +132,22 @@ mod std_surface {
 
         // Event + frame + payload constructible.
         let event = BfldEvent::with_privacy_gating(
-            "seed-snap".into(), 0, false, 0.0, 0, 0.0, None,
-            PrivacyClass::Anonymous, None, None,
+            "seed-snap".into(),
+            0,
+            false,
+            0.0,
+            0,
+            0.0,
+            None,
+            PrivacyClass::Anonymous,
+            None,
+            None,
         );
         let _ = render_events(&event);
         let _ = publish_event(&mut cap, &event);
 
-        let _: BfldFrame = BfldFrame::new(
-            wifi_densepose_bfld::BfldFrameHeader::empty(),
-            Vec::new(),
-        );
+        let _: BfldFrame =
+            BfldFrame::new(wifi_densepose_bfld::BfldFrameHeader::empty(), Vec::new());
         let _: BfldPayload = BfldPayload::default();
         let _: IdentityFeatures<'_> = IdentityFeatures::from_risk_factors(0.0, 0.0, 0.0, 0.0);
 

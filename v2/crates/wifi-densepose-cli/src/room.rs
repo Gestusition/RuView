@@ -9,11 +9,11 @@ use anyhow::{bail, Result};
 use clap::Args;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::net::UdpSocket;
+use wifi_densepose_calibration::extract::{AnchorFeature, Features};
 use wifi_densepose_calibration::{
     Anchor, AnchorLabel, AnchorQualityGate, AnchorRecorder, EnrollmentEvent, EnrollmentSession,
     MixtureOfSpecialists, MultiNodeMixture, NodeGeometry, SpecialistBank,
 };
-use wifi_densepose_calibration::extract::{AnchorFeature, Features};
 use wifi_densepose_core::types::CsiFrame;
 use wifi_densepose_signal::BaselineCalibration;
 
@@ -147,7 +147,11 @@ pub async fn enroll(args: EnrollArgs) -> Result<()> {
     let socket = UdpSocket::bind(&addr)
         .await
         .map_err(|e| anyhow::anyhow!("cannot bind {addr}: {e}"))?;
-    eprintln!("[enroll] room='{}' baseline={} on udp://{addr}", args.room_id, &baseline_id[..8]);
+    eprintln!(
+        "[enroll] room='{}' baseline={} on udp://{addr}",
+        args.room_id,
+        &baseline_id[..8]
+    );
     eprintln!("[enroll] follow each prompt; bad captures are re-prompted.");
 
     let mut session = EnrollmentSession::new(&args.room_id, &baseline_id, now_unix());
@@ -156,9 +160,16 @@ pub async fn enroll(args: EnrollArgs) -> Result<()> {
     for label in AnchorLabel::SEQUENCE {
         let mut accepted = false;
         for attempt in 1..=args.attempts {
-            let (feat, anchor, reason) =
-                capture_anchor(&socket, &baseline, &gate, label, &args.tier, args.fs_hz, &args.room_id)
-                    .await?;
+            let (feat, anchor, reason) = capture_anchor(
+                &socket,
+                &baseline,
+                &gate,
+                label,
+                &args.tier,
+                args.fs_hz,
+                &args.room_id,
+            )
+            .await?;
             if anchor.quality.accepted {
                 eprintln!(
                     "[enroll]   ✓ accepted (presence_z={:.2} motion={:.0}% frames={})",
@@ -239,8 +250,9 @@ pub struct TrainRoomArgs {
 /// at enroll time or supplied here via `--geometry`), it is threaded into the
 /// bank (ADR-152 §2.1.1); a geometry-free enrollment still trains a valid bank.
 pub async fn train_room(args: TrainRoomArgs) -> Result<()> {
-    let raw = std::fs::read_to_string(&args.enrollment)
-        .map_err(|e| anyhow::anyhow!("cannot read {}: {e} — run `enroll` first", args.enrollment))?;
+    let raw = std::fs::read_to_string(&args.enrollment).map_err(|e| {
+        anyhow::anyhow!("cannot read {}: {e} — run `enroll` first", args.enrollment)
+    })?;
     let mut data: EnrollmentData =
         serde_json::from_str(&raw).map_err(|e| anyhow::anyhow!("invalid enrollment: {e}"))?;
     if data.anchors.is_empty() {
@@ -251,13 +263,16 @@ pub async fn train_room(args: TrainRoomArgs) -> Result<()> {
         let graw = std::fs::read_to_string(path)
             .map_err(|e| anyhow::anyhow!("cannot read geometry {path}: {e}"))?;
         let geometry: Vec<NodeGeometry> = serde_json::from_str(&graw).map_err(|e| {
-            anyhow::anyhow!("invalid geometry {path}: {e} (expected a JSON array of NodeGeometry records)")
+            anyhow::anyhow!(
+                "invalid geometry {path}: {e} (expected a JSON array of NodeGeometry records)"
+            )
         })?;
         data.session.record_geometry(geometry, now_unix());
     }
 
-    let mut bank = SpecialistBank::train(&data.room_id, &data.baseline_id, &data.anchors, now_unix())
-        .map_err(|e| anyhow::anyhow!("training failed: {e}"))?;
+    let mut bank =
+        SpecialistBank::train(&data.room_id, &data.baseline_id, &data.anchors, now_unix())
+            .map_err(|e| anyhow::anyhow!("training failed: {e}"))?;
     match data.session.geometry() {
         Some(g) if !g.is_empty() => {
             bank = bank.with_geometry(g.to_vec());
@@ -270,8 +285,11 @@ pub async fn train_room(args: TrainRoomArgs) -> Result<()> {
             "[train-room] no transceiver geometry recorded — bank will not support geometry conditioning (ADR-152 §2.1.2)"
         ),
     }
-    std::fs::write(&args.output, bank.to_json().map_err(|e| anyhow::anyhow!("{e}"))?)
-        .map_err(|e| anyhow::anyhow!("cannot write {}: {e}", args.output))?;
+    std::fs::write(
+        &args.output,
+        bank.to_json().map_err(|e| anyhow::anyhow!("{e}"))?,
+    )
+    .map_err(|e| anyhow::anyhow!("cannot write {}: {e}", args.output))?;
 
     eprintln!(
         "[train-room] room='{}' trained {} specialists from {} anchors → {}",
@@ -360,7 +378,10 @@ pub async fn room_watch(args: RoomWatchArgs) -> Result<()> {
     let socket = UdpSocket::bind(&addr)
         .await
         .map_err(|e| anyhow::anyhow!("cannot bind {addr}: {e}"))?;
-    eprintln!("[room-watch] inferring on udp://{addr} (window={} frames)", args.window);
+    eprintln!(
+        "[room-watch] inferring on udp://{addr} (window={} frames)",
+        args.window
+    );
 
     let mut buf = vec![0u8; RECV_BUF];
     let mut win: std::collections::VecDeque<f32> = std::collections::VecDeque::new();
@@ -371,7 +392,9 @@ pub async fn room_watch(args: RoomWatchArgs) -> Result<()> {
         if args.seconds > 0 && start.elapsed() >= Duration::from_secs(args.seconds as u64) {
             break;
         }
-        if let Ok(Ok(n)) = tokio::time::timeout(Duration::from_millis(500), socket.recv(&mut buf)).await {
+        if let Ok(Ok(n)) =
+            tokio::time::timeout(Duration::from_millis(500), socket.recv(&mut buf)).await
+        {
             if let Some(frame) = parse_csi_packet(&buf[..n], &args.tier) {
                 win.push_back(frame_scalar(&frame));
                 while win.len() > args.window {
@@ -383,11 +406,31 @@ pub async fn room_watch(args: RoomWatchArgs) -> Result<()> {
             let series: Vec<f32> = win.iter().copied().collect();
             let f = Features::from_series(&series, args.fs_hz);
             let s = mix.infer(&f, &baseline_id);
-            let pres = s.presence.as_ref().map(|r| r.label.clone().unwrap_or_default()).unwrap_or("-".into());
-            let post = s.posture.as_ref().and_then(|r| r.label.clone()).unwrap_or("-".into());
-            let br = s.breathing.as_ref().map(|r| format!("{:.1}bpm", r.value)).unwrap_or("-".into());
-            let hr = s.heartbeat.as_ref().map(|r| format!("{:.0}bpm", r.value)).unwrap_or("-".into());
-            let rest = s.restlessness.as_ref().map(|r| format!("{:.2}", r.value)).unwrap_or("-".into());
+            let pres = s
+                .presence
+                .as_ref()
+                .map(|r| r.label.clone().unwrap_or_default())
+                .unwrap_or("-".into());
+            let post = s
+                .posture
+                .as_ref()
+                .and_then(|r| r.label.clone())
+                .unwrap_or("-".into());
+            let br = s
+                .breathing
+                .as_ref()
+                .map(|r| format!("{:.1}bpm", r.value))
+                .unwrap_or("-".into());
+            let hr = s
+                .heartbeat
+                .as_ref()
+                .map(|r| format!("{:.0}bpm", r.value))
+                .unwrap_or("-".into());
+            let rest = s
+                .restlessness
+                .as_ref()
+                .map(|r| format!("{:.2}", r.value))
+                .unwrap_or("-".into());
             let flags = format!(
                 "{}{}",
                 if s.vetoed { " VETO" } else { "" },
@@ -428,7 +471,10 @@ async fn room_watch_multi(args: RoomWatchArgs) -> Result<()> {
     let socket = UdpSocket::bind(&addr)
         .await
         .map_err(|e| anyhow::anyhow!("cannot bind {addr}: {e}"))?;
-    eprintln!("[room-watch] fusing on udp://{addr} (window={} frames)", args.window);
+    eprintln!(
+        "[room-watch] fusing on udp://{addr} (window={} frames)",
+        args.window
+    );
 
     let mut buf = vec![0u8; RECV_BUF];
     let mut wins: BTreeMap<u8, VecDeque<f32>> = BTreeMap::new();
@@ -469,9 +515,21 @@ async fn room_watch_multi(args: RoomWatchArgs) -> Result<()> {
             if !per_node.is_empty() {
                 let active: Vec<u8> = per_node.keys().copied().collect();
                 let s = mix.infer(&per_node);
-                let pres = s.presence.as_ref().and_then(|r| r.label.clone()).unwrap_or("-".into());
-                let post = s.posture.as_ref().and_then(|r| r.label.clone()).unwrap_or("-".into());
-                let br = s.breathing.as_ref().map(|r| format!("{:.1}bpm", r.value)).unwrap_or("-".into());
+                let pres = s
+                    .presence
+                    .as_ref()
+                    .and_then(|r| r.label.clone())
+                    .unwrap_or("-".into());
+                let post = s
+                    .posture
+                    .as_ref()
+                    .and_then(|r| r.label.clone())
+                    .unwrap_or("-".into());
+                let br = s
+                    .breathing
+                    .as_ref()
+                    .map(|r| format!("{:.1}bpm", r.value))
+                    .unwrap_or("-".into());
                 let flags = format!(
                     "{}{}",
                     if s.vetoed { " VETO" } else { "" },
@@ -571,7 +629,10 @@ mod tests {
 
         let bank = trained_bank(&out);
         assert!(bank.geometry.is_empty());
-        assert!(bank.presence.is_some(), "bank still trains without geometry");
+        assert!(
+            bank.presence.is_some(),
+            "bank still trains without geometry"
+        );
     }
 
     /// Geometry recorded at enroll time (in the session event log) is picked up

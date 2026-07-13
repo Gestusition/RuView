@@ -75,11 +75,7 @@ fn default_enabled() -> bool {
 
 impl Automation {
     /// Minimal constructor for tests.
-    pub fn new(
-        id: impl Into<String>,
-        triggers: Vec<Trigger>,
-        actions: Vec<Action>,
-    ) -> Self {
+    pub fn new(id: impl Into<String>, triggers: Vec<Trigger>, actions: Vec<Action>) -> Self {
         Self {
             id: id.into(),
             alias: None,
@@ -101,7 +97,13 @@ mod tests {
 
     #[test]
     fn run_mode_defaults_to_single() {
-        let a = Automation::new("test.1", vec![Trigger::Event { event_type: "t".into() }], vec![]);
+        let a = Automation::new(
+            "test.1",
+            vec![Trigger::Event {
+                event_type: "t".into(),
+            }],
+            vec![],
+        );
         assert_eq!(a.mode, RunMode::Single);
     }
 

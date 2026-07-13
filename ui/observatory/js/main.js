@@ -31,6 +31,64 @@ const C = {
   bgDeep:     0x080c14,
 };
 
+// A live connection must never fall back to generated people while it is
+// waiting for sensor frames.  This empty frame keeps every renderer in a safe,
+// honest no-data state until the sensing server supplies real telemetry.
+const WAITING_FOR_SENSOR = Object.freeze({
+  type: 'sensing_update',
+  source: 'waiting',
+  tick: 0,
+  estimated_persons: 0,
+  persons: [],
+  nodes: [],
+  classification: Object.freeze({
+    presence: false,
+    confidence: 0,
+    motion_level: 'absent',
+  }),
+  features: Object.freeze({}),
+  vital_signs: Object.freeze({}),
+  signal_field: Object.freeze({ values: [] }),
+});
+
+// The ESP32 stream can provide real CSI occupancy without a trained pose
+// model.  In that mode the server may include zero-confidence template
+// keypoints for API compatibility; those are not measured skeletons and must
+// never be presented as such.  Also keep tracker carry-over from rendering
+// more occupants than the current estimator reports.
+function normalizeLiveFrame(frame) {
+  if (!frame || typeof frame !== 'object') return WAITING_FOR_SENSOR;
+
+  const source = String(frame.source || '').toLowerCase();
+  if (!source.startsWith('esp32')) return frame;
+
+  const present = frame.classification?.presence === true;
+  const reported = Number.isFinite(frame.estimated_persons)
+    ? Math.trunc(frame.estimated_persons)
+    : 0;
+  const estimatedPersons = present ? Math.max(0, Math.min(4, reported)) : 0;
+  const persons = Array.isArray(frame.persons)
+    ? frame.persons.slice(0, estimatedPersons)
+    : [];
+
+  const confidentKeypointCount = persons.reduce((count, person) => {
+    const keypoints = Array.isArray(person?.keypoints) ? person.keypoints : [];
+    return count + keypoints.filter(kp => Number(kp?.confidence) > 0).length;
+  }, 0);
+  const modelKeypointCount = Array.isArray(frame.pose_keypoints)
+    ? frame.pose_keypoints.filter(kp => Number(kp?.[3]) > 0).length
+    : 0;
+
+  return {
+    ...frame,
+    estimated_persons: estimatedPersons,
+    persons,
+    // Five observed joints is the minimum needed to avoid presenting an
+    // entirely synthetic COCO template as a measured human pose.
+    pose_available: Math.max(confidentKeypointCount, modelKeypointCount) >= 5,
+  };
+}
+
 // SCENARIO_NAMES, DEFAULTS, SETTINGS_VERSION, PRESETS imported from hud-controller.js
 
 // ---- Main Class ----
@@ -130,6 +188,7 @@ class Observatory {
     // WebSocket for live data — always try auto-detect on startup
     this._ws = null;
     this._liveData = null;
+    this._reconnectTimer = null;
     this._autoDetectLive();
 
     // Input
@@ -400,7 +459,9 @@ class Observatory {
           this._autopilot = !this._autopilot;
           this._controls.enabled = !this._autopilot;
           break;
-        case 'd': this._demoData.cycleScenario(); break;
+        case 'd':
+          if (this.settings.dataSource === 'demo') this._demoData.cycleScenario();
+          break;
         case 'f':
           this._showFps = !this._showFps;
           document.getElementById('fps-counter').style.display = this._showFps ? 'block' : 'none';
@@ -408,7 +469,9 @@ class Observatory {
         case 's': this._hud.toggleSettings(); break;
         case ' ':
           e.preventDefault();
-          this._demoData.paused = !this._demoData.paused;
+          if (this.settings.dataSource === 'demo') {
+            this._demoData.paused = !this._demoData.paused;
+          }
           break;
       }
     });
@@ -475,24 +538,43 @@ class Observatory {
   _connectWS(url) {
     this._disconnectWS();
     try {
-      this._ws = new WebSocket(url);
-      this._ws.onopen = () => {
+      const socket = new WebSocket(url);
+      this._ws = socket;
+      socket.onopen = () => {
         console.log('[Observatory] WebSocket connected');
-        this._hud.updateSourceBadge('ws', this._ws);
+        this._hud.updateSourceBadge('ws', socket, this._liveData);
       };
-      this._ws.onmessage = (evt) => { try { this._liveData = JSON.parse(evt.data); } catch {} };
-      this._ws.onclose = () => {
-        console.log('[Observatory] WebSocket closed, falling back to demo');
+      socket.onmessage = (evt) => {
+        try {
+          this._liveData = normalizeLiveFrame(JSON.parse(evt.data));
+          this._hud.updateSourceBadge('ws', socket, this._liveData);
+        } catch {}
+      };
+      socket.onclose = () => {
+        if (this._ws !== socket) return;
+        console.log('[Observatory] WebSocket closed, waiting to reconnect');
         this._ws = null;
-        this.settings.dataSource = 'demo';
-        this._hud.updateSourceBadge('demo', null);
+        this._liveData = null;
+        this._hud.updateSourceBadge('ws', null, null);
+        if (this.settings.dataSource === 'ws') {
+          this._reconnectTimer = setTimeout(() => this._connectWS(url), 2000);
+        }
       };
-      this._ws.onerror = () => {};
+      socket.onerror = () => {};
     } catch {}
   }
 
   _disconnectWS() {
-    if (this._ws) { this._ws.close(); this._ws = null; }
+    if (this._reconnectTimer) {
+      clearTimeout(this._reconnectTimer);
+      this._reconnectTimer = null;
+    }
+    if (this._ws) {
+      const socket = this._ws;
+      this._ws = null;
+      socket.onclose = null;
+      socket.close();
+    }
     this._liveData = null;
   }
 
@@ -506,8 +588,9 @@ class Observatory {
     const elapsed = this._clock.getElapsedTime();
 
     // Data source
-    if (this.settings.dataSource === 'ws' && this._liveData) {
-      this._currentData = this._liveData;
+    const liveMode = this.settings.dataSource === 'ws';
+    if (liveMode) {
+      this._currentData = this._liveData || WAITING_FOR_SENSOR;
     } else {
       this._currentData = this._demoData.update(dt);
     }
@@ -516,7 +599,7 @@ class Observatory {
     // Updates
     this._nebula.update(dt, elapsed);
     this._figurePool.update(data, elapsed);
-    this._scenarioProps.update(data, this._demoData.currentScenario);
+    this._scenarioProps.update(data, liveMode ? null : this._demoData.currentScenario);
     this._updateDotMatrixMist(data, elapsed);
     this._updateParticleTrail(data, dt, elapsed);
     this._updateWifiWaves(elapsed);

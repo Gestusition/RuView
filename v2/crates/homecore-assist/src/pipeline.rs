@@ -83,10 +83,7 @@ impl<R: IntentRecognizer> AssistPipeline<R> {
         let handler = self.handlers.get(&name).cloned();
 
         match handler {
-            Some(h) => h
-                .handle(intent, hc)
-                .await
-                .map_err(AssistError::Handler),
+            Some(h) => h.handle(intent, hc).await.map_err(AssistError::Handler),
             None => {
                 debug!(%name, "no handler registered for intent");
                 Ok(IntentResponse::not_understood())
@@ -241,8 +238,9 @@ mod tests {
                 }),
             )
             .await;
-        const METACHARS: &[char] =
-            &[';', '|', '&', '$', '`', '/', '\\', '>', '<', '\n', '"', '\'', '*', '%'];
+        const METACHARS: &[char] = &[
+            ';', '|', '&', '$', '`', '/', '\\', '>', '<', '\n', '"', '\'', '*', '%',
+        ];
         for evil in [
             "'; DROP TABLE entities; --",
             "turn on the light; rm -rf /",
@@ -271,10 +269,7 @@ mod tests {
     #[tokio::test]
     async fn pipeline_nevermind_response() {
         let (pipeline, hc) = build_test_pipeline().await;
-        let resp = pipeline
-            .process("never mind", "en", &hc)
-            .await
-            .unwrap();
+        let resp = pipeline.process("never mind", "en", &hc).await.unwrap();
         assert!(
             resp.speech.to_lowercase().contains("okay")
                 || resp.speech.to_lowercase().contains("never")
@@ -293,13 +288,9 @@ mod tests {
             )
             .await;
         let r = RegexIntentRecognizer::new();
-        r.register(
-            "HassTurnOn",
-            r"on (?P<entity_id>\S+)",
-            "*",
-        )
-        .await
-        .unwrap();
+        r.register("HassTurnOn", r"on (?P<entity_id>\S+)", "*")
+            .await
+            .unwrap();
         let mut pipeline = AssistPipeline::new(r);
         pipeline.register_handler(HassTurnOn);
         let resp = pipeline.process("on light.bed", "en", &hc).await.unwrap();

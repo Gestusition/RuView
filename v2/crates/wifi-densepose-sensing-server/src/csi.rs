@@ -350,6 +350,80 @@ pub fn compute_subcarrier_variances(frame_history: &VecDeque<Vec<f64>>, n_sub: u
         .collect()
 }
 
+/// Scale-invariant CSI shape change between two consecutive frames.
+///
+/// Motion is temporal: comparing the upper and lower subcarriers inside one
+/// frame measures the frequency response of the room, not body movement.  We
+/// RMS-normalize each frame, discard the outer 10% of per-bin squared changes,
+/// and return the RMS of the remaining deltas.  Trimming rejects unstable/null
+/// edge bins while preserving distributed changes caused by movement.
+pub fn robust_temporal_motion_score(current: &[f64], previous: Option<&[f64]>) -> f64 {
+    let Some(previous) = previous else {
+        return 0.0;
+    };
+    let n = current.len().min(previous.len());
+    if n < 4 {
+        return 0.0;
+    }
+
+    let current_power = current[..n].iter().map(|x| x * x).sum::<f64>() / n as f64;
+    let previous_power = previous[..n].iter().map(|x| x * x).sum::<f64>() / n as f64;
+    if current_power <= 1e-12 || previous_power <= 1e-12 {
+        return 0.0;
+    }
+    let current_rms = current_power.sqrt();
+    let previous_rms = previous_power.sqrt();
+
+    let mut squared_deltas: Vec<f64> = current[..n]
+        .iter()
+        .zip(&previous[..n])
+        .filter(|(current, previous)| **current > 0.0 || **previous > 0.0)
+        .map(|(current, previous)| (current / current_rms - previous / previous_rms).powi(2))
+        .filter(|delta| delta.is_finite())
+        .collect();
+    if squared_deltas.len() < 4 {
+        return 0.0;
+    }
+
+    squared_deltas.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let trim = squared_deltas.len() / 10;
+    let kept = if trim > 0 && trim * 2 < squared_deltas.len() {
+        &squared_deltas[trim..squared_deltas.len() - trim]
+    } else {
+        squared_deltas.as_slice()
+    };
+    (kept.iter().sum::<f64>() / kept.len() as f64)
+        .sqrt()
+        .clamp(0.0, 1.0)
+}
+
+/// Select a historical frame roughly 250 ms before the current frame.
+/// Adjacent frames from a 20–40 Hz CSI stream are too close together to expose
+/// ordinary body displacement reliably; a rate-derived lag keeps the physical
+/// interval stable across nodes without extending it into slow room drift.
+pub fn temporal_motion_reference(
+    frame_history: &VecDeque<Vec<f64>>,
+    sample_rate_hz: f64,
+) -> Option<&[f64]> {
+    if frame_history.is_empty() {
+        return None;
+    }
+    let rate = if sample_rate_hz.is_finite() {
+        sample_rate_hz.clamp(1.0, 100.0)
+    } else {
+        20.0
+    };
+    let desired_lag = (rate * 0.25).round().max(1.0) as usize;
+    let available_lag = desired_lag.min(frame_history.len());
+    frame_history
+        .iter()
+        .rev()
+        .nth(available_lag - 1)
+        .map(Vec::as_slice)
+}
+
+/// Extract features using a history that contains only frames preceding
+/// `frame`. The caller must append the current frame after this returns.
 pub fn extract_features_from_frame(
     frame: &Esp32Frame,
     frame_history: &VecDeque<Vec<f64>>,
@@ -402,15 +476,13 @@ pub fn extract_features_from_frame(
 
     let spectral_power: f64 = frame.amplitudes.iter().map(|a| a * a).sum::<f64>() / n;
     let half = frame.amplitudes.len() / 2;
-    let motion_band_power = if half > 0 {
-        frame.amplitudes[half..]
-            .iter()
-            .map(|a| (a - mean_amp).powi(2))
-            .sum::<f64>()
-            / (frame.amplitudes.len() - half) as f64
-    } else {
-        0.0
-    };
+    let temporal_motion_score = robust_temporal_motion_score(
+        &frame.amplitudes,
+        temporal_motion_reference(frame_history, sample_rate_hz),
+    );
+    // Public 0..100 display/feature scale; classification uses the underlying
+    // dimensionless temporal score below.
+    let motion_band_power = temporal_motion_score * 100.0;
     let breathing_band_power = if half > 0 {
         frame.amplitudes[..half]
             .iter()
@@ -437,32 +509,9 @@ pub fn extract_features_from_frame(
         .filter(|w| (w[0] < threshold) != (w[1] < threshold))
         .count();
 
-    let temporal_motion_score = if let Some(prev_frame) = frame_history.back() {
-        let n_cmp = n_sub.min(prev_frame.len());
-        if n_cmp > 0 {
-            let diff_energy: f64 = (0..n_cmp)
-                .map(|k| (frame.amplitudes[k] - prev_frame[k]).powi(2))
-                .sum::<f64>()
-                / n_cmp as f64;
-            let ref_energy = mean_amp * mean_amp + 1e-9;
-            (diff_energy / ref_energy).sqrt().clamp(0.0, 1.0)
-        } else {
-            0.0
-        }
-    } else {
-        (intra_variance / (mean_amp * mean_amp + 1e-9))
-            .sqrt()
-            .clamp(0.0, 1.0)
-    };
-
-    let variance_motion = (temporal_variance / 10.0).clamp(0.0, 1.0);
-    let mbp_motion = (motion_band_power / 25.0).clamp(0.0, 1.0);
-    let cp_motion = (change_points as f64 / 15.0).clamp(0.0, 1.0);
-    let motion_score = (temporal_motion_score * 0.4
-        + variance_motion * 0.2
-        + mbp_motion * 0.25
-        + cp_motion * 0.15)
-        .clamp(0.0, 1.0);
+    // Do not mix static frequency-shape features into movement. Temporal
+    // change is the only physically meaningful motion input in this path.
+    let motion_score = temporal_motion_score;
 
     let snr_db = (frame.rssi as f64 - frame.noise_floor as f64).max(0.0);
     let snr_quality = (snr_db / 40.0).clamp(0.0, 1.0);
@@ -1069,5 +1118,51 @@ mod adr110_tests {
 
         // Steady-state HE frames keep flowing.
         assert!(ns.accept_grid(he.grid()));
+    }
+
+    #[test]
+    fn temporal_motion_is_zero_without_a_previous_frame() {
+        assert_eq!(
+            robust_temporal_motion_score(&[1.0, 2.0, 3.0, 4.0], None),
+            0.0
+        );
+    }
+
+    #[test]
+    fn temporal_motion_ignores_uniform_gain_changes() {
+        let previous: Vec<f64> = (1..=32).map(|x| x as f64).collect();
+        let current: Vec<f64> = previous.iter().map(|x| x * 2.5).collect();
+        assert!(
+            robust_temporal_motion_score(&current, Some(&previous)) < 1e-12,
+            "AGC/gain changes must not be classified as body movement"
+        );
+    }
+
+    #[test]
+    fn temporal_motion_detects_distributed_shape_change() {
+        let previous: Vec<f64> = (1..=32).map(|x| x as f64).collect();
+        let mut current = previous.clone();
+        for (index, value) in current.iter_mut().enumerate() {
+            if index % 4 == 0 {
+                *value *= 1.8;
+            }
+        }
+        assert!(
+            robust_temporal_motion_score(&current, Some(&previous)) > 0.05,
+            "distributed CSI-shape change should register as movement"
+        );
+    }
+
+    #[test]
+    fn temporal_motion_reference_tracks_quarter_second_lag() {
+        let history: VecDeque<Vec<f64>> = (0..20).map(|x| vec![x as f64; 4]).collect();
+        assert_eq!(
+            temporal_motion_reference(&history, 40.0),
+            Some(&[10.0; 4][..])
+        );
+        assert_eq!(
+            temporal_motion_reference(&history, 20.0),
+            Some(&[15.0; 4][..])
+        );
     }
 }

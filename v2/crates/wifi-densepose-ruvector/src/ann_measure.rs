@@ -145,7 +145,12 @@ pub struct MethodResult {
 pub fn ground_truth(idx: &HnswIndex, queries: &[Vec<f32>], k: usize) -> Vec<HashSet<u32>> {
     queries
         .iter()
-        .map(|q| idx.brute_force(q, k).into_iter().map(|(id, _)| id).collect())
+        .map(|q| {
+            idx.brute_force(q, k)
+                .into_iter()
+                .map(|(id, _)| id)
+                .collect()
+        })
         .collect()
 }
 
@@ -281,7 +286,15 @@ pub fn build_quant_bits(p: AnnBenchParams, vectors: &[Vec<f32>], bits: u32) -> Q
         ef_search: 64,
         seed: p.graph_seed,
     };
-    QuantizedHnswIndex::build_bits(vectors, p.dim, Metric::L2, params, p.rot_seed, bits, p.k * 4)
+    QuantizedHnswIndex::build_bits(
+        vectors,
+        p.dim,
+        Metric::L2,
+        params,
+        p.rot_seed,
+        bits,
+        p.k * 4,
+    )
 }
 
 /// The fastest operating point of a method that meets `target` recall, as
@@ -372,8 +385,7 @@ pub fn run_scaling_study(
         let float_op = best_float_op(&float_idx, &qs, &truth, p.k, target);
         for &b in bits_set {
             let qidx = build_quant_bits(p, &vectors, b);
-            let (quant_op, quant_best_recall) =
-                best_quant_op(&qidx, &qs, &truth, p.k, target);
+            let (quant_op, quant_best_recall) = best_quant_op(&qidx, &qs, &truth, p.k, target);
             let ratio = match (&float_op, &quant_op) {
                 (Some((fqps, _, _)), Some((qqps, _, _))) => Some(qqps / fqps),
                 _ => None,
@@ -416,7 +428,11 @@ mod tests {
         let qs = queries(p);
         let truth = ground_truth(&float_idx, &qs, p.k);
         let r = measure_linear(&float_idx, &qs, &truth, p.k);
-        assert!((r.recall - 1.0).abs() < 1e-9, "linear recall {} != 1.0", r.recall);
+        assert!(
+            (r.recall - 1.0).abs() < 1e-9,
+            "linear recall {} != 1.0",
+            r.recall
+        );
         assert!(r.qps > 0.0);
     }
 
@@ -514,7 +530,10 @@ mod tests {
                     );
                 }
                 _ => {
-                    println!("recall>={:.2}: neither method met this recall at the swept ops", target);
+                    println!(
+                        "recall>={:.2}: neither method met this recall at the swept ops",
+                        target
+                    );
                 }
             }
         }
@@ -576,7 +595,13 @@ mod tests {
         println!("\n=== ADR-261 §11 multi-bit scaling study (planted-cluster synthetic) ===");
         println!(
             "dim={} clusters={} queries={} K={} noise={} graph_seed=0x{:X} rot_seed=0x{:X}",
-            base.dim, base.clusters, base.n_queries, base.k, base.noise, base.graph_seed, base.rot_seed
+            base.dim,
+            base.clusters,
+            base.n_queries,
+            base.k,
+            base.noise,
+            base.graph_seed,
+            base.rot_seed
         );
         println!("metric=L2  M=16 ef_construction=200  target recall >= {target:.2}  (use --release for QPS)");
         println!(
@@ -602,7 +627,13 @@ mod tests {
                 .unwrap_or_else(|| "—".to_string());
             println!(
                 "{:<9} {:>4} {:>9} {:>10.3} {:>22} {:>22} {:>12}",
-                row.n, row.bits, row.bytes_per_node, row.quant_best_recall, float_s, quant_s, ratio_s
+                row.n,
+                row.bits,
+                row.bytes_per_node,
+                row.quant_best_recall,
+                float_s,
+                quant_s,
+                ratio_s
             );
         }
 
@@ -620,7 +651,9 @@ mod tests {
             for r in &crossover {
                 println!(
                     "CROSSOVER at N={} b={}: quant/float = {:.2}x at recall >= {target:.2}",
-                    r.n, r.bits, r.ratio.unwrap()
+                    r.n,
+                    r.bits,
+                    r.ratio.unwrap()
                 );
             }
         }
@@ -630,10 +663,7 @@ mod tests {
                 .filter(|r| r.bits == b)
                 .map(|r| (r.n, r.quant_best_recall))
                 .collect();
-            let trend_s: Vec<String> = trend
-                .iter()
-                .map(|(n, r)| format!("N={n}:{r:.3}"))
-                .collect();
+            let trend_s: Vec<String> = trend.iter().map(|(n, r)| format!("N={n}:{r:.3}")).collect();
             println!("b={b} best-quant-recall trend: {}", trend_s.join("  "));
         }
         println!("======================================================================\n");
@@ -642,7 +672,10 @@ mod tests {
         // target at every N (the baseline must work), and quant recall is in range.
         for &n in &ns {
             let any_float = rows.iter().any(|r| r.n == n && r.float_op.is_some());
-            assert!(any_float, "no float-HNSW op met target recall at N={n} — baseline broken");
+            assert!(
+                any_float,
+                "no float-HNSW op met target recall at N={n} — baseline broken"
+            );
         }
         for r in &rows {
             assert!(

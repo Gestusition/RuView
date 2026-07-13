@@ -215,16 +215,7 @@ mod tests {
         // named test instead of leaking biometrics.
         let svc = build_mdns_service(&id(), 9180, 1883, false);
         let forbidden = [
-            "hr_bpm",
-            "br_bpm",
-            "pose_x",
-            "pose_y",
-            "keypoint",
-            "ssid",
-            "lat",
-            "lon",
-            "mac",
-            "rssi",
+            "hr_bpm", "br_bpm", "pose_x", "pose_y", "keypoint", "ssid", "lat", "lon", "mac", "rssi",
         ];
         for key in forbidden {
             assert!(
@@ -285,7 +276,14 @@ mod tests {
         // Adding a key is fine; removing or renaming one breaks
         // every deployed node. This test catches both directions.
         let svc = build_mdns_service(&id(), 9180, 1883, true);
-        let required = ["cog_id", "cog_version", "node_id", "mqtt_port", "privacy", "proto"];
+        let required = [
+            "cog_id",
+            "cog_version",
+            "node_id",
+            "mqtt_port",
+            "privacy",
+            "proto",
+        ];
         for key in required {
             assert!(svc.txt(key).is_some(), "TXT key `{key}` missing");
         }

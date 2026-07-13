@@ -114,13 +114,16 @@ pub async fn execute(args: CalibrateArgs) -> Result<()> {
         eprintln!(
             "[calibrate] WARN: --min-frames={} overrides ADR-135 tier default ({} for {}). \
              This relaxes the phase-concentration guarantee; do not use in production.",
-            args.min_frames, tier_config(&args.tier).min_frames, args.tier
+            args.min_frames,
+            tier_config(&args.tier).min_frames,
+            args.tier
         );
     }
     let target_frames = config.min_frames as usize;
 
     let addr = format!("{}:{}", args.bind, args.udp_port);
-    let socket = UdpSocket::bind(&addr).await
+    let socket = UdpSocket::bind(&addr)
+        .await
         .map_err(|e| anyhow::anyhow!("cannot bind UDP socket on {addr}: {e}"))?;
 
     eprintln!("[calibrate] listening on udp://{addr}");
@@ -145,7 +148,10 @@ pub async fn execute(args: CalibrateArgs) -> Result<()> {
 
         let n = match recv {
             Ok(Ok(n)) => n,
-            Ok(Err(e)) => { eprintln!("[calibrate] recv error: {e}"); continue; }
+            Ok(Err(e)) => {
+                eprintln!("[calibrate] recv error: {e}");
+                continue;
+            }
             Err(_) => continue, // timeout — recheck deadline
         };
 
@@ -155,7 +161,10 @@ pub async fn execute(args: CalibrateArgs) -> Result<()> {
 
         let score: CalibrationDeviationScore = match recorder.record(&csi_frame) {
             Ok(s) => s,
-            Err(e) => { eprintln!("[calibrate] WARN frame skipped: {e}"); continue; }
+            Err(e) => {
+                eprintln!("[calibrate] WARN frame skipped: {e}");
+                continue;
+            }
         };
 
         let frames = recorder.frames_recorded() as usize;
@@ -169,7 +178,9 @@ pub async fn execute(args: CalibrateArgs) -> Result<()> {
                     bail!(
                         "aborted: amplitude_z_median={:.2} exceeded threshold={:.2} for {} \
                          consecutive banner intervals — ensure the room is empty and retry",
-                        score.amplitude_z_median, args.abort_z_threshold, high_z_count
+                        score.amplitude_z_median,
+                        args.abort_z_threshold,
+                        high_z_count
                     );
                 }
             } else {
@@ -214,8 +225,7 @@ fn finalise_and_save(recorder: CalibrationRecorder, output: &str) -> Result<()> 
         .map_err(|e| anyhow::anyhow!("calibration failed: {e}"))?;
 
     let bytes = baseline.to_bytes();
-    std::fs::write(output, &bytes)
-        .map_err(|e| anyhow::anyhow!("cannot write {output}: {e}"))?;
+    std::fs::write(output, &bytes).map_err(|e| anyhow::anyhow!("cannot write {output}: {e}"))?;
 
     eprintln!(
         "[calibrate] baseline saved to {output} ({} bytes)",
@@ -239,7 +249,7 @@ pub(crate) fn tier_config(tier: &str) -> CalibrationConfig {
         "ht40" => CalibrationConfig::ht40(),
         "he20" => CalibrationConfig::he20(),
         "he40" => CalibrationConfig::he40(),
-        _      => CalibrationConfig::ht20(), // ht20 or unknown → safe default
+        _ => CalibrationConfig::ht20(), // ht20 or unknown → safe default
     }
 }
 
@@ -261,17 +271,17 @@ pub(crate) fn parse_csi_packet(buf: &[u8], tier: &str) -> Option<CsiFrame> {
         return None;
     }
 
-    let node_id       = buf[4];
-    let n_antennas    = buf[5] as usize;
+    let node_id = buf[4];
+    let n_antennas = buf[5] as usize;
     // u16 since ADR-110 / #1005: ESP32-C6 HE-SU frames carry 256 bins
     // (the old single-byte read decoded 256 = 0x0100 LE as 0 subcarriers).
     let n_subcarriers = u16::from_le_bytes([buf[6], buf[7]]) as usize;
-    let freq_mhz      = u32::from_le_bytes([buf[8], buf[9], buf[10], buf[11]]);
-    let freq_mhz      = u16::try_from(freq_mhz).unwrap_or(0);
-    let _sequence     = u32::from_le_bytes([buf[12], buf[13], buf[14], buf[15]]);
-    let rssi          = buf[16] as i8;
-    let noise_floor   = buf[17] as i8;
-    let _ppdu_type    = buf[18]; // ADR-110; baseline tier gating is by count
+    let freq_mhz = u32::from_le_bytes([buf[8], buf[9], buf[10], buf[11]]);
+    let freq_mhz = u16::try_from(freq_mhz).unwrap_or(0);
+    let _sequence = u32::from_le_bytes([buf[12], buf[13], buf[14], buf[15]]);
+    let rssi = buf[16] as i8;
+    let noise_floor = buf[17] as i8;
+    let _ppdu_type = buf[18]; // ADR-110; baseline tier gating is by count
 
     let n_pairs = n_antennas * n_subcarriers;
     let iq_start = 20usize;
@@ -284,7 +294,7 @@ pub(crate) fn parse_csi_packet(buf: &[u8], tier: &str) -> Option<CsiFrame> {
     for s in 0..n_antennas {
         for k in 0..n_subcarriers {
             let idx = s * n_subcarriers + k;
-            let i_val = buf[iq_start + idx * 2]     as i8 as f64;
+            let i_val = buf[iq_start + idx * 2] as i8 as f64;
             let q_val = buf[iq_start + idx * 2 + 1] as i8 as f64;
             data[[s, k]] = Complex64::new(i_val, q_val);
         }
@@ -354,10 +364,7 @@ fn validate_args(args: &CalibrateArgs) -> Result<()> {
     }
     let valid = ["ht20", "ht40", "he20", "he40"];
     if !valid.contains(&args.tier.to_ascii_lowercase().as_str()) {
-        bail!(
-            "--tier must be one of {:?} (got {:?})",
-            valid, args.tier
-        );
+        bail!("--tier must be one of {:?} (got {:?})", valid, args.tier);
     }
     Ok(())
 }

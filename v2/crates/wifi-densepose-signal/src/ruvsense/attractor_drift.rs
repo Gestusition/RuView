@@ -606,7 +606,10 @@ mod tests {
         }
         assert!(matches!(
             a.analyze(DriftMetric::GaitSymmetry, 0),
-            Err(AttractorDriftError::InsufficientData { needed: 12, have: 11 })
+            Err(AttractorDriftError::InsufficientData {
+                needed: 12,
+                have: 11
+            })
         ));
         // Exactly at the boundary -> Ok (no panic, finite center if Stable).
         a.add_observation(DriftMetric::GaitSymmetry, 0.111);

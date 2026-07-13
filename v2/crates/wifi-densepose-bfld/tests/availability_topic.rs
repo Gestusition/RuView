@@ -72,7 +72,8 @@ fn discovery_payload_includes_payload_available_and_not_available_strings() {
             msg.payload,
         );
         assert!(
-            msg.payload.contains("\"payload_not_available\":\"offline\""),
+            msg.payload
+                .contains("\"payload_not_available\":\"offline\""),
             "discovery payload missing payload_not_available, got: {}",
             msg.payload,
         );
@@ -95,9 +96,8 @@ fn restricted_class_discovery_still_carries_availability_fields() {
 fn bootstrap_sequence_online_then_discovery_lands_in_order() {
     let mut p = CapturePublisher::default();
     publish_availability_online(&mut p, "seed-01").expect("online");
-    let count =
-        wifi_densepose_bfld::publish_discovery(&mut p, "seed-01", PrivacyClass::Anonymous)
-            .expect("discovery");
+    let count = wifi_densepose_bfld::publish_discovery(&mut p, "seed-01", PrivacyClass::Anonymous)
+        .expect("discovery");
     assert_eq!(count, 6);
     assert_eq!(p.published.len(), 1 + 6);
     assert_eq!(p.published[0].payload, "online");

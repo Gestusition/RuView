@@ -900,9 +900,7 @@ mod tests {
         let dt_last = t1.elapsed().as_nanos() as f64;
 
         let ratio = dt_last.max(dt_first) / dt_last.min(dt_first).max(1.0);
-        println!(
-            "first-differ {dt_first:.0}ns, last-differ {dt_last:.0}ns, ratio {ratio:.3}"
-        );
+        println!("first-differ {dt_first:.0}ns, last-differ {dt_last:.0}ns, ratio {ratio:.3}");
         assert!(
             ratio < 4.0,
             "timing ratio {ratio:.3} too large — possible short-circuit leak"

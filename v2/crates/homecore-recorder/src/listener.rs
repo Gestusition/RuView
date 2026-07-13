@@ -97,8 +97,18 @@ mod tests {
         let _handle = listener.spawn();
 
         // Fire two state changes.
-        sm.set(eid("light.hall"), "on", serde_json::json!({}), Context::new());
-        sm.set(eid("light.hall"), "off", serde_json::json!({}), Context::new());
+        sm.set(
+            eid("light.hall"),
+            "on",
+            serde_json::json!({}),
+            Context::new(),
+        );
+        sm.set(
+            eid("light.hall"),
+            "off",
+            serde_json::json!({}),
+            Context::new(),
+        );
 
         // Give the background task a moment to flush.
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;

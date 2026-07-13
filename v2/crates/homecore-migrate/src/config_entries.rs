@@ -122,7 +122,10 @@ mod tests {
         let err = inspect_config_entries(f.path()).unwrap_err();
         assert!(matches!(
             err,
-            MigrateError::UnsupportedSchemaVersion { minor_version: 99, .. }
+            MigrateError::UnsupportedSchemaVersion {
+                minor_version: 99,
+                ..
+            }
         ));
     }
 }

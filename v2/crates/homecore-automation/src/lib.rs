@@ -13,19 +13,19 @@
 //! - [`engine`] — `AutomationEngine`: subscribes to event bus, drives trigger→condition→action pipeline
 //! - [`error`] — crate-wide `AutomationError`
 
-pub mod automation;
-pub mod trigger;
-pub mod condition;
 pub mod action;
-pub mod template;
+pub mod automation;
+pub mod condition;
 pub mod engine;
-pub mod runmode;
 pub mod error;
+pub mod runmode;
+pub mod template;
+pub mod trigger;
 
-pub use automation::{Automation, RunMode};
-pub use trigger::{EvaluateTrigger, Trigger, TriggerContext};
-pub use condition::{Condition, EvalContext};
 pub use action::{Action, ExecutionContext};
-pub use template::TemplateEnvironment;
+pub use automation::{Automation, RunMode};
+pub use condition::{Condition, EvalContext};
 pub use engine::AutomationEngine;
 pub use error::AutomationError;
+pub use template::TemplateEnvironment;
+pub use trigger::{EvaluateTrigger, Trigger, TriggerContext};

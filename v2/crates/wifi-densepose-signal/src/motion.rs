@@ -98,7 +98,10 @@ impl MotionScore {
         // Calculate weighted total
         let total = if let Some(doppler) = doppler_component {
             let (wv, wc, wp, wd) = MOTION_WEIGHTS_WITH_DOPPLER;
-            wv * variance_component + wc * correlation_component + wp * phase_component + wd * doppler
+            wv * variance_component
+                + wc * correlation_component
+                + wp * phase_component
+                + wd * doppler
         } else {
             let (wv, wc, wp) = MOTION_WEIGHTS_NO_DOPPLER;
             wv * variance_component + wc * correlation_component + wp * phase_component
@@ -946,15 +949,27 @@ mod tests {
         // just below full scale -> < 1.0
         let mut features = create_test_features(0.5);
         features.doppler = Some(make(DOPPLER_FULL_SCALE_MAGNITUDE - 1.0));
-        let below = detector.analyze_motion(&features).score.doppler_component.unwrap();
+        let below = detector
+            .analyze_motion(&features)
+            .score
+            .doppler_component
+            .unwrap();
         assert!(below < 1.0 && below > 0.98);
         // exactly full scale -> 1.0
         features.doppler = Some(make(DOPPLER_FULL_SCALE_MAGNITUDE));
-        let at = detector.analyze_motion(&features).score.doppler_component.unwrap();
+        let at = detector
+            .analyze_motion(&features)
+            .score
+            .doppler_component
+            .unwrap();
         assert_eq!(at, 1.0);
         // above full scale -> clamped to 1.0
         features.doppler = Some(make(DOPPLER_FULL_SCALE_MAGNITUDE * 10.0));
-        let above = detector.analyze_motion(&features).score.doppler_component.unwrap();
+        let above = detector
+            .analyze_motion(&features)
+            .score
+            .doppler_component
+            .unwrap();
         assert_eq!(above, 1.0);
     }
 

@@ -67,11 +67,14 @@ fn bench_infer(c: &mut Criterion) {
             );
             let _ = engine.infer(&window).expect("warmup infer");
 
-            c.bench_function("cog_pose_estimation::infer[cpu_real_weights_steady_state]", |b| {
-                b.iter(|| {
-                    black_box(engine.infer(black_box(&window)).expect("infer"));
-                });
-            });
+            c.bench_function(
+                "cog_pose_estimation::infer[cpu_real_weights_steady_state]",
+                |b| {
+                    b.iter(|| {
+                        black_box(engine.infer(black_box(&window)).expect("infer"));
+                    });
+                },
+            );
         }
         None => {
             eprintln!(

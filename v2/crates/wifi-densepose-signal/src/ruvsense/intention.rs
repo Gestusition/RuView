@@ -532,7 +532,11 @@ mod tests {
         let mut detector = IntentionDetector::new(config).unwrap();
         let mut last = None;
         for frame in 0..6_u64 {
-            last = Some(detector.update(&static_embedding(), frame * 50_000).unwrap());
+            last = Some(
+                detector
+                    .update(&static_embedding(), frame * 50_000)
+                    .unwrap(),
+            );
         }
         let signal = last.unwrap();
         assert!(signal.acceleration_magnitude < LEAD_TIME_MIN_ACCEL.max(1e-9));

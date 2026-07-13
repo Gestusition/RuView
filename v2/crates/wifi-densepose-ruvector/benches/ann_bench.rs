@@ -64,8 +64,9 @@ fn bench_ann(c: &mut Criterion) {
             b.iter(|| {
                 let mut sink = 0u64;
                 for q in &qs {
-                    sink = sink
-                        .wrapping_add(quant_idx.search_quantized(black_box(q), k, ef, rr).len() as u64);
+                    sink = sink.wrapping_add(
+                        quant_idx.search_quantized(black_box(q), k, ef, rr).len() as u64,
+                    );
                 }
                 black_box(sink)
             })
@@ -82,8 +83,9 @@ fn bench_ann(c: &mut Criterion) {
                 b.iter(|| {
                     let mut sink = 0u64;
                     for q in &qs {
-                        sink = sink
-                            .wrapping_add(idx.search_quantized(black_box(q), k, ef, rr).len() as u64);
+                        sink = sink.wrapping_add(
+                            idx.search_quantized(black_box(q), k, ef, rr).len() as u64,
+                        );
                     }
                     black_box(sink)
                 })

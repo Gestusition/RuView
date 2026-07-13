@@ -51,8 +51,7 @@ fn inputs_at(unix_secs: u64, motion: f32) -> SensingInputs {
 
 fn fresh_pipeline() -> BfldPipeline {
     BfldPipeline::new(
-        BfldConfig::new("seed-det")
-            .with_signature_hasher(SignatureHasher::new(salt())),
+        BfldConfig::new("seed-det").with_signature_hasher(SignatureHasher::new(salt())),
     )
 }
 
@@ -170,7 +169,10 @@ fn class_3_pipelines_produce_identical_stripped_event_streams() {
     for (i, (ea, eb)) in events_a.iter().zip(events_b.iter()).enumerate() {
         assert!(ea.identity_risk_score.is_none(), "event[{i}] class-3 strip");
         assert!(ea.rf_signature_hash.is_none(), "event[{i}] class-3 strip");
-        assert_eq!(ea.motion, eb.motion, "event[{i}] motion still deterministic");
+        assert_eq!(
+            ea.motion, eb.motion,
+            "event[{i}] motion still deterministic"
+        );
         assert_eq!(ea.presence, eb.presence);
     }
 }

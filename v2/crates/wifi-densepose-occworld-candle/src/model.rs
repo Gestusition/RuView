@@ -33,14 +33,13 @@ pub fn load_safetensors(
     let mut map = HashMap::new();
     for (name, view) in named_tensors.tensors() {
         let candle_key = map_pytorch_key(&name);
-        let dtype = safetensor_dtype_to_candle(view.dtype())
-            .ok_or_else(|| OccWorldError::CheckpointParse(
-                format!("unsupported dtype for key '{name}'"),
-            ))?;
+        let dtype = safetensor_dtype_to_candle(view.dtype()).ok_or_else(|| {
+            OccWorldError::CheckpointParse(format!("unsupported dtype for key '{name}'"))
+        })?;
         let shape: Vec<usize> = view.shape().to_vec();
         let data = view.data();
-        let tensor = Tensor::from_raw_buffer(data, dtype, &shape, device)
-            .map_err(OccWorldError::Candle)?;
+        let tensor =
+            Tensor::from_raw_buffer(data, dtype, &shape, device).map_err(OccWorldError::Candle)?;
         map.insert(candle_key, tensor);
     }
     Ok(map)
@@ -147,10 +146,7 @@ mod tests {
             map_pytorch_key("quantize.embedding.weight"),
             "quantize.embedding.weight"
         );
-        assert_eq!(
-            map_pytorch_key("quant_conv.weight"),
-            "quant_conv.weight"
-        );
+        assert_eq!(map_pytorch_key("quant_conv.weight"), "quant_conv.weight");
         assert_eq!(
             map_pytorch_key("transformer.layer_0.ffn.fc1.weight"),
             "transformer.layer_0.ffn.fc1.weight"

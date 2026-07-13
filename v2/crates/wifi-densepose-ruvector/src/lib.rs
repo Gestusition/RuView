@@ -26,10 +26,10 @@
 
 #![warn(missing_docs)]
 
-#[cfg(feature = "crv")]
-pub mod crv;
 pub mod ann_measure;
 pub mod coverage;
+#[cfg(feature = "crv")]
+pub mod crv;
 pub mod estimator;
 pub mod event_log;
 pub mod hnsw;
@@ -40,9 +40,7 @@ pub mod signal;
 pub mod sketch;
 pub mod viewpoint;
 
-pub use estimator::{
-    DistanceEstimator, EstimatorBank, EstimatorQuery, EstimatorSketch, SideInfo,
-};
+pub use estimator::{DistanceEstimator, EstimatorBank, EstimatorQuery, EstimatorSketch, SideInfo};
 pub use event_log::{NoveltyEvent, PrivacyEventLog};
 pub use hnsw::{HnswIndex, HnswParams, Metric};
 pub use hnsw_quantized::QuantizedHnswIndex;

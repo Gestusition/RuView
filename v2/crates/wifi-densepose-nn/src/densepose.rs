@@ -603,7 +603,10 @@ mod tests {
         assert_eq!(out.dim(), (1, 1, 2, 2));
         // out[y,x] = 2·in[y,x] + 0.5 ⇒ {0.5, 2.5, 4.5, 6.5}.
         for (got, want) in out.iter().zip([0.5_f32, 2.5, 4.5, 6.5].iter()) {
-            assert!((got - want).abs() < 1e-6, "1x1 conv: got {got}, want {want}");
+            assert!(
+                (got - want).abs() < 1e-6,
+                "1x1 conv: got {got}, want {want}"
+            );
         }
 
         // --- Case 2: a same-padded 3×3 all-ones kernel sums the in-bounds
@@ -625,9 +628,18 @@ mod tests {
         let head2 = DensePoseHead::new(cfg2).unwrap();
         let out2 = head2.apply_conv_layer(&ones, &w33).unwrap();
         assert_eq!(out2.dim(), (1, 1, 3, 3));
-        assert!((out2[[0, 0, 1, 1]] - 9.0).abs() < 1e-6, "centre full window = 9");
-        assert!((out2[[0, 0, 0, 0]] - 4.0).abs() < 1e-6, "corner 2x2 window = 4");
-        assert!((out2[[0, 0, 0, 1]] - 6.0).abs() < 1e-6, "edge 2x3 window = 6");
+        assert!(
+            (out2[[0, 0, 1, 1]] - 9.0).abs() < 1e-6,
+            "centre full window = 9"
+        );
+        assert!(
+            (out2[[0, 0, 0, 0]] - 4.0).abs() < 1e-6,
+            "corner 2x2 window = 4"
+        );
+        assert!(
+            (out2[[0, 0, 0, 1]] - 6.0).abs() < 1e-6,
+            "edge 2x3 window = 6"
+        );
     }
 
     #[test]

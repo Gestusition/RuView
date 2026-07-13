@@ -85,7 +85,10 @@ impl ComplexSample {
         let mut im = [0u8; 8];
         re.copy_from_slice(&b[0..8]);
         im.copy_from_slice(&b[8..16]);
-        Self(Complex64::new(f64::from_le_bytes(re), f64::from_le_bytes(im)))
+        Self(Complex64::new(
+            f64::from_le_bytes(re),
+            f64::from_le_bytes(im),
+        ))
     }
 }
 
@@ -772,7 +775,9 @@ impl CsiFrame {
                 // nonzero padding would decode to the same frame as the
                 // canonical encoding and re-encode differently.
                 if c.take(4)? != [0u8; 4] {
-                    return Err(CanonicalDecodeError::ReservedNotZero { field: "spacing_mm" });
+                    return Err(CanonicalDecodeError::ReservedNotZero {
+                        field: "spacing_mm",
+                    });
                 }
                 None
             }
@@ -796,7 +801,12 @@ impl CsiFrame {
         let expect = rows.saturating_mul(cols).saturating_mul(16);
         let found = bytes.len() - c.at;
         if found < expect {
-            return Err(CanonicalDecodeError::PayloadMismatch { rows, cols, expect, found });
+            return Err(CanonicalDecodeError::PayloadMismatch {
+                rows,
+                cols,
+                expect,
+                found,
+            });
         }
         let mut samples = Vec::with_capacity(rows * cols);
         for _ in 0..rows * cols {
@@ -807,7 +817,12 @@ impl CsiFrame {
             return Err(CanonicalDecodeError::TrailingBytes(bytes.len() - c.at));
         }
         let data = Array2::from_shape_vec((rows, cols), samples).map_err(|_| {
-            CanonicalDecodeError::PayloadMismatch { rows, cols, expect, found }
+            CanonicalDecodeError::PayloadMismatch {
+                rows,
+                cols,
+                expect,
+                found,
+            }
         })?;
 
         let metadata = CsiMetadata {
@@ -816,7 +831,11 @@ impl CsiFrame {
             frequency_band,
             channel,
             bandwidth_mhz,
-            antenna_config: AntennaConfig { tx_antennas, rx_antennas, spacing_mm },
+            antenna_config: AntennaConfig {
+                tx_antennas,
+                rx_antennas,
+                spacing_mm,
+            },
             rssi_dbm,
             noise_floor_dbm,
             sequence_number,
@@ -827,7 +846,13 @@ impl CsiFrame {
 
         let amplitude = data.mapv(num_complex::Complex::norm);
         let phase = data.mapv(num_complex::Complex::arg);
-        Ok(Self { id, metadata, data, amplitude, phase })
+        Ok(Self {
+            id,
+            metadata,
+            data,
+            amplitude,
+            phase,
+        })
     }
 }
 
@@ -1460,7 +1485,9 @@ mod tests {
 
     /// Deterministic LCG so the test needs no external RNG dependency.
     fn lcg(state: &mut u64) -> f64 {
-        *state = state.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
+        *state = state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
         // Map high bits into [-1e6, 1e6) for a wide exponent spread.
         ((*state >> 11) as f64 / (1u64 << 53) as f64) * 2.0e6 - 1.0e6
     }
@@ -1547,8 +1574,14 @@ mod tests {
         // Field-wise metadata equality (CsiMetadata has no PartialEq; the
         // byte-identical re-encoding below covers every field regardless).
         assert_eq!(replayed.metadata.device_id, frame.metadata.device_id);
-        assert_eq!(replayed.metadata.calibration_id, frame.metadata.calibration_id);
-        assert_eq!(replayed.metadata.model_version, frame.metadata.model_version);
+        assert_eq!(
+            replayed.metadata.calibration_id,
+            frame.metadata.calibration_id
+        );
+        assert_eq!(
+            replayed.metadata.model_version,
+            frame.metadata.model_version
+        );
         assert_eq!(replayed.metadata.antenna_config.spacing_mm, Some(62.5));
         assert_eq!(replayed.data, frame.data);
         // Witness equality — the strongest statement of equivalence.
@@ -1593,7 +1626,10 @@ mod tests {
         bad[16 + 8 + 4 + 4 + 1] = 9;
         assert!(matches!(
             CsiFrame::from_canonical_bytes(&bad),
-            Err(CanonicalDecodeError::BadDiscriminant { field: "frequency_band", value: 9 })
+            Err(CanonicalDecodeError::BadDiscriminant {
+                field: "frequency_band",
+                value: 9
+            })
         ));
 
         // A nil calibration uuid decodes as None (the documented encoding).
@@ -1631,7 +1667,9 @@ mod tests {
             forged[tag_off + i] = 0xAB;
             assert!(matches!(
                 CsiFrame::from_canonical_bytes(&forged),
-                Err(CanonicalDecodeError::ReservedNotZero { field: "spacing_mm" })
+                Err(CanonicalDecodeError::ReservedNotZero {
+                    field: "spacing_mm"
+                })
             ));
         }
     }

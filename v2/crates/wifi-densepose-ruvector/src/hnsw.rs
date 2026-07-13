@@ -379,8 +379,7 @@ impl HnswIndex {
         let mut layer = start as isize;
         while layer >= 0 {
             let l = layer as usize;
-            let candidates =
-                self.search_layer(&vec, &[ep], self.params.ef_construction.max(1), l);
+            let candidates = self.search_layer(&vec, &[ep], self.params.ef_construction.max(1), l);
             let selected = self.select_neighbours(&vec, &candidates, self.m_max(l));
 
             // Connect node -> selected (write straight into the node's slot).
@@ -510,7 +509,9 @@ impl HnswIndex {
             let cand_vec = &self.vectors[cand.id as usize];
             let mut keep = true;
             for sel in &selected {
-                let d_cand_sel = self.metric.distance(cand_vec, &self.vectors[sel.id as usize]);
+                let d_cand_sel = self
+                    .metric
+                    .distance(cand_vec, &self.vectors[sel.id as usize]);
                 if d_cand_sel < cand.dist {
                     keep = false;
                     break;
@@ -656,7 +657,9 @@ mod tests {
             .map(|i| {
                 let c = i % clusters;
                 let mut s = seed ^ (i as u64).wrapping_mul(0x9E37);
-                (0..dim).map(|d| centres[c][d] + gauss(&mut s) * 0.35).collect()
+                (0..dim)
+                    .map(|d| centres[c][d] + gauss(&mut s) * 0.35)
+                    .collect()
             })
             .collect()
     }
@@ -697,7 +700,11 @@ mod tests {
             let centre: Vec<f32> = (0..dim).map(|_| gauss(&mut cs) * 3.0).collect();
             let qv: Vec<f32> = (0..dim).map(|d| centre[d] + gauss(&mut s) * 0.35).collect();
 
-            let truth: HashSet<u32> = idx.brute_force(&qv, k).into_iter().map(|(id, _)| id).collect();
+            let truth: HashSet<u32> = idx
+                .brute_force(&qv, k)
+                .into_iter()
+                .map(|(id, _)| id)
+                .collect();
             let got = idx.search(&qv, k, ef);
             let hit = got.iter().filter(|(id, _)| truth.contains(id)).count();
             total += hit as f64 / k as f64;
@@ -752,7 +759,10 @@ mod tests {
         for &probe in &[0usize, 50, 137, 199] {
             let r = idx.search(&vectors[probe], 1, 64);
             assert_eq!(r.len(), 1);
-            assert_eq!(r[0].0, probe as u32, "self-query should return the stored self");
+            assert_eq!(
+                r[0].0, probe as u32,
+                "self-query should return the stored self"
+            );
         }
     }
 
@@ -811,7 +821,10 @@ mod tests {
         let idx = build(&vectors, Metric::L2, 0xE00E);
         let lo = recall_at_k(&idx, &vectors, dim, 16, 10, 16, 48, 0xD00D);
         let hi = recall_at_k(&idx, &vectors, dim, 16, 10, 128, 48, 0xD00D);
-        assert!(hi + 1e-9 >= lo, "recall dropped with larger ef: {lo:.3} -> {hi:.3}");
+        assert!(
+            hi + 1e-9 >= lo,
+            "recall dropped with larger ef: {lo:.3} -> {hi:.3}"
+        );
     }
 
     #[test]

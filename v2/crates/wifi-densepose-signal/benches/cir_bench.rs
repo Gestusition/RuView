@@ -128,8 +128,8 @@ fn bench_estimate(c: &mut Criterion) {
     let tiers: &[(&str, u16)] = &[
         ("ht20", 20),
         ("ht40", 40),
-        ("he20", 20),   // HE20: same BW as HT20, different pilot mask — same for_bandwidth_mhz(20)
-        ("he40", 40),   // HE40: same BW as HT40
+        ("he20", 20), // HE20: same BW as HT20, different pilot mask — same for_bandwidth_mhz(20)
+        ("he40", 40), // HE40: same BW as HT40
     ];
 
     for &(label, bw_mhz) in tiers {
@@ -142,15 +142,9 @@ fn bench_estimate(c: &mut Criterion) {
         let csi = synth_csi(&cfg);
         let frame = make_frame(bw_mhz, csi);
 
-        group.bench_with_input(
-            BenchmarkId::from_parameter(label),
-            &frame,
-            |b, f| {
-                b.iter(|| {
-                    black_box(est.estimate(black_box(f)).ok())
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(label), &frame, |b, f| {
+            b.iter(|| black_box(est.estimate(black_box(f)).ok()));
+        });
     }
 
     group.finish();
@@ -216,7 +210,10 @@ fn bench_estimate_12link(c: &mut Criterion) {
                     .map(|k_idx| {
                         let angle = -2.0 * PI * k_idx as f64 * delta_f * 30e-9;
                         let mut c = Complex64::new(angle.cos(), angle.sin());
-                        c += Complex64::new(noise_std * rng.next_normal(), noise_std * rng.next_normal());
+                        c += Complex64::new(
+                            noise_std * rng.next_normal(),
+                            noise_std * rng.next_normal(),
+                        );
                         c
                     })
                     .collect();
@@ -227,17 +224,13 @@ fn bench_estimate_12link(c: &mut Criterion) {
         let est = CirEstimator::new(cfg.clone());
 
         group.throughput(Throughput::Elements(12 * k_active as u64));
-        group.bench_with_input(
-            BenchmarkId::from_parameter(label),
-            &frames,
-            |b, fs| {
-                b.iter(|| {
-                    for f in fs {
-                        black_box(est.estimate(black_box(f)).ok());
-                    }
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(label), &frames, |b, fs| {
+            b.iter(|| {
+                for f in fs {
+                    black_box(est.estimate(black_box(f)).ok());
+                }
+            });
+        });
     }
 
     group.finish();

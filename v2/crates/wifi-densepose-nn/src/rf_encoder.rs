@@ -19,14 +19,22 @@ impl RfEmbedding {
     /// Wrap a vector, asserting it is [`EMBEDDING_DIM`] long.
     #[must_use]
     pub fn new(v: Vec<f32>) -> Self {
-        debug_assert_eq!(v.len(), EMBEDDING_DIM, "embedding must be {EMBEDDING_DIM}-d");
+        debug_assert_eq!(
+            v.len(),
+            EMBEDDING_DIM,
+            "embedding must be {EMBEDDING_DIM}-d"
+        );
         Self(v)
     }
 
     /// Squared L2 distance to another embedding.
     #[must_use]
     pub fn sq_dist(&self, other: &RfEmbedding) -> f32 {
-        self.0.iter().zip(&other.0).map(|(a, b)| (a - b).powi(2)).sum()
+        self.0
+            .iter()
+            .zip(&other.0)
+            .map(|(a, b)| (a - b).powi(2))
+            .sum()
     }
 }
 
@@ -139,7 +147,10 @@ impl std::fmt::Display for RfHeadError {
                 write!(f, "bias shape mismatch: expected {expected}, got {got}")
             }
             Self::VarWeightShape { expected, got } => {
-                write!(f, "var weight shape mismatch: expected {expected}, got {got}")
+                write!(
+                    f,
+                    "var weight shape mismatch: expected {expected}, got {got}"
+                )
             }
         }
     }
@@ -157,11 +168,25 @@ impl LinearHead {
     /// untrusted / deserialized source, prefer [`LinearHead::try_new`], which
     /// returns a typed [`RfHeadError`] instead of panicking.
     #[must_use]
-    pub fn new(task: TaskKind, out_dim: usize, w: Vec<f32>, b: Vec<f32>, var_w: Vec<f32>, var_b: f32) -> Self {
+    pub fn new(
+        task: TaskKind,
+        out_dim: usize,
+        w: Vec<f32>,
+        b: Vec<f32>,
+        var_w: Vec<f32>,
+        var_b: f32,
+    ) -> Self {
         assert_eq!(w.len(), out_dim * EMBEDDING_DIM, "weight shape mismatch");
         assert_eq!(b.len(), out_dim, "bias shape mismatch");
         assert_eq!(var_w.len(), EMBEDDING_DIM, "var weight shape mismatch");
-        Self { task, w, b, out_dim, var_w, var_b }
+        Self {
+            task,
+            w,
+            b,
+            out_dim,
+            var_w,
+            var_b,
+        }
     }
 
     /// Fallible constructor: validate the weight shapes and return a typed
@@ -187,15 +212,31 @@ impl LinearHead {
     ) -> Result<Self, RfHeadError> {
         let expected_w = out_dim * EMBEDDING_DIM;
         if w.len() != expected_w {
-            return Err(RfHeadError::WeightShape { expected: expected_w, got: w.len() });
+            return Err(RfHeadError::WeightShape {
+                expected: expected_w,
+                got: w.len(),
+            });
         }
         if b.len() != out_dim {
-            return Err(RfHeadError::BiasShape { expected: out_dim, got: b.len() });
+            return Err(RfHeadError::BiasShape {
+                expected: out_dim,
+                got: b.len(),
+            });
         }
         if var_w.len() != EMBEDDING_DIM {
-            return Err(RfHeadError::VarWeightShape { expected: EMBEDDING_DIM, got: var_w.len() });
+            return Err(RfHeadError::VarWeightShape {
+                expected: EMBEDDING_DIM,
+                got: var_w.len(),
+            });
         }
-        Ok(Self { task, w, b, out_dim, var_w, var_b })
+        Ok(Self {
+            task,
+            w,
+            b,
+            out_dim,
+            var_w,
+            var_b,
+        })
     }
 
     /// A zero-initialised head (uncertainty = softplus(0) ≈ 0.693).
@@ -220,9 +261,19 @@ impl LinearHead {
             let dot: f32 = row.iter().zip(&emb.0).map(|(wi, xi)| wi * xi).sum();
             values[o] = dot + self.b[o];
         }
-        let log_var: f32 = self.var_w.iter().zip(&emb.0).map(|(wi, xi)| wi * xi).sum::<f32>() + self.var_b;
+        let log_var: f32 = self
+            .var_w
+            .iter()
+            .zip(&emb.0)
+            .map(|(wi, xi)| wi * xi)
+            .sum::<f32>()
+            + self.var_b;
         let uncertainty = softplus(log_var);
-        HeadOutput { task: self.task, values, uncertainty }
+        HeadOutput {
+            task: self.task,
+            values,
+            uncertainty,
+        }
     }
 }
 
@@ -301,7 +352,12 @@ pub fn calibration_robustness_loss(under_cal_a: &RfEmbedding, under_cal_b: &RfEm
 /// `positive` (same physical state), push from `negative` (different), with a
 /// margin. `max(0, d(a,p) - d(a,n) + margin)`.
 #[must_use]
-pub fn triplet_loss(anchor: &RfEmbedding, positive: &RfEmbedding, negative: &RfEmbedding, margin: f32) -> f32 {
+pub fn triplet_loss(
+    anchor: &RfEmbedding,
+    positive: &RfEmbedding,
+    negative: &RfEmbedding,
+    margin: f32,
+) -> f32 {
     (anchor.sq_dist(positive) - anchor.sq_dist(negative) + margin).max(0.0)
 }
 
@@ -350,7 +406,11 @@ impl ContrastiveBatcher {
             });
             let negative = (0..n).find(|&q| self.state_of[q] != self.state_of[a]);
             if let (Some(positive), Some(negative)) = (positive, negative) {
-                out.push(Triplet { anchor: a, positive, negative });
+                out.push(Triplet {
+                    anchor: a,
+                    positive,
+                    negative,
+                });
             }
         }
         out
@@ -383,27 +443,67 @@ mod tests {
         let var_w = vec![0.0; EMBEDDING_DIM];
 
         // Valid: try_new == new (forward identical on a probe embedding).
-        let head = LinearHead::try_new(TaskKind::Presence, out_dim, w.clone(), b.clone(), var_w.clone(), 0.0)
-            .expect("valid shapes must construct");
-        let reference = LinearHead::new(TaskKind::Presence, out_dim, w.clone(), b.clone(), var_w.clone(), 0.0);
-        assert_eq!(head.forward(&emb(0.5)).values, reference.forward(&emb(0.5)).values);
+        let head = LinearHead::try_new(
+            TaskKind::Presence,
+            out_dim,
+            w.clone(),
+            b.clone(),
+            var_w.clone(),
+            0.0,
+        )
+        .expect("valid shapes must construct");
+        let reference = LinearHead::new(
+            TaskKind::Presence,
+            out_dim,
+            w.clone(),
+            b.clone(),
+            var_w.clone(),
+            0.0,
+        );
+        assert_eq!(
+            head.forward(&emb(0.5)).values,
+            reference.forward(&emb(0.5)).values
+        );
 
         // Bad weight length.
         assert_eq!(
-            LinearHead::try_new(TaskKind::Presence, out_dim, vec![0.0; 3], b.clone(), var_w.clone(), 0.0)
-                .unwrap_err(),
-            RfHeadError::WeightShape { expected: out_dim * EMBEDDING_DIM, got: 3 }
+            LinearHead::try_new(
+                TaskKind::Presence,
+                out_dim,
+                vec![0.0; 3],
+                b.clone(),
+                var_w.clone(),
+                0.0
+            )
+            .unwrap_err(),
+            RfHeadError::WeightShape {
+                expected: out_dim * EMBEDDING_DIM,
+                got: 3
+            }
         );
         // Bad bias length.
         assert_eq!(
-            LinearHead::try_new(TaskKind::Presence, out_dim, w.clone(), vec![0.0; 1], var_w.clone(), 0.0)
-                .unwrap_err(),
-            RfHeadError::BiasShape { expected: out_dim, got: 1 }
+            LinearHead::try_new(
+                TaskKind::Presence,
+                out_dim,
+                w.clone(),
+                vec![0.0; 1],
+                var_w.clone(),
+                0.0
+            )
+            .unwrap_err(),
+            RfHeadError::BiasShape {
+                expected: out_dim,
+                got: 1
+            }
         );
         // Bad var-weight length.
         assert_eq!(
             LinearHead::try_new(TaskKind::Presence, out_dim, w, b, vec![0.0; 5], 0.0).unwrap_err(),
-            RfHeadError::VarWeightShape { expected: EMBEDDING_DIM, got: 5 }
+            RfHeadError::VarWeightShape {
+                expected: EMBEDDING_DIM,
+                got: 5
+            }
         );
     }
 
@@ -443,7 +543,7 @@ mod tests {
         let a = emb(0.0);
         let p = emb(0.1); // close
         let n = emb(5.0); // far
-        // d(a,p) << d(a,n) → loss should be 0 with a modest margin.
+                          // d(a,p) << d(a,n) → loss should be 0 with a modest margin.
         assert_eq!(triplet_loss(&a, &p, &n, 0.5), 0.0);
         // Swap: positive far, negative close → positive loss.
         assert!(triplet_loss(&a, &n, &p, 0.5) > 0.0);

@@ -482,7 +482,10 @@ mod tests {
 
         let mut control = HeartRateExtractor::new(4, sr, 20.0);
         feed_clean(&mut control);
-        assert!(control.history_len() > 0, "control clean run must accumulate history");
+        assert!(
+            control.history_len() > 0,
+            "control clean run must accumulate history"
+        );
 
         let mut ext = HeartRateExtractor::new(4, sr, 20.0);
         ext.extract(&[f64::NAN, 0.1, 0.1, 0.1], &[0.0, 0.01, 0.02, 0.03]);
@@ -558,7 +561,10 @@ mod tests {
             "history should have accumulated samples"
         );
         for (i, &v) in ext.filtered_history.iter().enumerate() {
-            assert!(v.is_finite(), "filtered_history[{i}] must be finite, got {v}");
+            assert!(
+                v.is_finite(),
+                "filtered_history[{i}] must be finite, got {v}"
+            );
         }
     }
 }

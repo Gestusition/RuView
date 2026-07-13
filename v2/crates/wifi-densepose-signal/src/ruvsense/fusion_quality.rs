@@ -52,10 +52,16 @@ pub enum EvidenceRef {
     /// is true when it was folded into `base_coherence` (false on fallback).
     CirDominantTapRatio { ratio: f32, blended: bool },
     /// Attention-weight entropy supported a balanced (multi-node) fusion.
-    WeightEntropy { normalized_entropy: f32, n_nodes: usize },
+    WeightEntropy {
+        normalized_entropy: f32,
+        n_nodes: usize,
+    },
     /// An ADR-135 baseline was applied to every contributing frame at a single
     /// agreed calibration epoch before pooling.
-    CalibrationApplied { calibration_id: CalibrationId, n_frames: usize },
+    CalibrationApplied {
+        calibration_id: CalibrationId,
+        n_frames: usize,
+    },
 }
 
 /// A tolerated disagreement detected during fusion (ADR-137 §2.3). A non-empty
@@ -67,7 +73,10 @@ pub enum ContradictionFlag {
     TimestampMismatch { spread_ns: u64, soft_guard_ns: u64 },
     /// Contributing frames carried different calibration ids. `expected` is the
     /// modal id; `disagreeing` counts the disagreeing frames.
-    CalibrationIdMismatch { expected: CalibrationId, disagreeing: usize },
+    CalibrationIdMismatch {
+        expected: CalibrationId,
+        disagreeing: usize,
+    },
     /// Phase alignment did not converge for at least one node.
     PhaseAlignmentFailed { node_idx: usize },
     /// A node's ADR-135 drift score conflicts with the array consensus.
@@ -136,8 +145,8 @@ impl QualityScored for QualityScore {
         // Width grows with the number of tolerated contradictions: each adds
         // ±0.1 of uncertainty around the penalized coherence, clamped to [0,1].
         let c = self.penalized_coherence();
-        let half =
-            (CONTRADICTION_BOUND_HALFWIDTH * self.contradiction_flags.len() as f32).min(c.min(1.0 - c));
+        let half = (CONTRADICTION_BOUND_HALFWIDTH * self.contradiction_flags.len() as f32)
+            .min(c.min(1.0 - c));
         ((c - half).max(0.0), (c + half).min(1.0))
     }
 }
@@ -174,10 +183,11 @@ mod tests {
     #[test]
     fn contradiction_penalizes_and_demotes() {
         let mut q = base();
-        q.contradiction_flags.push(ContradictionFlag::TimestampMismatch {
-            spread_ns: 2_000,
-            soft_guard_ns: 1_000,
-        });
+        q.contradiction_flags
+            .push(ContradictionFlag::TimestampMismatch {
+                spread_ns: 2_000,
+                soft_guard_ns: 1_000,
+            });
         assert!(q.forces_privacy_demotion());
         assert!((q.penalized_coherence() - 0.72).abs() < 1e-5); // 0.9 * 0.8
         let (lo, hi) = q.confidence_bounds();
@@ -188,7 +198,8 @@ mod tests {
     fn quality_scored_trait_bounds_invariant() {
         let mut q = base();
         for _ in 0..5 {
-            q.contradiction_flags.push(ContradictionFlag::PhaseAlignmentFailed { node_idx: 0 });
+            q.contradiction_flags
+                .push(ContradictionFlag::PhaseAlignmentFailed { node_idx: 0 });
         }
         let s = q.quality_score();
         let (lo, hi) = q.confidence_bounds();

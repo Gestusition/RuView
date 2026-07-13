@@ -156,11 +156,13 @@ impl MeshGuard {
             let edges: Vec<(u64, u64, f64)> = desired
                 .iter()
                 .filter(|(_, &q)| q > 0)
-                .map(|(&(a, b), &q)| {
-                    (u64::from(a), u64::from(b), q as f64 * self.weight_quantum)
-                })
+                .map(|(&(a, b), &q)| (u64::from(a), u64::from(b), q as f64 * self.weight_quantum))
                 .collect();
-            updates = if changed == usize::MAX { edges.len() } else { changed };
+            updates = if changed == usize::MAX {
+                edges.len()
+            } else {
+                changed
+            };
             self.mincut = MinCutBuilder::new().exact().with_edges(edges).build().ok();
             self.nodes = sorted;
             self.edges = desired;
@@ -193,14 +195,27 @@ impl MeshGuard {
 
         let mc = self.mincut.as_ref()?;
         // A disconnected coupling graph is the degenerate cut: value 0.
-        let cut_value = if mc.is_connected() { mc.min_cut_value() } else { 0.0 };
+        let cut_value = if mc.is_connected() {
+            mc.min_cut_value()
+        } else {
+            0.0
+        };
         let (side_a, side_b) = mc.partition();
-        let weak_raw = if side_a.len() <= side_b.len() { side_a } else { side_b };
+        let weak_raw = if side_a.len() <= side_b.len() {
+            side_a
+        } else {
+            side_b
+        };
         let mut weak_side: Vec<u8> = weak_raw.into_iter().map(|v| v as u8).collect();
         weak_side.sort_unstable();
         let at_risk = self.nodes.len() >= self.min_nodes && cut_value <= self.risk_threshold;
 
-        Some(MeshPartitionReport { cut_value, at_risk, weak_side, updates_applied: updates })
+        Some(MeshPartitionReport {
+            cut_value,
+            at_risk,
+            weak_side,
+            updates_applied: updates,
+        })
     }
 }
 
@@ -267,7 +282,13 @@ mod tests {
 
         // One genuinely changed edge touches exactly one edge.
         let fourth = g
-            .update(&nodes, |i, j| if (i.min(j), i.max(j)) == (0, 1) { 0.1 } else { 0.5 })
+            .update(&nodes, |i, j| {
+                if (i.min(j), i.max(j)) == (0, 1) {
+                    0.1
+                } else {
+                    0.5
+                }
+            })
             .unwrap();
         assert_eq!(fourth.updates_applied, 1);
     }
@@ -280,7 +301,7 @@ mod tests {
         // Node 3 joins.
         let joined = g.update(&[0, 1, 2, 3], |_, _| 0.8).unwrap();
         assert_eq!(joined.updates_applied, 6); // rebuild over 4 nodes
-        // Node 0 drops.
+                                               // Node 0 drops.
         let dropped = g.update(&[1, 2, 3], |_, _| 0.8).unwrap();
         assert_eq!(dropped.updates_applied, 3);
         assert!(!dropped.at_risk);
@@ -354,7 +375,11 @@ mod tests {
     fn disconnected_mesh_is_cut_zero() {
         let mut g = MeshGuard::default();
         let w = |i: usize, j: usize| {
-            if i == 2 || j == 2 { 0.0 } else { 0.9 }
+            if i == 2 || j == 2 {
+                0.0
+            } else {
+                0.9
+            }
         };
         let r = g.update(&[0, 1, 2], w).unwrap();
         assert_eq!(r.cut_value, 0.0);

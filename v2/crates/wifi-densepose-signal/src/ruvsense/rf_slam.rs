@@ -78,7 +78,11 @@ pub struct PersistentReflector {
 
 impl PersistentReflector {
     fn from_first(obs: &ReflectorObservation) -> Self {
-        let mut pos = [WelfordStats::new(), WelfordStats::new(), WelfordStats::new()];
+        let mut pos = [
+            WelfordStats::new(),
+            WelfordStats::new(),
+            WelfordStats::new(),
+        ];
         for a in 0..3 {
             pos[a].update(obs.position[a]);
         }
@@ -97,7 +101,10 @@ impl PersistentReflector {
             self.pos[a].update(obs.position[a]);
         }
         let new_mean = self.mean_position();
-        let d: f64 = (0..3).map(|a| (new_mean[a] - self.last_mean[a]).powi(2)).sum::<f64>().sqrt();
+        let d: f64 = (0..3)
+            .map(|a| (new_mean[a] - self.last_mean[a]).powi(2))
+            .sum::<f64>()
+            .sqrt();
         self.cumulative_drift_m += d;
         self.last_mean = new_mean;
         self.last_ns = obs.at_ns;
@@ -202,7 +209,10 @@ impl RfSlam {
         let mut best: Option<(usize, f64)> = None;
         for (i, r) in self.reflectors.iter().enumerate() {
             let m = r.mean_position();
-            let d: f64 = (0..3).map(|a| (m[a] - obs.position[a]).powi(2)).sum::<f64>().sqrt();
+            let d: f64 = (0..3)
+                .map(|a| (m[a] - obs.position[a]).powi(2))
+                .sum::<f64>()
+                .sqrt();
             if d <= self.assoc_radius_m && best.map_or(true, |(_, bd)| d < bd) {
                 best = Some((i, d));
             }
@@ -217,13 +227,20 @@ impl RfSlam {
     /// Indices/refs of reflectors that have crossed the persistence threshold.
     #[must_use]
     pub fn persistent(&self) -> Vec<&PersistentReflector> {
-        self.reflectors.iter().filter(|r| r.sightings >= self.min_sightings).collect()
+        self.reflectors
+            .iter()
+            .filter(|r| r.sightings >= self.min_sightings)
+            .collect()
     }
 
     /// Static-anchor set: persistent reflectors classified Wall or Furniture
     /// (mobile reflectors rejected) — the candidate ADR-139 `ObjectAnchor`s.
     #[must_use]
-    pub fn static_anchors(&self, wall_ceiling: f64, mobile_floor: f64) -> Vec<([f64; 3], ReflectorClass)> {
+    pub fn static_anchors(
+        &self,
+        wall_ceiling: f64,
+        mobile_floor: f64,
+    ) -> Vec<([f64; 3], ReflectorClass)> {
         self.persistent()
             .into_iter()
             .map(|r| (r.mean_position(), r.classify(wall_ceiling, mobile_floor)))
@@ -236,7 +253,10 @@ impl RfSlam {
     /// a furniture-moved / room-changed event (ADR-143 §2 topology detection).
     #[must_use]
     pub fn persistent_count(&self) -> usize {
-        self.reflectors.iter().filter(|r| r.sightings >= self.min_sightings).count()
+        self.reflectors
+            .iter()
+            .filter(|r| r.sightings >= self.min_sightings)
+            .count()
     }
 }
 
@@ -245,7 +265,12 @@ mod tests {
     use super::*;
 
     fn obs(pos: [f64; 3], at_ns: u64) -> ReflectorObservation {
-        ReflectorObservation { position: pos, delay_ns: 10.0, coherence: 0.9, at_ns }
+        ReflectorObservation {
+            position: pos,
+            delay_ns: 10.0,
+            coherence: 0.9,
+            at_ns,
+        }
     }
 
     #[test]
@@ -300,10 +325,16 @@ mod tests {
             slam.observe(&obs([i as f64, 0.0, 0.0], t));
         }
         let anchors = slam.static_anchors(0.05, 1.0);
-        assert!(anchors.is_empty(), "fast-migrating reflector must not be an anchor");
+        assert!(
+            anchors.is_empty(),
+            "fast-migrating reflector must not be an anchor"
+        );
         // But it is still a persistent reflector (tracked, just not anchored).
         assert_eq!(slam.persistent_count(), 1);
-        assert_eq!(slam.persistent()[0].classify(0.05, 1.0), ReflectorClass::Mobile);
+        assert_eq!(
+            slam.persistent()[0].classify(0.05, 1.0),
+            ReflectorClass::Mobile
+        );
     }
 
     #[test]

@@ -53,10 +53,7 @@ impl<R: PluginRuntime> PluginRegistry<R> {
             }
         }
 
-        let loaded = self
-            .runtime
-            .load(id.clone(), manifest, plugin)
-            .await?;
+        let loaded = self.runtime.load(id.clone(), manifest, plugin).await?;
 
         loaded
             .setup(hc)

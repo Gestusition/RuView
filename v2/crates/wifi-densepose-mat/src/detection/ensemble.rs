@@ -9,9 +9,7 @@
 //! The classifier produces a single confidence score and a recommended
 //! triage status based on the combined signals.
 
-use crate::domain::{
-    triage::TriageCalculator, MovementType, TriageStatus, VitalSignsReading,
-};
+use crate::domain::{triage::TriageCalculator, MovementType, TriageStatus, VitalSignsReading};
 
 /// Configuration for the ensemble classifier
 #[derive(Debug, Clone)]

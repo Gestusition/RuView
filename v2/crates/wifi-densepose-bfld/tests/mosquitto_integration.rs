@@ -23,9 +23,7 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use rumqttc::{Client, Event, Incoming, MqttOptions, Packet, QoS};
-use wifi_densepose_bfld::{
-    publish_event, BfldEvent, PrivacyClass, RumqttPublisher,
-};
+use wifi_densepose_bfld::{publish_event, BfldEvent, PrivacyClass, RumqttPublisher};
 
 const SUBSCRIBE_TIMEOUT: Duration = Duration::from_secs(5);
 const RECEIVE_TIMEOUT: Duration = Duration::from_secs(10);

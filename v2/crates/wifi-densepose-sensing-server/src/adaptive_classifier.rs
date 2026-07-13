@@ -24,6 +24,10 @@ use std::path::{Path, PathBuf};
 /// Extended feature vector: 7 server features + 8 subcarrier-derived features = 15.
 const N_FEATURES: usize = 15;
 
+/// Version 2 replaces the old single-frame "motion band" feature with robust
+/// temporal CSI-shape change. Models trained with version 1 are incompatible.
+pub const ADAPTIVE_FEATURE_SCHEMA_VERSION: u32 = 2;
+
 /// Default class names for backward compatibility with old saved models.
 const DEFAULT_CLASSES: &[&str] = &["absent", "present_still", "present_moving", "active"];
 
@@ -232,7 +236,7 @@ impl Default for AdaptiveModel {
             global_std: [1.0; N_FEATURES],
             trained_frames: 0,
             training_accuracy: 0.0,
-            version: 1,
+            version: ADAPTIVE_FEATURE_SCHEMA_VERSION,
             class_names: default_class_names(),
         }
     }
@@ -633,7 +637,7 @@ pub fn train_from_recordings(recordings_dir: &Path) -> Result<AdaptiveModel, Str
         global_std,
         trained_frames: n,
         training_accuracy: accuracy,
-        version: 1,
+        version: ADAPTIVE_FEATURE_SCHEMA_VERSION,
         class_names,
     })
 }

@@ -25,8 +25,8 @@
 //!   `train/subcarrier.rs:225`.
 
 use num_complex::Complex32;
-use ruvector_solver::{neumann::NeumannSolver, types::CsrMatrix};
 use rustfft::{Fft, FftPlanner};
+use ruvector_solver::{neumann::NeumannSolver, types::CsrMatrix};
 use std::sync::Arc;
 use thiserror::Error;
 use wifi_densepose_core::types::CsiFrame;
@@ -148,7 +148,9 @@ pub enum CirError {
     /// Circular phase variance (V = 1 − R̄ ∈ [0,1]) is too high — the CSI phase
     /// is near-uniformly spread across subcarriers, the signature of unsanitized
     /// SFO/CFO (ghost-tap risk). See `GHOST_TAP_CIRCULAR_VARIANCE_MAX`.
-    #[error("CSI circular phase variance {variance:.3} suggests unsanitized input (ghost-tap risk)")]
+    #[error(
+        "CSI circular phase variance {variance:.3} suggests unsanitized input (ghost-tap risk)"
+    )]
     UnsanitizedPhase { variance: f32 },
 
     /// ISTA did not converge within the iteration budget.
@@ -400,8 +402,7 @@ impl Cir {
 
     /// Top-`k` taps sorted by descending magnitude.
     pub fn top_k_taps(&self, k: usize) -> Vec<(usize, Complex32)> {
-        let mut v: Vec<(usize, Complex32)> =
-            self.taps.iter().cloned().enumerate().collect();
+        let mut v: Vec<(usize, Complex32)> = self.taps.iter().cloned().enumerate().collect();
         v.sort_by(|a, b| {
             b.1.norm()
                 .partial_cmp(&a.1.norm())
@@ -637,7 +638,10 @@ impl CirEstimator {
         // (Φ is DFT-like), so bins ≥ G/2 are aliased *negative* (non-causal) delays —
         // an alias of the near-zero dominant tap otherwise inflates the spread (ADR-134 P2).
         let causal_bins = x.len() / 2;
-        let power: Vec<f64> = x[..causal_bins].iter().map(|c| (c.norm() as f64).powi(2)).collect();
+        let power: Vec<f64> = x[..causal_bins]
+            .iter()
+            .map(|c| (c.norm() as f64).powi(2))
+            .collect();
         let p_sum: f64 = power.iter().sum();
         let rms_delay_spread_s = if p_sum > 1e-24 {
             let mean_tau: f64 = power
@@ -729,8 +733,7 @@ fn build_sensing_matrix(
 
     for (ki, &k_idx) in active_indices.iter().enumerate() {
         for gi in 0..g {
-            let angle =
-                -std::f32::consts::TAU * (k_idx as f32) * (gi as f32) / (g as f32);
+            let angle = -std::f32::consts::TAU * (k_idx as f32) * (gi as f32) / (g as f32);
             let entry = Complex32::new(angle.cos(), angle.sin()) * scale;
             phi[ki * g + gi] = entry;
             phi_h[gi * k + ki] = entry.conj();
@@ -763,7 +766,11 @@ fn estimate_lipschitz(
     for _ in 0..n_iter {
         matvec_phi(phi, &v, g, &mut tmp_k, k);
         matvec_phi_h(phi_h, &tmp_k, k, &mut w, g);
-        eigenval = v.iter().zip(w.iter()).map(|(vi, wi)| (vi.conj() * wi).re).sum();
+        eigenval = v
+            .iter()
+            .zip(w.iter())
+            .map(|(vi, wi)| (vi.conj() * wi).re)
+            .sum();
         normalize_complex(&mut w);
         v.copy_from_slice(&w);
     }
@@ -840,7 +847,12 @@ fn ista_solve(
             .map(|(a, b)| (*a - *b).norm_sqr())
             .sum::<f32>()
             .sqrt();
-        let prev_norm = x_prev.iter().map(|c| c.norm_sqr()).sum::<f32>().sqrt().max(1e-12);
+        let prev_norm = x_prev
+            .iter()
+            .map(|c| c.norm_sqr())
+            .sum::<f32>()
+            .sqrt()
+            .max(1e-12);
         residual = diff_norm / prev_norm;
         iters_done = iter + 1;
 
@@ -876,9 +888,8 @@ fn neumann_warm_start(
     let rhs_re: Vec<f32> = phi_h_y.iter().map(|c| c.re).collect();
     let rhs_im: Vec<f32> = phi_h_y.iter().map(|c| c.im).collect();
 
-    let fallback = |rhs: &[f32]| -> Vec<f32> {
-        rhs.iter().zip(diag.iter()).map(|(&b, &d)| b / d).collect()
-    };
+    let fallback =
+        |rhs: &[f32]| -> Vec<f32> { rhs.iter().zip(diag.iter()).map(|(&b, &d)| b / d).collect() };
 
     let x_re = solver
         .solve(a, &rhs_re)
@@ -916,8 +927,7 @@ fn build_warm_start_system(
     }
 
     // Diagonal CSR: each row has exactly one non-zero entry (the diagonal).
-    let coo: Vec<(usize, usize, f32)> =
-        diag.iter().enumerate().map(|(i, &v)| (i, i, v)).collect();
+    let coo: Vec<(usize, usize, f32)> = diag.iter().enumerate().map(|(i, &v)| (i, i, v)).collect();
     let a = CsrMatrix::<f32>::from_coo(g, g, coo);
     (diag, a)
 }
@@ -941,13 +951,7 @@ fn matvec_phi(phi: &[Complex32], v: &[Complex32], g: usize, out: &mut [Complex32
 
 /// Φ^H v → out.  phi_h row-major [G×K]; v length K; out length G.
 #[inline]
-fn matvec_phi_h(
-    phi_h: &[Complex32],
-    v: &[Complex32],
-    k: usize,
-    out: &mut [Complex32],
-    g: usize,
-) {
+fn matvec_phi_h(phi_h: &[Complex32], v: &[Complex32], k: usize, out: &mut [Complex32], g: usize) {
     for gi in 0..g {
         let row = &phi_h[gi * k..(gi + 1) * k];
         let mut acc = Complex32::new(0.0, 0.0);
@@ -1164,7 +1168,11 @@ mod tests {
             let (smax2, smin2) = power_iter_extremes(&est.sensing_matrix, k, g);
             let smax = smax2.sqrt();
             let smin = smin2.sqrt();
-            let kappa = if smin > 1e-12 { smax / smin } else { f32::INFINITY };
+            let kappa = if smin > 1e-12 {
+                smax / smin
+            } else {
+                f32::INFINITY
+            };
             println!(
                 "{} K={:>3} G={:>4}  σ_max²={:.4}  σ_min²={:.4}  σ_max={:.4}  σ_min={:.4}  κ(Φ)={:.2}",
                 label, k, g, smax2, smin2, smax, smin, kappa
@@ -1208,8 +1216,10 @@ mod tests {
         let g = cfg.num_taps;
         let (phi, _) = build_sensing_matrix(cfg.active_indices(), g, k);
         for gi in 0..g {
-            let col_norm: f32 =
-                (0..k).map(|ki| phi[ki * g + gi].norm_sqr()).sum::<f32>().sqrt();
+            let col_norm: f32 = (0..k)
+                .map(|ki| phi[ki * g + gi].norm_sqr())
+                .sum::<f32>()
+                .sqrt();
             assert!(
                 (col_norm - 1.0).abs() < 0.02,
                 "col {gi} norm={col_norm:.4}, expected ~1.0"
@@ -1228,7 +1238,11 @@ mod tests {
         soft_thresh_inplace(&mut x, 0.1);
         assert!(x[0].norm() < 1e-6, "small entry not zeroed: {:?}", x[0]);
         assert!(x[1].norm() > 0.3, "large entry killed: {:?}", x[1]);
-        assert!(x[2].norm() < 1e-6, "small imag entry not zeroed: {:?}", x[2]);
+        assert!(
+            x[2].norm() < 1e-6,
+            "small imag entry not zeroed: {:?}",
+            x[2]
+        );
     }
 
     // (d) dominant_tap_ratio is in [0, 1] for a single-tap synthetic channel.

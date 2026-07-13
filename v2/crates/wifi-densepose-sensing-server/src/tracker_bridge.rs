@@ -211,7 +211,9 @@ pub fn tracker_update(
 
     if persons.is_empty() {
         tracker.prune_terminated();
-        return tracker_to_person_detections(tracker);
+        // Tracks remain in the tracker for re-identification, but a current
+        // frame with no detections must not publish predicted ghost persons.
+        return vec![];
     }
 
     // Convert detections to f32 keypoint arrays
@@ -290,11 +292,16 @@ pub fn tracker_update(
         .map(|d| d.as_micros() as u64)
         .unwrap_or(0);
 
+    // Record exactly the tracks observed in this frame. Unmatched active
+    // tracks stay internal for re-identification but are not current persons.
+    let mut observed_track_ids = Vec::with_capacity(persons.len());
+
     // Update matched tracks (uses update_keypoints for proper lifecycle transitions)
     for (det_idx, track_id_opt) in matched.iter().enumerate() {
         if let Some(track_id) = track_id_opt {
             if let Some(track) = tracker.find_track_mut(*track_id) {
                 track.update_keypoints(&all_keypoints[det_idx], 0.08, 1.0, timestamp_us);
+                observed_track_ids.push(*track_id);
             }
         }
     }
@@ -302,12 +309,19 @@ pub fn tracker_update(
     // Create new tracks for unmatched detections
     for (det_idx, track_id_opt) in matched.iter().enumerate() {
         if track_id_opt.is_none() {
-            tracker.create_track(&all_keypoints[det_idx], timestamp_us);
+            observed_track_ids.push(tracker.create_track(&all_keypoints[det_idx], timestamp_us));
         }
     }
 
     tracker.prune_terminated();
     tracker_to_person_detections(tracker)
+        .into_iter()
+        .filter(|person| {
+            observed_track_ids
+                .iter()
+                .any(|track_id| track_id.0 as u32 == person.id)
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -437,6 +451,35 @@ mod tests {
         // All three updates should return the same track ID
         assert_eq!(id1, id2, "Track ID should be stable across updates");
         assert_eq!(id2, id3, "Track ID should be stable across updates");
+    }
+
+    #[test]
+    fn test_unobserved_active_track_is_not_published() {
+        let mut tracker = PoseTracker::new();
+        let mut last_instant: Option<Instant> = None;
+        let person = make_person(
+            0,
+            vec![
+                make_keypoint("nose", 1.0, 2.0, 0.0),
+                make_keypoint("left_shoulder", 0.8, 2.5, 0.0),
+                make_keypoint("right_shoulder", 1.2, 2.5, 0.0),
+            ],
+        );
+
+        // Promote the track to Active, then provide no current observation.
+        assert_eq!(
+            tracker_update(&mut tracker, &mut last_instant, vec![person.clone()]).len(),
+            1
+        );
+        assert_eq!(
+            tracker_update(&mut tracker, &mut last_instant, vec![person]).len(),
+            1
+        );
+        assert!(tracker_update(&mut tracker, &mut last_instant, vec![]).is_empty());
+        assert!(
+            !tracker.all_tracks().is_empty(),
+            "track should remain internal for re-identification"
+        );
     }
 
     /// Regression test for #420 (ADR-082): tracks that have transitioned to

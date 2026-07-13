@@ -47,7 +47,11 @@ fn add_feature(acc: &mut [f32], feature: &[u8], weight: f32) {
     let h = fnv1a64(FNV_OFFSET_BASIS_64, feature);
     let bucket = (h % EMBEDDING_DIM as u64) as usize;
     // Independent sign hash (different seed) → unbiased under collisions.
-    let sign = if fnv1a64(0x100, feature) & 1 == 0 { 1.0 } else { -1.0 };
+    let sign = if fnv1a64(0x100, feature) & 1 == 0 {
+        1.0
+    } else {
+        -1.0
+    };
     acc[bucket] += sign * weight;
 }
 
@@ -145,8 +149,14 @@ mod tests {
             "paraphrase ({sim_para:.3}) must beat unrelated ({sim_unrel:.3})"
         );
         // Real, non-trivial separation.
-        assert!(sim_para > 0.5, "paraphrase similarity too low: {sim_para:.3}");
-        assert!(sim_unrel < 0.3, "unrelated similarity too high: {sim_unrel:.3}");
+        assert!(
+            sim_para > 0.5,
+            "paraphrase similarity too low: {sim_para:.3}"
+        );
+        assert!(
+            sim_unrel < 0.3,
+            "unrelated similarity too high: {sim_unrel:.3}"
+        );
     }
 
     #[test]
@@ -183,7 +193,10 @@ mod tests {
         let zero = embed("!!! ???");
         let real = embed("turn on the light");
         let sim = cosine_similarity(&zero, &real);
-        assert!(sim.is_finite(), "cosine vs zero vector must be finite, got {sim}");
+        assert!(
+            sim.is_finite(),
+            "cosine vs zero vector must be finite, got {sim}"
+        );
         assert_eq!(sim, 0.0, "dot product with the zero vector is exactly 0");
     }
 

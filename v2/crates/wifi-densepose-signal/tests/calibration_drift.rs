@@ -179,12 +179,17 @@ fn should_report_not_complete_before_target_frames() {
         let frame = make_frame_with_amp(&base, &phase, &mut rng);
         recorder.record(&frame).expect("record");
     }
-    assert_eq!(recorder.frames_recorded(), 10, "frames_recorded should be 10");
+    assert_eq!(
+        recorder.frames_recorded(),
+        10,
+        "frames_recorded should be 10"
+    );
     // finalize should fail with InsufficientFrames
     let result = recorder.finalize();
     assert!(
         matches!(result, Err(CalibrationError::InsufficientFrames { .. })),
-        "expected InsufficientFrames after 10 frames, got {:?}", result
+        "expected InsufficientFrames after 10 frames, got {:?}",
+        result
     );
 }
 

@@ -158,7 +158,13 @@ fn bench_splats(c: &mut Criterion) {
         assert_eq!(a.len(), b.len(), "cell count differs at ppc={ppc}");
         let mut sa = a.clone();
         let mut sb = b.clone();
-        let key = |s: &Splat| (s.center[0].to_bits(), s.center[1].to_bits(), s.center[2].to_bits());
+        let key = |s: &Splat| {
+            (
+                s.center[0].to_bits(),
+                s.center[1].to_bits(),
+                s.center[2].to_bits(),
+            )
+        };
         sa.sort_by_key(key);
         sb.sort_by_key(key);
         assert_eq!(sa, sb, "old/new splat output diverged at ppc={ppc}");

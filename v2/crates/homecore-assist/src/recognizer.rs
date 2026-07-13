@@ -132,7 +132,10 @@ impl IntentRecognizer for RegexIntentRecognizer {
                 let mut slots: HashMap<String, serde_json::Value> = HashMap::new();
                 for name in pattern.regex.capture_names().flatten() {
                     if let Some(m) = caps.name(name) {
-                        slots.insert(name.to_owned(), serde_json::Value::String(m.as_str().to_owned()));
+                        slots.insert(
+                            name.to_owned(),
+                            serde_json::Value::String(m.as_str().to_owned()),
+                        );
                     }
                 }
                 return Ok(Some(Intent {
@@ -214,7 +217,10 @@ mod tests {
         // followed by "turn on the kitchen light" would still match HassTurnOn
         // (and force a multi-megabyte `to_lowercase` clone + scan first).
         let r = turn_on_recognizer().await;
-        let huge = format!("{} turn on the kitchen light", "a ".repeat(MAX_UTTERANCE_BYTES));
+        let huge = format!(
+            "{} turn on the kitchen light",
+            "a ".repeat(MAX_UTTERANCE_BYTES)
+        );
         assert!(huge.len() > MAX_UTTERANCE_BYTES);
 
         let result = r.recognize(&huge, "en").await.unwrap();

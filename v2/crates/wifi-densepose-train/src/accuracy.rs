@@ -46,9 +46,7 @@ use std::collections::BTreeMap;
 
 use ndarray::{Array1, Array2};
 
-use crate::metrics_core::{
-    bounding_box_diagonal, CANON_LEFT_HIP, CANON_RIGHT_HIP,
-};
+use crate::metrics_core::{bounding_box_diagonal, CANON_LEFT_HIP, CANON_RIGHT_HIP};
 
 /// Visibility cutoff: a keypoint counts as *visible* iff `visibility[j] >= 0.5`
 /// (COCO convention; matches [`crate::metrics_core`]).
@@ -363,7 +361,9 @@ pub fn accuracy_report(
         }
         // Per-frame MPJPE re-derived as a (sum, count) contribution so the
         // batch value is a true micro-average over joints.
-        let n = frame.pred.shape()[0].min(frame.gt.shape()[0]).min(frame.visibility.len());
+        let n = frame.pred.shape()[0]
+            .min(frame.gt.shape()[0])
+            .min(frame.visibility.len());
         let d = frame.pred.shape()[1].min(frame.gt.shape()[1]);
         for j in 0..n {
             if frame.visibility[j] < VISIBILITY_THRESHOLD {
@@ -493,8 +493,8 @@ mod tests {
             (CANON_RIGHT_HIP, 0.60, 0.50),
         ]);
         let pred = pose17(&[
-            (0, 0.50, 0.20),          // exact ⇒ correct
-            (5, 0.55, 0.50),          // err 0.05 ⇒ wrong
+            (0, 0.50, 0.20),               // exact ⇒ correct
+            (5, 0.55, 0.50),               // err 0.05 ⇒ wrong
             (CANON_LEFT_HIP, 0.40, 0.50),  // exact ⇒ correct
             (CANON_RIGHT_HIP, 0.65, 0.50), // err 0.05 ⇒ wrong
         ]);
@@ -531,15 +531,15 @@ mod tests {
     #[test]
     fn three_normalizations_give_different_pck_on_identical_input() {
         let gt = pose17(&[
-            (0, 0.50, 0.10),  // nose
-            (5, 0.50, 0.30),  // left_shoulder
+            (0, 0.50, 0.10), // nose
+            (5, 0.50, 0.30), // left_shoulder
             (CANON_LEFT_HIP, 0.40, 0.90),
             (CANON_RIGHT_HIP, 0.60, 0.90),
         ]);
         // nose displaced 0.06, shoulder displaced 0.10, hips exact.
         let pred = pose17(&[
-            (0, 0.56, 0.10),  // err 0.06
-            (5, 0.60, 0.30),  // err 0.10
+            (0, 0.56, 0.10),               // err 0.06
+            (5, 0.60, 0.30),               // err 0.10
             (CANON_LEFT_HIP, 0.40, 0.90),  // exact
             (CANON_RIGHT_HIP, 0.60, 0.90), // exact
         ]);
@@ -555,20 +555,39 @@ mod tests {
         //   ⇒ 3/4 = 0.75.
         let (_, _, abs) = pck_at(&pred, &gt, &vis, 20, PckNormalization::AbsolutePixels(0.08));
 
-        assert!((torso - 0.5).abs() < 1e-6, "torso PCK expected 0.5, got {torso}");
-        assert!((bbox - 1.0).abs() < 1e-6, "bbox PCK expected 1.0, got {bbox}");
-        assert!((abs - 0.75).abs() < 1e-6, "abs(0.08) PCK expected 0.75, got {abs}");
+        assert!(
+            (torso - 0.5).abs() < 1e-6,
+            "torso PCK expected 0.5, got {torso}"
+        );
+        assert!(
+            (bbox - 1.0).abs() < 1e-6,
+            "bbox PCK expected 1.0, got {bbox}"
+        );
+        assert!(
+            (abs - 0.75).abs() < 1e-6,
+            "abs(0.08) PCK expected 0.75, got {abs}"
+        );
 
         // The whole point: identical predictions, three DISTINCT PCK values.
-        assert!(torso != bbox && bbox != abs && torso != abs,
-            "normalizations must give distinct PCK: torso={torso}, bbox={bbox}, abs={abs}");
+        assert!(
+            torso != bbox && bbox != abs && torso != abs,
+            "normalizations must give distinct PCK: torso={torso}, bbox={bbox}, abs={abs}"
+        );
     }
 
     // -------- AbsolutePixels ignores k (raw threshold) --------
     #[test]
     fn absolute_pixels_ignores_threshold_percentage() {
-        let gt = pose17(&[(5, 0.50, 0.50), (CANON_LEFT_HIP, 0.40, 0.50), (CANON_RIGHT_HIP, 0.60, 0.50)]);
-        let pred = pose17(&[(5, 0.53, 0.50), (CANON_LEFT_HIP, 0.40, 0.50), (CANON_RIGHT_HIP, 0.60, 0.50)]);
+        let gt = pose17(&[
+            (5, 0.50, 0.50),
+            (CANON_LEFT_HIP, 0.40, 0.50),
+            (CANON_RIGHT_HIP, 0.60, 0.50),
+        ]);
+        let pred = pose17(&[
+            (5, 0.53, 0.50),
+            (CANON_LEFT_HIP, 0.40, 0.50),
+            (CANON_RIGHT_HIP, 0.60, 0.50),
+        ]);
         let vis = vis17(&[5, CANON_LEFT_HIP, CANON_RIGHT_HIP]);
         // τ = 0.05 raw; joint5 err 0.03 ≤ 0.05 correct. k=5 and k=99 must agree.
         let (_, _, p5) = pck_at(&pred, &gt, &vis, 5, PckNormalization::AbsolutePixels(0.05));
@@ -611,8 +630,14 @@ mod tests {
         // Both hips coincident ⇒ torso ≈ 0; bbox also collapses ⇒ None.
         let gt = pose17(&[(CANON_LEFT_HIP, 0.5, 0.5), (CANON_RIGHT_HIP, 0.5, 0.5)]);
         let vis = vis17(&[CANON_LEFT_HIP, CANON_RIGHT_HIP]);
-        assert_eq!(pck_at(&gt, &gt, &vis, 20, PckNormalization::TorsoDiameter), (0, 0, 0.0));
-        assert_eq!(pck_at(&gt, &gt, &vis, 20, PckNormalization::BoundingBoxDiagonal), (0, 0, 0.0));
+        assert_eq!(
+            pck_at(&gt, &gt, &vis, 20, PckNormalization::TorsoDiameter),
+            (0, 0, 0.0)
+        );
+        assert_eq!(
+            pck_at(&gt, &gt, &vis, 20, PckNormalization::BoundingBoxDiagonal),
+            (0, 0, 0.0)
+        );
     }
 
     #[test]
@@ -626,7 +651,11 @@ mod tests {
 
     #[test]
     fn nan_coords_do_not_panic_and_count_wrong() {
-        let gt = pose17(&[(5, 0.5, 0.5), (CANON_LEFT_HIP, 0.4, 0.5), (CANON_RIGHT_HIP, 0.6, 0.5)]);
+        let gt = pose17(&[
+            (5, 0.5, 0.5),
+            (CANON_LEFT_HIP, 0.4, 0.5),
+            (CANON_RIGHT_HIP, 0.6, 0.5),
+        ]);
         let mut pred = gt.clone();
         pred[[5, 0]] = f32::NAN; // joint 5 prediction is NaN
         let vis = vis17(&[5, CANON_LEFT_HIP, CANON_RIGHT_HIP]);
@@ -647,10 +676,18 @@ mod tests {
         // joint-level one).
         let gt = pose17(&[(CANON_LEFT_HIP, 0.40, 0.50), (CANON_RIGHT_HIP, 0.60, 0.50)]);
         let vis = vis17(&[CANON_LEFT_HIP, CANON_RIGHT_HIP]);
-        let frame_a = PoseFrame { pred: gt.clone(), gt: gt.clone(), visibility: vis.clone() };
+        let frame_a = PoseFrame {
+            pred: gt.clone(),
+            gt: gt.clone(),
+            visibility: vis.clone(),
+        };
         // Frame B: displace both hips by 0.05 (> τ 0.04) ⇒ both wrong.
         let pred_b = pose17(&[(CANON_LEFT_HIP, 0.45, 0.50), (CANON_RIGHT_HIP, 0.65, 0.50)]);
-        let frame_b = PoseFrame { pred: pred_b, gt: gt.clone(), visibility: vis.clone() };
+        let frame_b = PoseFrame {
+            pred: pred_b,
+            gt: gt.clone(),
+            visibility: vis.clone(),
+        };
 
         let report = accuracy_report(
             &[frame_a, frame_b],
@@ -696,13 +733,26 @@ mod tests {
             (CANON_RIGHT_HIP, 0.62, 0.90),
         ]);
         let vis = vis17(&[0, 5, CANON_LEFT_HIP, CANON_RIGHT_HIP]);
-        let frame = PoseFrame { pred, gt, visibility: vis };
-        let torso = accuracy_report(std::slice::from_ref(&frame), &[20], PckNormalization::TorsoDiameter);
-        let bbox = accuracy_report(std::slice::from_ref(&frame), &[20], PckNormalization::BoundingBoxDiagonal);
+        let frame = PoseFrame {
+            pred,
+            gt,
+            visibility: vis,
+        };
+        let torso = accuracy_report(
+            std::slice::from_ref(&frame),
+            &[20],
+            PckNormalization::TorsoDiameter,
+        );
+        let bbox = accuracy_report(
+            std::slice::from_ref(&frame),
+            &[20],
+            PckNormalization::BoundingBoxDiagonal,
+        );
         assert!(
             bbox.pck(20).unwrap() >= torso.pck(20).unwrap(),
             "bbox-norm (looser) must be >= torso-norm: bbox={:?} torso={:?}",
-            bbox.pck(20), torso.pck(20)
+            bbox.pck(20),
+            torso.pck(20)
         );
     }
 }

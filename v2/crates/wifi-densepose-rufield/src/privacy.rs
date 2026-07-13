@@ -98,16 +98,34 @@ mod tests {
     fn derived_maps_to_identity_tier_not_p1() {
         // The single most dangerous mapping mistake: Derived (byte 1) must NOT
         // become P1. It carries identity ⇒ P4, or P5 if identity-bound.
-        assert_eq!(map_privacy(RuViewPrivacyClass::Derived, false), PrivacyClass::P4);
-        assert_eq!(map_privacy(RuViewPrivacyClass::Derived, true), PrivacyClass::P5);
+        assert_eq!(
+            map_privacy(RuViewPrivacyClass::Derived, false),
+            PrivacyClass::P4
+        );
+        assert_eq!(
+            map_privacy(RuViewPrivacyClass::Derived, true),
+            PrivacyClass::P5
+        );
     }
 
     #[test]
     fn full_table_matches_adr_262_section_3_3() {
-        assert_eq!(map_privacy(RuViewPrivacyClass::Raw, false), PrivacyClass::P0);
-        assert_eq!(map_privacy(RuViewPrivacyClass::Derived, false), PrivacyClass::P4);
-        assert_eq!(map_privacy(RuViewPrivacyClass::Anonymous, false), PrivacyClass::P2);
-        assert_eq!(map_privacy(RuViewPrivacyClass::Restricted, false), PrivacyClass::P2);
+        assert_eq!(
+            map_privacy(RuViewPrivacyClass::Raw, false),
+            PrivacyClass::P0
+        );
+        assert_eq!(
+            map_privacy(RuViewPrivacyClass::Derived, false),
+            PrivacyClass::P4
+        );
+        assert_eq!(
+            map_privacy(RuViewPrivacyClass::Anonymous, false),
+            PrivacyClass::P2
+        );
+        assert_eq!(
+            map_privacy(RuViewPrivacyClass::Restricted, false),
+            PrivacyClass::P2
+        );
     }
 
     #[test]
@@ -125,11 +143,20 @@ mod tests {
     #[test]
     fn demotion_floor_only_raises_privacy() {
         // Raw → P0, but a demoted cycle floors to P2 with raw suppressed.
-        assert_eq!(apply_demotion_floor(PrivacyClass::P0, true), PrivacyClass::P2);
+        assert_eq!(
+            apply_demotion_floor(PrivacyClass::P0, true),
+            PrivacyClass::P2
+        );
         // Already-high classes are never lowered by the floor.
-        assert_eq!(apply_demotion_floor(PrivacyClass::P5, true), PrivacyClass::P5);
+        assert_eq!(
+            apply_demotion_floor(PrivacyClass::P5, true),
+            PrivacyClass::P5
+        );
         // No demotion ⇒ unchanged.
-        assert_eq!(apply_demotion_floor(PrivacyClass::P0, false), PrivacyClass::P0);
+        assert_eq!(
+            apply_demotion_floor(PrivacyClass::P0, false),
+            PrivacyClass::P0
+        );
     }
 
     #[test]

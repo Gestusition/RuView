@@ -87,12 +87,7 @@ async fn from_env_path_enforces_whitelist() {
 async fn api_root_rejects_missing_bearer() {
     let app = router(provisioned_state("the_real_token").await);
     let resp = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(

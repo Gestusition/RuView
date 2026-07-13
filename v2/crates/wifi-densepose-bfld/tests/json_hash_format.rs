@@ -26,10 +26,9 @@ fn manual_event(hash: Option<[u8; 32]>) -> BfldEvent {
 #[test]
 fn rf_signature_hash_serializes_as_blake3_prefixed_lowercase_hex() {
     let hash = [
-        0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x11, 0x22, 0x33,
-        0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB,
-        0xCC, 0xDD, 0xEE, 0xFF, 0x12, 0x34, 0x56, 0x78,
-        0x9A, 0xBC, 0xDE, 0xF0, 0x0F, 0xED, 0xCB, 0xA9,
+        0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA,
+        0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0, 0x0F, 0xED,
+        0xCB, 0xA9,
     ];
     // Build expected hex programmatically — manual typing is error-prone.
     let mut expected_hex = String::from("blake3:");
@@ -52,9 +51,15 @@ fn hex_string_is_always_64_chars_when_present() {
     let start = json.find(key).expect("hash field present") + key.len();
     let end = json[start..].find('"').expect("closing quote") + start;
     let hex = &json[start..end];
-    assert_eq!(hex.len(), 64, "hash hex must be exactly 64 chars, got {}", hex.len());
+    assert_eq!(
+        hex.len(),
+        64,
+        "hash hex must be exactly 64 chars, got {}",
+        hex.len()
+    );
     assert!(
-        hex.chars().all(|c| c.is_ascii_hexdigit() && !c.is_uppercase()),
+        hex.chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_uppercase()),
         "hash hex must be lowercase only, got {hex}",
     );
 }
@@ -103,8 +108,7 @@ fn inputs() -> SensingInputs {
 
 #[test]
 fn end_to_end_emitter_hasher_to_json_emits_blake3_hex_hash() {
-    let mut e = BfldEmitter::new("seed-01")
-        .with_signature_hasher(SignatureHasher::new(salt()));
+    let mut e = BfldEmitter::new("seed-01").with_signature_hasher(SignatureHasher::new(salt()));
     let event = e
         .emit(inputs(), Some(embedding()))
         .expect("low-risk emit must succeed");

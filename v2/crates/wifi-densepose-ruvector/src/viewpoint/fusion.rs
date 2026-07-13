@@ -405,7 +405,10 @@ impl MultistaticArray {
         let mut azimuths: Vec<f32> = Vec::with_capacity(n_valid);
         let mut ids: Vec<NodeId> = Vec::with_capacity(n_valid);
         for (id, emb, az, pos) in extracted {
-            geom.push(ViewpointGeometry { azimuth: az, position: pos });
+            geom.push(ViewpointGeometry {
+                azimuth: az,
+                position: pos,
+            });
             azimuths.push(az);
             ids.push(id);
             embeddings.push(emb); // move, not clone
@@ -467,7 +470,10 @@ impl MultistaticArray {
         let mut azimuths: Vec<f32> = Vec::with_capacity(n_valid);
         let mut ids: Vec<NodeId> = Vec::with_capacity(n_valid);
         for (id, emb, az, pos) in extracted {
-            geom.push(ViewpointGeometry { azimuth: az, position: pos });
+            geom.push(ViewpointGeometry {
+                azimuth: az,
+                position: pos,
+            });
             azimuths.push(az);
             ids.push(id);
             embeddings.push(emb);

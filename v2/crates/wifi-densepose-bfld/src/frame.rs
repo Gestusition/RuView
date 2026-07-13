@@ -139,24 +139,42 @@ impl BfldFrameHeader {
         let payload_len = self.payload_len;
         let payload_crc32 = self.payload_crc32;
 
-        buf[o..o + 4].copy_from_slice(&magic.to_le_bytes()); o += 4;
-        buf[o..o + 2].copy_from_slice(&version.to_le_bytes()); o += 2;
-        buf[o..o + 2].copy_from_slice(&flags.to_le_bytes()); o += 2;
-        buf[o..o + 8].copy_from_slice(&timestamp_ns.to_le_bytes()); o += 8;
-        buf[o..o + 16].copy_from_slice(&self.ap_hash); o += 16;
-        buf[o..o + 16].copy_from_slice(&self.sta_hash); o += 16;
-        buf[o..o + 16].copy_from_slice(&self.session_id); o += 16;
-        buf[o..o + 2].copy_from_slice(&channel.to_le_bytes()); o += 2;
-        buf[o..o + 2].copy_from_slice(&bandwidth_mhz.to_le_bytes()); o += 2;
-        buf[o..o + 2].copy_from_slice(&rssi_dbm.to_le_bytes()); o += 2;
-        buf[o..o + 2].copy_from_slice(&noise_floor_dbm.to_le_bytes()); o += 2;
-        buf[o..o + 2].copy_from_slice(&n_subcarriers.to_le_bytes()); o += 2;
-        buf[o] = self.n_tx; o += 1;
-        buf[o] = self.n_rx; o += 1;
-        buf[o] = self.quantization; o += 1;
-        buf[o] = self.privacy_class; o += 1;
-        buf[o..o + 4].copy_from_slice(&payload_len.to_le_bytes()); o += 4;
-        buf[o..o + 4].copy_from_slice(&payload_crc32.to_le_bytes()); o += 4;
+        buf[o..o + 4].copy_from_slice(&magic.to_le_bytes());
+        o += 4;
+        buf[o..o + 2].copy_from_slice(&version.to_le_bytes());
+        o += 2;
+        buf[o..o + 2].copy_from_slice(&flags.to_le_bytes());
+        o += 2;
+        buf[o..o + 8].copy_from_slice(&timestamp_ns.to_le_bytes());
+        o += 8;
+        buf[o..o + 16].copy_from_slice(&self.ap_hash);
+        o += 16;
+        buf[o..o + 16].copy_from_slice(&self.sta_hash);
+        o += 16;
+        buf[o..o + 16].copy_from_slice(&self.session_id);
+        o += 16;
+        buf[o..o + 2].copy_from_slice(&channel.to_le_bytes());
+        o += 2;
+        buf[o..o + 2].copy_from_slice(&bandwidth_mhz.to_le_bytes());
+        o += 2;
+        buf[o..o + 2].copy_from_slice(&rssi_dbm.to_le_bytes());
+        o += 2;
+        buf[o..o + 2].copy_from_slice(&noise_floor_dbm.to_le_bytes());
+        o += 2;
+        buf[o..o + 2].copy_from_slice(&n_subcarriers.to_le_bytes());
+        o += 2;
+        buf[o] = self.n_tx;
+        o += 1;
+        buf[o] = self.n_rx;
+        o += 1;
+        buf[o] = self.quantization;
+        o += 1;
+        buf[o] = self.privacy_class;
+        o += 1;
+        buf[o..o + 4].copy_from_slice(&payload_len.to_le_bytes());
+        o += 4;
+        buf[o..o + 4].copy_from_slice(&payload_crc32.to_le_bytes());
+        o += 4;
 
         debug_assert_eq!(o, BFLD_HEADER_SIZE);
         buf
@@ -288,8 +306,7 @@ impl BfldFrame {
                 need: BFLD_HEADER_SIZE,
             });
         }
-        let header_bytes: &[u8; BFLD_HEADER_SIZE] =
-            bytes[..BFLD_HEADER_SIZE].try_into().unwrap();
+        let header_bytes: &[u8; BFLD_HEADER_SIZE] = bytes[..BFLD_HEADER_SIZE].try_into().unwrap();
         let header = BfldFrameHeader::from_le_bytes(header_bytes)?;
 
         let payload_len = header.payload_len as usize;
@@ -310,4 +327,3 @@ impl BfldFrame {
         Ok(Self { header, payload })
     }
 }
-

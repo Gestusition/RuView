@@ -20,7 +20,11 @@ use wifi_densepose_signal::cir::{CirConfig, CirError, CirEstimator};
 // ---------------------------------------------------------------------------
 
 fn make_frame_from_data(bandwidth_mhz: u16, data: Array2<Complex64>) -> CsiFrame {
-    let mut meta = CsiMetadata::new(DeviceId::new("ghost-tap-test"), FrequencyBand::Band2_4GHz, 6);
+    let mut meta = CsiMetadata::new(
+        DeviceId::new("ghost-tap-test"),
+        FrequencyBand::Band2_4GHz,
+        6,
+    );
     meta.bandwidth_mhz = bandwidth_mhz;
     meta.antenna_config = AntennaConfig::new(1, 1);
     CsiFrame::new(meta, data)
@@ -99,8 +103,7 @@ fn should_return_unsanitized_phase_for_high_variance_frame() {
             // If the estimator proceeded, verify it at minimum did not silently
             // report the ghost tap at bin 0 as the dominant answer.
             assert_ne!(
-                cir.dominant_tap_idx,
-                0,
+                cir.dominant_tap_idx, 0,
                 "estimator accepted high-variance input AND reported ghost tap at bin 0"
             );
         }
@@ -164,10 +167,7 @@ fn should_return_subcarrier_mismatch_for_wrong_column_count() {
             );
         }
         Err(other) => {
-            panic!(
-                "expected SubcarrierMismatch but got: {:?}",
-                other
-            );
+            panic!("expected SubcarrierMismatch but got: {:?}", other);
         }
         Ok(_) => {
             panic!("expected SubcarrierMismatch but estimate() returned Ok");

@@ -60,7 +60,10 @@ pub fn read_automations(path: &Path) -> Result<AutomationsSummary, MigrateError>
     })?;
 
     if raw.trim().is_empty() {
-        return Ok(AutomationsSummary { count: 0, automations: vec![] });
+        return Ok(AutomationsSummary {
+            count: 0,
+            automations: vec![],
+        });
     }
 
     let rows: Vec<HaAutomationRow> =
@@ -71,10 +74,16 @@ pub fn read_automations(path: &Path) -> Result<AutomationsSummary, MigrateError>
 
     let automations = rows
         .iter()
-        .map(|r| AutomationIdent { id: r.id.clone(), alias: r.alias.clone() })
+        .map(|r| AutomationIdent {
+            id: r.id.clone(),
+            alias: r.alias.clone(),
+        })
         .collect::<Vec<_>>();
 
-    Ok(AutomationsSummary { count: rows.len(), automations })
+    Ok(AutomationsSummary {
+        count: rows.len(),
+        automations,
+    })
 }
 
 #[cfg(test)]

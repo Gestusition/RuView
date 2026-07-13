@@ -411,7 +411,14 @@ impl Specialist for AnomalySpecialist {
             kind: SpecialistKind::Anomaly,
             value: score,
             confidence: 0.6,
-            label: Some(if score > ANOMALY_LABEL_CUTOFF { "anomalous" } else { "normal" }.into()),
+            label: Some(
+                if score > ANOMALY_LABEL_CUTOFF {
+                    "anomalous"
+                } else {
+                    "normal"
+                }
+                .into(),
+            ),
         })
     }
 }
@@ -536,11 +543,13 @@ mod tests {
         assert_eq!(DEFAULT_HEARTBEAT_MIN_SCORE, 0.3);
         let b = BreathingSpecialist::default(); // min_score = 0.0 → uses default
         assert!(
-            b.infer(&feat(5.0, 0.2, 0.3, DEFAULT_BREATHING_MIN_SCORE)).is_some(),
+            b.infer(&feat(5.0, 0.2, 0.3, DEFAULT_BREATHING_MIN_SCORE))
+                .is_some(),
             "score exactly at the default floor must report"
         );
         assert!(
-            b.infer(&feat(5.0, 0.2, 0.3, DEFAULT_BREATHING_MIN_SCORE - 1e-3)).is_none(),
+            b.infer(&feat(5.0, 0.2, 0.3, DEFAULT_BREATHING_MIN_SCORE - 1e-3))
+                .is_none(),
             "score below the default floor must not report"
         );
     }

@@ -65,7 +65,8 @@ impl DataProvenance {
 }
 
 /// The research-only string returned when a claim is withheld.
-pub const NO_CLAIM: &str = "research use only — not claimable (non-measured data, leaky split, or unmet thresholds)";
+pub const NO_CLAIM: &str =
+    "research use only — not claimable (non-measured data, leaky split, or unmet thresholds)";
 
 /// Ground-truth / predicted occupancy for one sample.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,7 +80,10 @@ pub struct Occupancy {
 impl Occupancy {
     /// Construct an occupancy label.
     pub fn new(present: bool, person_count: u32) -> Self {
-        Self { present, person_count }
+        Self {
+            present,
+            person_count,
+        }
     }
 }
 
@@ -132,10 +136,16 @@ impl EvalSplit {
                 return Err(SplitError::IndexOutOfRange(i));
             }
         }
-        let train_subjects: BTreeSet<&str> =
-            self.train_idx.iter().map(|&i| samples[i].subject_id.as_str()).collect();
-        let train_envs: BTreeSet<&str> =
-            self.train_idx.iter().map(|&i| samples[i].environment_id.as_str()).collect();
+        let train_subjects: BTreeSet<&str> = self
+            .train_idx
+            .iter()
+            .map(|&i| samples[i].subject_id.as_str())
+            .collect();
+        let train_envs: BTreeSet<&str> = self
+            .train_idx
+            .iter()
+            .map(|&i| samples[i].environment_id.as_str())
+            .collect();
         for &i in &self.test_idx {
             let s = &samples[i];
             if train_subjects.contains(s.subject_id.as_str()) {
@@ -283,8 +293,7 @@ pub fn evaluate(
             (false, false) => tn += 1,
             (false, true) => fn_ += 1,
         }
-        count_abs_err_sum +=
-            (s.predicted.person_count as f64 - s.truth.person_count as f64).abs();
+        count_abs_err_sum += (s.predicted.person_count as f64 - s.truth.person_count as f64).abs();
         if s.predicted.person_count == s.truth.person_count {
             count_exact += 1;
         }
@@ -455,7 +464,12 @@ mod tests {
     #[test]
     fn perfect_measured_releases_claim() {
         let (samples, split) = perfect_measured(40);
-        let r = evaluate(&samples, DataProvenance::Measured, &split, &BenchmarkCriteria::default());
+        let r = evaluate(
+            &samples,
+            DataProvenance::Measured,
+            &split,
+            &BenchmarkCriteria::default(),
+        );
         assert!(r.overall_pass);
         assert!((r.presence_f1 - 1.0).abs() < 1e-9);
         assert_eq!(r.count_mae, 0.0);
@@ -466,7 +480,12 @@ mod tests {
     #[test]
     fn synthetic_data_is_scored_but_never_claimed() {
         let (samples, split) = perfect_measured(40);
-        let r = evaluate(&samples, DataProvenance::Synthetic, &split, &BenchmarkCriteria::default());
+        let r = evaluate(
+            &samples,
+            DataProvenance::Synthetic,
+            &split,
+            &BenchmarkCriteria::default(),
+        );
         // Metrics are still computed...
         assert!((r.presence_f1 - 1.0).abs() < 1e-9);
         // ...but no claim, because the data is not measured.
@@ -478,7 +497,12 @@ mod tests {
     #[test]
     fn mock_data_is_never_claimed() {
         let (samples, split) = perfect_measured(40);
-        let r = evaluate(&samples, DataProvenance::Mock, &split, &BenchmarkCriteria::default());
+        let r = evaluate(
+            &samples,
+            DataProvenance::Mock,
+            &split,
+            &BenchmarkCriteria::default(),
+        );
         assert!(!r.provenance_pass);
         assert_eq!(r.claim(), NO_CLAIM);
     }
@@ -490,12 +514,20 @@ mod tests {
             sample("shared", "e0", (true, 1), (true, 1)),
             sample("shared", "e1", (true, 1), (true, 1)),
         ];
-        let split = EvalSplit { train_idx: vec![0], test_idx: vec![1] };
+        let split = EvalSplit {
+            train_idx: vec![0],
+            test_idx: vec![1],
+        };
         assert_eq!(
             split.validate(&samples),
             Err(SplitError::SubjectLeakage("shared".into()))
         );
-        let r = evaluate(&samples, DataProvenance::Measured, &split, &BenchmarkCriteria::default());
+        let r = evaluate(
+            &samples,
+            DataProvenance::Measured,
+            &split,
+            &BenchmarkCriteria::default(),
+        );
         assert!(!r.split_pass);
         assert!(!r.overall_pass);
         assert_eq!(r.claim(), NO_CLAIM);
@@ -507,7 +539,10 @@ mod tests {
             sample("s0", "shared-room", (true, 1), (true, 1)),
             sample("s1", "shared-room", (true, 1), (true, 1)),
         ];
-        let split = EvalSplit { train_idx: vec![0], test_idx: vec![1] };
+        let split = EvalSplit {
+            train_idx: vec![0],
+            test_idx: vec![1],
+        };
         assert_eq!(
             split.validate(&samples),
             Err(SplitError::EnvironmentLeakage("shared-room".into()))
@@ -517,7 +552,12 @@ mod tests {
     #[test]
     fn small_sample_is_withheld_even_if_perfect() {
         let (samples, split) = perfect_measured(5); // 5 < default min 30
-        let r = evaluate(&samples, DataProvenance::Measured, &split, &BenchmarkCriteria::default());
+        let r = evaluate(
+            &samples,
+            DataProvenance::Measured,
+            &split,
+            &BenchmarkCriteria::default(),
+        );
         assert!(!r.sample_size_pass);
         assert!(!r.overall_pass);
     }
@@ -552,7 +592,10 @@ mod tests {
                 (predicted_present, u32::from(truth_present)),
             ));
         }
-        let split = EvalSplit { train_idx: (0..40).collect(), test_idx: (40..80).collect() };
+        let split = EvalSplit {
+            train_idx: (0..40).collect(),
+            test_idx: (40..80).collect(),
+        };
         let criteria = BenchmarkCriteria::default();
         let r = evaluate(&samples, DataProvenance::Measured, &split, &criteria);
         // Construct verified: point estimate above the threshold...
@@ -583,14 +626,32 @@ mod tests {
     fn all_absent_test_set_is_degenerate_and_withheld() {
         let mut samples = Vec::new();
         for i in 0..40 {
-            samples.push(sample(&format!("tr-{i}"), &format!("te-{i}"), (true, 1), (true, 1)));
+            samples.push(sample(
+                &format!("tr-{i}"),
+                &format!("te-{i}"),
+                (true, 1),
+                (true, 1),
+            ));
         }
         for i in 0..40 {
             // Truth all absent; predictor always says absent → tp=fp=fn=0.
-            samples.push(sample(&format!("ts-{i}"), &format!("ev-{i}"), (false, 0), (false, 0)));
+            samples.push(sample(
+                &format!("ts-{i}"),
+                &format!("ev-{i}"),
+                (false, 0),
+                (false, 0),
+            ));
         }
-        let split = EvalSplit { train_idx: (0..40).collect(), test_idx: (40..80).collect() };
-        let r = evaluate(&samples, DataProvenance::Measured, &split, &BenchmarkCriteria::default());
+        let split = EvalSplit {
+            train_idx: (0..40).collect(),
+            test_idx: (40..80).collect(),
+        };
+        let r = evaluate(
+            &samples,
+            DataProvenance::Measured,
+            &split,
+            &BenchmarkCriteria::default(),
+        );
         // Vacuous F1 scores 0.0 (was 1.0 before the fix).
         assert_eq!(r.presence_f1, 0.0);
         assert_eq!(r.presence_f1_ci, (0.0, 0.0));
@@ -606,13 +667,31 @@ mod tests {
     fn all_present_test_set_is_degenerate_and_withheld() {
         let mut samples = Vec::new();
         for i in 0..40 {
-            samples.push(sample(&format!("tr-{i}"), &format!("te-{i}"), (i % 2 == 0, 1), (i % 2 == 0, 1)));
+            samples.push(sample(
+                &format!("tr-{i}"),
+                &format!("te-{i}"),
+                (i % 2 == 0, 1),
+                (i % 2 == 0, 1),
+            ));
         }
         for i in 0..40 {
-            samples.push(sample(&format!("ts-{i}"), &format!("ev-{i}"), (true, 1), (true, 1)));
+            samples.push(sample(
+                &format!("ts-{i}"),
+                &format!("ev-{i}"),
+                (true, 1),
+                (true, 1),
+            ));
         }
-        let split = EvalSplit { train_idx: (0..40).collect(), test_idx: (40..80).collect() };
-        let r = evaluate(&samples, DataProvenance::Measured, &split, &BenchmarkCriteria::default());
+        let split = EvalSplit {
+            train_idx: (0..40).collect(),
+            test_idx: (40..80).collect(),
+        };
+        let r = evaluate(
+            &samples,
+            DataProvenance::Measured,
+            &split,
+            &BenchmarkCriteria::default(),
+        );
         assert!((r.presence_f1 - 1.0).abs() < 1e-9, "metric still computed");
         assert!(!r.class_balance_pass, "single-class test set is degenerate");
         assert!(!r.overall_pass);
@@ -622,8 +701,18 @@ mod tests {
     #[test]
     fn bootstrap_ci_is_deterministic() {
         let (samples, split) = perfect_measured(40);
-        let a = evaluate(&samples, DataProvenance::Measured, &split, &BenchmarkCriteria::default());
-        let b = evaluate(&samples, DataProvenance::Measured, &split, &BenchmarkCriteria::default());
+        let a = evaluate(
+            &samples,
+            DataProvenance::Measured,
+            &split,
+            &BenchmarkCriteria::default(),
+        );
+        let b = evaluate(
+            &samples,
+            DataProvenance::Measured,
+            &split,
+            &BenchmarkCriteria::default(),
+        );
         assert_eq!(a.presence_f1_ci, b.presence_f1_ci);
     }
 
@@ -631,7 +720,12 @@ mod tests {
     fn count_mae_failure_withholds_claim() {
         let mut samples = Vec::new();
         for i in 0..40 {
-            samples.push(sample(&format!("tr-{i}"), &format!("te-{i}"), (true, 1), (true, 1)));
+            samples.push(sample(
+                &format!("tr-{i}"),
+                &format!("te-{i}"),
+                (true, 1),
+                (true, 1),
+            ));
         }
         // Class-balanced test set (so count MAE is the ONLY failing criterion):
         // presence perfect, but the count is always off by 2 -> MAE 2.0 > 0.5.
@@ -645,8 +739,16 @@ mod tests {
                 (present, truth_count + 2),
             ));
         }
-        let split = EvalSplit { train_idx: (0..40).collect(), test_idx: (40..80).collect() };
-        let r = evaluate(&samples, DataProvenance::Measured, &split, &BenchmarkCriteria::default());
+        let split = EvalSplit {
+            train_idx: (0..40).collect(),
+            test_idx: (40..80).collect(),
+        };
+        let r = evaluate(
+            &samples,
+            DataProvenance::Measured,
+            &split,
+            &BenchmarkCriteria::default(),
+        );
         assert!(r.presence_pass);
         assert!(r.class_balance_pass);
         assert!(!r.count_pass);

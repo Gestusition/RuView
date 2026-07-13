@@ -72,11 +72,7 @@ impl BfldPipelineHandle {
     /// `PredictOnly` (high score is the *intended* outcome of a known-enrolled
     /// person match, not an attacker-grade sniffer arrival).
     #[must_use]
-    pub fn spawn_with_oracle<P, O>(
-        mut pipeline: BfldPipeline,
-        mut publisher: P,
-        oracle: O,
-    ) -> Self
+    pub fn spawn_with_oracle<P, O>(mut pipeline: BfldPipeline, mut publisher: P, oracle: O) -> Self
     where
         P: Publish + Send + 'static,
         P::Error: core::fmt::Debug,
@@ -86,9 +82,7 @@ impl BfldPipelineHandle {
         let worker = thread::spawn(move || loop {
             match receiver.recv() {
                 Ok(PipelineInput { inputs, embedding }) => {
-                    if let Some(event) =
-                        pipeline.process_with_oracle(inputs, embedding, &oracle)
-                    {
+                    if let Some(event) = pipeline.process_with_oracle(inputs, embedding, &oracle) {
                         if let Err(e) = publish_event(&mut publisher, &event) {
                             eprintln!("BFLD publish error: {e:?}");
                         }

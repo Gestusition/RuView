@@ -40,7 +40,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // them up on reconnect.
     // ----------------------------------------------------------------
     publish_availability_online(&mut publisher.clone(), node_id)?;
-    let discovery_count = publish_discovery(&mut publisher.clone(), node_id, PrivacyClass::Anonymous)?;
+    let discovery_count =
+        publish_discovery(&mut publisher.clone(), node_id, PrivacyClass::Anonymous)?;
     println!("bootstrap: 1 availability + {discovery_count} discovery payloads");
 
     // ----------------------------------------------------------------
@@ -102,7 +103,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  {}", msg.topic);
     }
     println!("last three topics:");
-    for msg in log.published.iter().rev().take(3).collect::<Vec<_>>().iter().rev() {
+    for msg in log
+        .published
+        .iter()
+        .rev()
+        .take(3)
+        .collect::<Vec<_>>()
+        .iter()
+        .rev()
+    {
         println!("  {}", msg.topic);
     }
     Ok(())

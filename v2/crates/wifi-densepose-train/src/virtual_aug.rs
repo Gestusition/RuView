@@ -248,7 +248,10 @@ mod tests {
         );
         // With every other transform neutralised, the guard leaves amplitude as-is.
         for (o, f) in out.iter().zip(frame.iter()) {
-            assert!((o - f).abs() < 1e-6, "expected pass-through, got {o} vs {f}");
+            assert!(
+                (o - f).abs() < 1e-6,
+                "expected pass-through, got {o} vs {f}"
+            );
         }
     }
 

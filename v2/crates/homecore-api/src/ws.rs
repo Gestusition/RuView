@@ -49,7 +49,11 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
         "type": "auth_required",
         "ha_version": state.version(),
     });
-    if socket.send(Message::Text(auth_req.to_string())).await.is_err() {
+    if socket
+        .send(Message::Text(auth_req.to_string()))
+        .await
+        .is_err()
+    {
         return;
     }
 
@@ -59,7 +63,8 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
             _ => {
                 let _ = socket
                     .send(Message::Text(
-                        serde_json::json!({"type":"auth_invalid","message":"expected auth"}).to_string(),
+                        serde_json::json!({"type":"auth_invalid","message":"expected auth"})
+                            .to_string(),
                     ))
                     .await;
                 return;
@@ -85,7 +90,11 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
         return;
     }
     let auth_ok = serde_json::json!({"type":"auth_ok","ha_version": state.version()});
-    if socket.send(Message::Text(auth_ok.to_string())).await.is_err() {
+    if socket
+        .send(Message::Text(auth_ok.to_string()))
+        .await
+        .is_err()
+    {
         return;
     }
 
@@ -232,7 +241,8 @@ impl Connection {
             }
             "get_states" => {
                 let snapshots = self.state.homecore().states().all();
-                let views: Vec<StateView> = snapshots.iter().map(|s| StateView::from_state(s)).collect();
+                let views: Vec<StateView> =
+                    snapshots.iter().map(|s| StateView::from_state(s)).collect();
                 self.ack(tx, cmd.id, true, Some(serde_json::to_value(views).unwrap()));
             }
             "get_config" => {
@@ -245,17 +255,28 @@ impl Connection {
             }
             "get_services" => {
                 let services = self.state.homecore().services().registered_services().await;
-                let mut by_domain: std::collections::HashMap<String, serde_json::Map<String, serde_json::Value>> =
-                    std::collections::HashMap::new();
+                let mut by_domain: std::collections::HashMap<
+                    String,
+                    serde_json::Map<String, serde_json::Value>,
+                > = std::collections::HashMap::new();
                 for s in services {
-                    by_domain.entry(s.domain).or_default().insert(s.service, serde_json::json!({}));
+                    by_domain
+                        .entry(s.domain)
+                        .or_default()
+                        .insert(s.service, serde_json::json!({}));
                 }
                 let payload = serde_json::to_value(by_domain).unwrap();
                 self.ack(tx, cmd.id, true, Some(payload));
             }
             "call_service" => {
-                let (Some(domain), Some(service)) = (cmd.domain.clone(), cmd.service.clone()) else {
-                    self.err(tx, cmd.id, "missing_domain_service", "domain and service are required");
+                let (Some(domain), Some(service)) = (cmd.domain.clone(), cmd.service.clone())
+                else {
+                    self.err(
+                        tx,
+                        cmd.id,
+                        "missing_domain_service",
+                        "domain and service are required",
+                    );
                     return;
                 };
                 let call = ServiceCall {
@@ -353,11 +374,21 @@ impl Connection {
                         self.err(tx, cmd.id, "not_found", "subscription_id not found");
                     }
                 } else {
-                    self.err(tx, cmd.id, "missing_subscription", "subscription is required");
+                    self.err(
+                        tx,
+                        cmd.id,
+                        "missing_subscription",
+                        "subscription is required",
+                    );
                 }
             }
             other => {
-                self.err(tx, cmd.id, "unknown_command", &format!("unknown ws command: {other}"));
+                self.err(
+                    tx,
+                    cmd.id,
+                    "unknown_command",
+                    &format!("unknown ws command: {other}"),
+                );
             }
         }
         // entity_id is reserved for future per-entity subscribes
@@ -381,7 +412,13 @@ impl Connection {
         let _ = tx.send(serde_json::to_string(&msg).unwrap());
     }
 
-    fn err(&self, tx: &tokio::sync::mpsc::UnboundedSender<String>, id: u64, code: &'static str, message: &str) {
+    fn err(
+        &self,
+        tx: &tokio::sync::mpsc::UnboundedSender<String>,
+        id: u64,
+        code: &'static str,
+        message: &str,
+    ) {
         let msg = ResultMessage {
             id,
             kind: "result",

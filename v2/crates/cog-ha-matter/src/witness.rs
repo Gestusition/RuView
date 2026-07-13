@@ -170,7 +170,13 @@ pub fn hash_event(
     payload: &[u8],
 ) -> WitnessHash {
     let mut h = Sha256::new();
-    h.update(canonical_bytes(prev_hash, seq, timestamp_unix_s, kind, payload));
+    h.update(canonical_bytes(
+        prev_hash,
+        seq,
+        timestamp_unix_s,
+        kind,
+        payload,
+    ));
     let digest = h.finalize();
     let mut out = [0u8; 32];
     out.copy_from_slice(&digest);
@@ -280,7 +286,10 @@ impl WitnessChain {
         let mut prev = WitnessHash::GENESIS;
         for (i, ev) in self.events.iter().enumerate() {
             if ev.seq != i as u64 {
-                return Err(WitnessVerifyError::SeqGap { at: i, found: ev.seq });
+                return Err(WitnessVerifyError::SeqGap {
+                    at: i,
+                    found: ev.seq,
+                });
             }
             if ev.prev_hash != prev {
                 return Err(WitnessVerifyError::PrevHashMismatch { at: i });
@@ -587,7 +596,10 @@ mod tests {
         c.append("b", b"2", 101);
         c.events[1].prev_hash = WitnessHash([0xff; 32]);
         let err = c.verify().unwrap_err();
-        assert!(matches!(err, WitnessVerifyError::PrevHashMismatch { at: 1 }));
+        assert!(matches!(
+            err,
+            WitnessVerifyError::PrevHashMismatch { at: 1 }
+        ));
     }
 
     #[test]
@@ -597,7 +609,10 @@ mod tests {
         c.append("b", b"2", 101);
         c.events[1].seq = 99;
         let err = c.verify().unwrap_err();
-        assert!(matches!(err, WitnessVerifyError::SeqGap { at: 1, found: 99 }));
+        assert!(matches!(
+            err,
+            WitnessVerifyError::SeqGap { at: 1, found: 99 }
+        ));
     }
 
     #[test]
@@ -605,7 +620,9 @@ mod tests {
         let h = hash_event(WitnessHash::GENESIS, 0, 0, "k", b"p");
         let hex = h.to_hex();
         assert_eq!(hex.len(), 64);
-        assert!(hex.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+        assert!(hex
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
     }
 
     #[test]
@@ -657,10 +674,19 @@ mod tests {
         // fields would silently invalidate archival hashes. Lock
         // the order with a substring check on a known event.
         let line = fresh_event().to_jsonl_line();
-        let order = ["kind", "payload_hex", "prev_hash", "seq", "this_hash", "timestamp_unix_s"];
+        let order = [
+            "kind",
+            "payload_hex",
+            "prev_hash",
+            "seq",
+            "this_hash",
+            "timestamp_unix_s",
+        ];
         let mut last = 0usize;
         for field in order {
-            let pos = line.find(field).unwrap_or_else(|| panic!("missing field `{field}`"));
+            let pos = line
+                .find(field)
+                .unwrap_or_else(|| panic!("missing field `{field}`"));
             assert!(pos > last, "field `{field}` out of alphabetical order");
             last = pos;
         }
@@ -687,11 +713,7 @@ mod tests {
         // structured error, not a panic.
         let original = fresh_event();
         let line = original.to_jsonl_line();
-        let broken = line.replacen(
-            &original.this_hash.to_hex()[..4],
-            "ZZZZ",
-            1,
-        );
+        let broken = line.replacen(&original.this_hash.to_hex()[..4], "ZZZZ", 1);
         let err = WitnessEvent::from_jsonl_line(&broken).unwrap_err();
         assert!(matches!(err, WitnessParseError::HashHex { .. }));
     }
@@ -702,8 +724,10 @@ mod tests {
         let err = WitnessEvent::from_jsonl_line(bad).unwrap_err();
         // Missing payload_hex; should fire MissingField before any
         // hex decode happens.
-        assert!(matches!(err, WitnessParseError::MissingField("payload_hex")
-            | WitnessParseError::HashLength { .. }));
+        assert!(matches!(
+            err,
+            WitnessParseError::MissingField("payload_hex") | WitnessParseError::HashLength { .. }
+        ));
     }
 
     #[test]
@@ -789,10 +813,7 @@ mod tests {
         let mut buf = Vec::new();
         c.write_jsonl(&mut buf).unwrap();
         // Inject blanks — sometimes happens when files are edited.
-        let with_blanks = format!(
-            "\n{}\n\n",
-            std::str::from_utf8(&buf).unwrap().trim_end()
-        );
+        let with_blanks = format!("\n{}\n\n", std::str::from_utf8(&buf).unwrap().trim_end());
         let read = WitnessChain::read_jsonl(with_blanks.as_bytes()).unwrap();
         assert_eq!(read.len(), 2);
     }
@@ -806,11 +827,10 @@ mod tests {
         let mut buf = Vec::new();
         c.write_jsonl(&mut buf).unwrap();
         let mut text = String::from_utf8(buf).unwrap();
-        let forged = c.events()[0].to_jsonl_line().replacen(
-            "payload_hex\":\"31",
-            "payload_hex\":\"32",
-            1,
-        );
+        let forged =
+            c.events()[0]
+                .to_jsonl_line()
+                .replacen("payload_hex\":\"31", "payload_hex\":\"32", 1);
         text.push_str(&forged);
         text.push('\n');
 
@@ -832,7 +852,10 @@ mod tests {
         original.append("b", b"2", 101);
         let mut buf = Vec::new();
         original.write_jsonl(&mut buf).unwrap();
-        let lines: Vec<&[u8]> = buf.split(|&b| b == b'\n').filter(|s| !s.is_empty()).collect();
+        let lines: Vec<&[u8]> = buf
+            .split(|&b| b == b'\n')
+            .filter(|s| !s.is_empty())
+            .collect();
         // Reverse order, send through reader.
         let mut reversed: Vec<u8> = Vec::new();
         reversed.extend_from_slice(lines[1]);

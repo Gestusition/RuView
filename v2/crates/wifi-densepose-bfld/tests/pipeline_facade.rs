@@ -99,9 +99,8 @@ fn disable_privacy_mode_restores_baseline_class() {
 fn privacy_mode_overrides_derived_baseline_too() {
     // Operator running at Derived (class 1, research mode) can still flip the
     // emergency switch to Restricted without restarting the pipeline.
-    let mut p = BfldPipeline::new(
-        BfldConfig::new("seed-01").with_privacy_class(PrivacyClass::Derived),
-    );
+    let mut p =
+        BfldPipeline::new(BfldConfig::new("seed-01").with_privacy_class(PrivacyClass::Derived));
     p.enable_privacy_mode();
     let evt = p.process(inputs(), Some(embedding())).unwrap();
     assert_eq!(evt.privacy_class, PrivacyClass::Restricted);
@@ -115,7 +114,9 @@ fn pipeline_with_hasher_emits_derived_rf_signature_hash() {
     let hasher = SignatureHasher::new([7u8; SITE_SALT_LEN]);
     let mut p = BfldPipeline::new(BfldConfig::new("seed-01").with_signature_hasher(hasher));
     let evt = p.process(inputs(), Some(embedding())).unwrap();
-    let hash = evt.rf_signature_hash.expect("hasher path must produce a hash");
+    let hash = evt
+        .rf_signature_hash
+        .expect("hasher path must produce a hash");
     assert_ne!(hash, [0u8; 32], "derived hash must be non-trivial");
 }
 

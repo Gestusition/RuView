@@ -55,9 +55,7 @@ fn inputs_at(unix_secs: u64) -> SensingInputs {
 }
 
 fn pipeline_with_salt(node_id: &str, salt: [u8; SITE_SALT_LEN]) -> BfldPipeline {
-    BfldPipeline::new(
-        BfldConfig::new(node_id).with_signature_hasher(SignatureHasher::new(salt)),
-    )
+    BfldPipeline::new(BfldConfig::new(node_id).with_signature_hasher(SignatureHasher::new(salt)))
 }
 
 fn hash_for(p: &mut BfldPipeline, unix_secs: u64) -> [u8; 32] {
@@ -92,7 +90,10 @@ fn same_person_same_site_different_day_rotates_the_hash() {
     let day_1 = day_0 + SECONDS_PER_DAY;
     let h_0 = hash_for(&mut site, day_0);
     let h_1 = hash_for(&mut site, day_1);
-    assert_ne!(h_0, h_1, "day rotation must change the hash at the pipeline surface");
+    assert_ne!(
+        h_0, h_1,
+        "day rotation must change the hash at the pipeline surface"
+    );
 }
 
 #[test]
@@ -106,7 +107,10 @@ fn thirty_day_gap_produces_thoroughly_different_hash() {
     // Two independent BLAKE3 outputs differ by ~128 bits on average. Require
     // at least 80 bits to catch a regression where day_epoch is only weakly
     // mixed into the digest.
-    assert!(dist >= 80, "30-day rotation Hamming distance too low: {dist}");
+    assert!(
+        dist >= 80,
+        "30-day rotation Hamming distance too low: {dist}"
+    );
 }
 
 // --- same person, same site, same day -> stable hash --------------------

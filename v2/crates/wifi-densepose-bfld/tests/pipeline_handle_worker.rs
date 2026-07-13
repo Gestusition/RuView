@@ -156,7 +156,11 @@ fn handle_drops_event_when_gate_rejects() {
     let topics = drain(&pub_arc);
     // First input emits (Accept state) → 5 topics. Second input gate-promoted
     // to Reject → 0 topics. Total = 5.
-    assert_eq!(topics.len(), 5, "Reject must drop the second event entirely");
+    assert_eq!(
+        topics.len(),
+        5,
+        "Reject must drop the second event entirely"
+    );
 }
 
 #[test]
@@ -188,9 +192,8 @@ fn handle_with_zone_threads_through_to_published_topics() {
 #[test]
 fn class_3_pipeline_baseline_produces_four_topics_per_input() {
     // Baseline class = Restricted (no privacy_mode toggle needed).
-    let pipeline = BfldPipeline::new(
-        BfldConfig::new("seed-01").with_privacy_class(PrivacyClass::Restricted),
-    );
+    let pipeline =
+        BfldPipeline::new(BfldConfig::new("seed-01").with_privacy_class(PrivacyClass::Restricted));
     let pub_arc = Arc::new(Mutex::new(CapturePublisher::default()));
     let handle = BfldPipelineHandle::spawn(pipeline, pub_arc.clone());
 

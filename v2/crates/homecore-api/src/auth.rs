@@ -7,9 +7,9 @@
 //!   preserves the legacy behaviour for users mid-migration, with
 //!   a warn log on every check
 
-use axum::http::HeaderMap;
 use crate::error::ApiError;
 use crate::tokens::LongLivedTokenStore;
+use axum::http::HeaderMap;
 
 #[derive(Clone, Debug)]
 pub struct BearerAuth(pub String);
@@ -69,19 +69,28 @@ mod tests {
     #[test]
     fn extract_rejects_missing_prefix() {
         let h = mkheaders("abc123");
-        assert!(matches!(BearerAuth::extract_token(&h), Err(ApiError::Unauthorized)));
+        assert!(matches!(
+            BearerAuth::extract_token(&h),
+            Err(ApiError::Unauthorized)
+        ));
     }
 
     #[test]
     fn extract_rejects_missing_header() {
         let h = HeaderMap::new();
-        assert!(matches!(BearerAuth::extract_token(&h), Err(ApiError::Unauthorized)));
+        assert!(matches!(
+            BearerAuth::extract_token(&h),
+            Err(ApiError::Unauthorized)
+        ));
     }
 
     #[test]
     fn extract_rejects_empty_token() {
         let h = mkheaders("Bearer   ");
-        assert!(matches!(BearerAuth::extract_token(&h), Err(ApiError::Unauthorized)));
+        assert!(matches!(
+            BearerAuth::extract_token(&h),
+            Err(ApiError::Unauthorized)
+        ));
     }
 
     #[tokio::test]
@@ -98,7 +107,10 @@ mod tests {
         let store = LongLivedTokenStore::empty();
         store.register("good_token").await;
         let h = mkheaders("Bearer wrong_token");
-        assert!(matches!(BearerAuth::from_headers(&h, &store).await, Err(ApiError::Unauthorized)));
+        assert!(matches!(
+            BearerAuth::from_headers(&h, &store).await,
+            Err(ApiError::Unauthorized)
+        ));
     }
 
     #[tokio::test]
@@ -112,6 +124,9 @@ mod tests {
     async fn dev_mode_still_rejects_empty() {
         let store = LongLivedTokenStore::allow_any_non_empty();
         let h = mkheaders("Bearer ");
-        assert!(matches!(BearerAuth::from_headers(&h, &store).await, Err(ApiError::Unauthorized)));
+        assert!(matches!(
+            BearerAuth::from_headers(&h, &store).await,
+            Err(ApiError::Unauthorized)
+        ));
     }
 }

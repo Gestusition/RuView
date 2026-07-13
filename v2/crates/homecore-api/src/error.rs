@@ -21,7 +21,9 @@ pub enum ApiError {
 pub type ApiResult<T> = Result<T, ApiError>;
 
 #[derive(Serialize)]
-struct ErrorPayload { message: String }
+struct ErrorPayload {
+    message: String,
+}
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {

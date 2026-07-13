@@ -81,7 +81,11 @@ fn harness_three_normalizations_differ_from_crate_root() {
 fn harness_report_carries_normalization_label() {
     let gt = pose17(&[(CANON_LEFT_HIP, 0.40, 0.50), (CANON_RIGHT_HIP, 0.60, 0.50)]);
     let vis = vis17(&[CANON_LEFT_HIP, CANON_RIGHT_HIP]);
-    let frame = PoseFrame { pred: gt.clone(), gt: gt.clone(), visibility: vis };
+    let frame = PoseFrame {
+        pred: gt.clone(),
+        gt: gt.clone(),
+        visibility: vis,
+    };
     let report = accuracy_report(&[frame], &[20], PckNormalization::BoundingBoxDiagonal);
     assert_eq!(report.normalization, PckNormalization::BoundingBoxDiagonal);
     assert_eq!(report.n_keypoints, 17);
@@ -282,14 +286,14 @@ fn vis17(visible: &[usize]) -> Array1<f32> {
 #[test]
 fn canonical_pck_matches_hand_computed_fixture() {
     let gt = pose17(&[
-        (0, 0.50, 0.20),  // nose
-        (5, 0.35, 0.35),  // left_shoulder
+        (0, 0.50, 0.20), // nose
+        (5, 0.35, 0.35), // left_shoulder
         (CANON_LEFT_HIP, 0.40, 0.50),
         (CANON_RIGHT_HIP, 0.60, 0.50),
     ]);
     let pred = pose17(&[
-        (0, 0.50, 0.20),  // exact
-        (5, 0.35, 0.45),  // off by dy = 0.10  (> 0.04)
+        (0, 0.50, 0.20),               // exact
+        (5, 0.35, 0.45),               // off by dy = 0.10  (> 0.04)
         (CANON_LEFT_HIP, 0.40, 0.50),  // exact
         (CANON_RIGHT_HIP, 0.63, 0.50), // off by dx = 0.03  (<= 0.04)
     ]);
@@ -297,7 +301,10 @@ fn canonical_pck_matches_hand_computed_fixture() {
 
     let (correct, total, pck) = pck_canonical(&pred, &gt, &vis, 0.2);
     assert_eq!(total, 4, "4 visible joints expected, got {total}");
-    assert_eq!(correct, 3, "hand-computed: 3 of 4 within 0.04, got {correct}");
+    assert_eq!(
+        correct, 3,
+        "hand-computed: 3 of 4 within 0.04, got {correct}"
+    );
     assert!(
         (pck - 0.75).abs() < 1e-6,
         "hand-computed PCK is 0.75, got {pck}"
@@ -311,19 +318,38 @@ fn canonical_pck_matches_hand_computed_fixture() {
 #[test]
 fn canonical_pck_uses_hip_to_hip_torso_normalizer() {
     // Wide hips: width 1.0 ⇒ threshold 0.2. An error of 0.18 on joint 5 is OK.
-    let gt_wide = pose17(&[(5, 0.50, 0.50), (CANON_LEFT_HIP, 0.0, 0.5), (CANON_RIGHT_HIP, 1.0, 0.5)]);
-    let pred_wide = pose17(&[(5, 0.68, 0.50), (CANON_LEFT_HIP, 0.0, 0.5), (CANON_RIGHT_HIP, 1.0, 0.5)]);
+    let gt_wide = pose17(&[
+        (5, 0.50, 0.50),
+        (CANON_LEFT_HIP, 0.0, 0.5),
+        (CANON_RIGHT_HIP, 1.0, 0.5),
+    ]);
+    let pred_wide = pose17(&[
+        (5, 0.68, 0.50),
+        (CANON_LEFT_HIP, 0.0, 0.5),
+        (CANON_RIGHT_HIP, 1.0, 0.5),
+    ]);
     let vis = vis17(&[5, CANON_LEFT_HIP, CANON_RIGHT_HIP]);
     let (_, _, pck_wide) = pck_canonical(&pred_wide, &gt_wide, &vis, 0.2);
 
     // Narrow hips: width 0.20 ⇒ threshold 0.04. Same 0.18 error on joint 5 is wrong.
-    let gt_narrow = pose17(&[(5, 0.50, 0.50), (CANON_LEFT_HIP, 0.40, 0.5), (CANON_RIGHT_HIP, 0.60, 0.5)]);
-    let pred_narrow = pose17(&[(5, 0.68, 0.50), (CANON_LEFT_HIP, 0.40, 0.5), (CANON_RIGHT_HIP, 0.60, 0.5)]);
+    let gt_narrow = pose17(&[
+        (5, 0.50, 0.50),
+        (CANON_LEFT_HIP, 0.40, 0.5),
+        (CANON_RIGHT_HIP, 0.60, 0.5),
+    ]);
+    let pred_narrow = pose17(&[
+        (5, 0.68, 0.50),
+        (CANON_LEFT_HIP, 0.40, 0.5),
+        (CANON_RIGHT_HIP, 0.60, 0.5),
+    ]);
     let (_, _, pck_narrow) = pck_canonical(&pred_narrow, &gt_narrow, &vis, 0.2);
 
     // Joints 11/12 are exact (correct in both); joint 5 flips.
     // Wide: 3/3 = 1.0; Narrow: 2/3 ≈ 0.667.
-    assert!((pck_wide - 1.0).abs() < 1e-6, "wide-hip PCK should be 1.0, got {pck_wide}");
+    assert!(
+        (pck_wide - 1.0).abs() < 1e-6,
+        "wide-hip PCK should be 1.0, got {pck_wide}"
+    );
     assert!(
         (pck_narrow - 2.0 / 3.0).abs() < 1e-6,
         "narrow-hip PCK should be 2/3 (joint 5 now out of tolerance), got {pck_narrow}"
@@ -337,7 +363,10 @@ fn canonical_pck_zero_visible_is_zero() {
     let vis = vis17(&[]); // nothing visible
     let (correct, total, pck) = pck_canonical(&kpts, &kpts, &vis, 0.2);
     assert_eq!((correct, total), (0, 0));
-    assert_eq!(pck, 0.0, "no-visible-joint PCK must be 0.0 (not the old 1.0)");
+    assert_eq!(
+        pck, 0.0,
+        "no-visible-joint PCK must be 0.0 (not the old 1.0)"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -401,15 +430,31 @@ fn canonical_oks_not_one_for_wrong_pose_on_normalized_coords() {
 /// Canonical OKS decreases monotonically with prediction error.
 #[test]
 fn canonical_oks_decreases_with_distance() {
-    let gt = pose17(&[(5, 0.50, 0.50), (CANON_LEFT_HIP, 0.40, 0.50), (CANON_RIGHT_HIP, 0.60, 0.50)]);
+    let gt = pose17(&[
+        (5, 0.50, 0.50),
+        (CANON_LEFT_HIP, 0.40, 0.50),
+        (CANON_RIGHT_HIP, 0.60, 0.50),
+    ]);
     let vis = vis17(&[5, CANON_LEFT_HIP, CANON_RIGHT_HIP]);
-    let mk = |x5: f32| pose17(&[(5, x5, 0.50), (CANON_LEFT_HIP, 0.40, 0.50), (CANON_RIGHT_HIP, 0.60, 0.50)]);
+    let mk = |x5: f32| {
+        pose17(&[
+            (5, x5, 0.50),
+            (CANON_LEFT_HIP, 0.40, 0.50),
+            (CANON_RIGHT_HIP, 0.60, 0.50),
+        ])
+    };
 
     let oks0 = oks_canonical(&mk(0.50), &gt, &vis);
     let oks1 = oks_canonical(&mk(0.52), &gt, &vis);
     let oks2 = oks_canonical(&mk(0.60), &gt, &vis);
-    assert!(oks0 > oks1, "OKS must drop as error grows: {oks0} vs {oks1}");
-    assert!(oks1 > oks2, "OKS must drop as error grows: {oks1} vs {oks2}");
+    assert!(
+        oks0 > oks1,
+        "OKS must drop as error grows: {oks0} vs {oks1}"
+    );
+    assert!(
+        oks1 > oks2,
+        "OKS must drop as error grows: {oks1} vs {oks2}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -419,7 +464,11 @@ fn canonical_oks_decreases_with_distance() {
 /// A deliberately *independent* PCK reference implementation in the simplest
 /// regime — a **raw distance threshold** (no torso normalization). It is kept
 /// only to cross-check the canonical function, not to define the metric.
-fn reference_pck_raw(pred: &[(f32, f32)], gt: &[(f32, f32)], dist_threshold: f32) -> (usize, usize, f32) {
+fn reference_pck_raw(
+    pred: &[(f32, f32)],
+    gt: &[(f32, f32)],
+    dist_threshold: f32,
+) -> (usize, usize, f32) {
     let n = pred.len().min(gt.len());
     let mut correct = 0usize;
     for i in 0..n {
@@ -429,7 +478,11 @@ fn reference_pck_raw(pred: &[(f32, f32)], gt: &[(f32, f32)], dist_threshold: f32
             correct += 1;
         }
     }
-    let pck = if n > 0 { correct as f32 / n as f32 } else { 0.0 };
+    let pck = if n > 0 {
+        correct as f32 / n as f32
+    } else {
+        0.0
+    };
     (correct, n, pck)
 }
 
@@ -450,9 +503,9 @@ fn test_kernel_agrees_with_canonical() {
         (CANON_RIGHT_HIP, 1.00, 0.50),
     ]);
     let pred = pose17(&[
-        (0, 0.31, 0.30),  // err 0.01
-        (5, 0.70, 0.55),  // err 0.15
-        (7, 0.10, 0.98),  // err 0.08
+        (0, 0.31, 0.30),               // err 0.01
+        (5, 0.70, 0.55),               // err 0.15
+        (7, 0.10, 0.98),               // err 0.08
         (CANON_LEFT_HIP, 0.00, 0.50),  // exact
         (CANON_RIGHT_HIP, 1.00, 0.50), // exact
     ]);
@@ -464,12 +517,21 @@ fn test_kernel_agrees_with_canonical() {
 
     // Reference over the SAME visible joints with the SAME raw threshold
     // (torso == 1.0 so threshold·torso == threshold).
-    let pred_v: Vec<(f32, f32)> = visible.iter().map(|&j| (pred[[j, 0]], pred[[j, 1]])).collect();
+    let pred_v: Vec<(f32, f32)> = visible
+        .iter()
+        .map(|&j| (pred[[j, 0]], pred[[j, 1]]))
+        .collect();
     let gt_v: Vec<(f32, f32)> = visible.iter().map(|&j| (gt[[j, 0]], gt[[j, 1]])).collect();
     let (c_ref, t_ref, pck_ref) = reference_pck_raw(&pred_v, &gt_v, threshold);
 
-    assert_eq!(t_can, t_ref, "visible counts must match: {t_can} vs {t_ref}");
-    assert_eq!(c_can, c_ref, "correct counts must match: {c_can} vs {c_ref}");
+    assert_eq!(
+        t_can, t_ref,
+        "visible counts must match: {t_can} vs {t_ref}"
+    );
+    assert_eq!(
+        c_can, c_ref,
+        "correct counts must match: {c_can} vs {c_ref}"
+    );
     assert!(
         (pck_can - pck_ref).abs() < 1e-6,
         "canonical PCK {pck_can} must agree with independent reference {pck_ref}"

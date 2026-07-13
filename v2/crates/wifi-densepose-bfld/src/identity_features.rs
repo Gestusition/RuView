@@ -106,11 +106,7 @@ impl<'a> IdentityFeatures<'a> {
     /// Drive `hasher` with this feature source at the given `day_epoch`. The
     /// returned hash is what the emitter publishes as `rf_signature_hash`.
     #[must_use]
-    pub fn compute_hash(
-        &self,
-        hasher: &SignatureHasher,
-        day_epoch: u32,
-    ) -> [u8; RF_SIGNATURE_LEN] {
+    pub fn compute_hash(&self, hasher: &SignatureHasher, day_epoch: u32) -> [u8; RF_SIGNATURE_LEN] {
         hasher.compute(day_epoch, &self.canonical_bytes())
     }
 }

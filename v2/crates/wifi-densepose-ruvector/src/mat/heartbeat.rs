@@ -141,7 +141,10 @@ mod tests {
         }
         // high_bin far past the last valid bin → clamped, no out-of-range index.
         let p1 = spec.band_power(2, 9999);
-        assert!(p1.is_finite() && p1 >= 0.0, "clamped high bound must be finite");
+        assert!(
+            p1.is_finite() && p1 >= 0.0,
+            "clamped high bound must be finite"
+        );
         // low_bin past the last bin → empty range → 0.0 (no panic).
         assert_eq!(spec.band_power(100, 200), 0.0);
         // inverted bounds (low > high) → 0.0.

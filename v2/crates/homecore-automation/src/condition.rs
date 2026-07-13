@@ -20,11 +20,17 @@ pub struct EvalContext {
 
 impl EvalContext {
     pub fn new(states: Arc<StateMachine>) -> Self {
-        Self { states, template_env: None }
+        Self {
+            states,
+            template_env: None,
+        }
     }
 
     pub fn with_templates(states: Arc<StateMachine>, env: Arc<TemplateEnvironment>) -> Self {
-        Self { states, template_env: Some(env) }
+        Self {
+            states,
+            template_env: Some(env),
+        }
     }
 }
 
@@ -33,10 +39,7 @@ impl EvalContext {
 #[serde(tag = "condition", rename_all = "snake_case")]
 pub enum Condition {
     /// Entity state equals a specific value.
-    State {
-        entity_id: EntityId,
-        state: String,
-    },
+    State { entity_id: EntityId, state: String },
     /// Entity numeric state satisfies threshold bounds.
     NumericState {
         entity_id: EntityId,
@@ -46,21 +49,13 @@ pub enum Condition {
         below: Option<f64>,
     },
     /// Jinja2 template evaluates to truthy.
-    Template {
-        value_template: String,
-    },
+    Template { value_template: String },
     /// All child conditions must be true (logical AND).
-    And {
-        conditions: Vec<Condition>,
-    },
+    And { conditions: Vec<Condition> },
     /// At least one child condition must be true (logical OR).
-    Or {
-        conditions: Vec<Condition>,
-    },
+    Or { conditions: Vec<Condition> },
     /// Inner condition must be false (logical NOT).
-    Not {
-        conditions: Vec<Condition>,
-    },
+    Not { conditions: Vec<Condition> },
 }
 
 impl Condition {
@@ -68,24 +63,26 @@ impl Condition {
     ///
     /// Uses `Box::pin` for recursive variants (And/Or/Not) to satisfy the
     /// Rust requirement that recursive async fns introduce indirection.
-    pub fn evaluate<'a>(&'a self, ctx: &'a EvalContext) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + 'a>> {
+    pub fn evaluate<'a>(
+        &'a self,
+        ctx: &'a EvalContext,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + 'a>> {
         Box::pin(async move {
             match self {
-                Condition::State { entity_id, state } => {
-                    ctx.states
-                        .get(entity_id)
-                        .map_or(false, |s| s.state == *state)
-                }
-                Condition::NumericState { entity_id, above, below } => {
-                    let value: Option<f64> = ctx
-                        .states
-                        .get(entity_id)
-                        .and_then(|s| s.state.parse().ok());
+                Condition::State { entity_id, state } => ctx
+                    .states
+                    .get(entity_id)
+                    .map_or(false, |s| s.state == *state),
+                Condition::NumericState {
+                    entity_id,
+                    above,
+                    below,
+                } => {
+                    let value: Option<f64> =
+                        ctx.states.get(entity_id).and_then(|s| s.state.parse().ok());
                     match value {
                         None => false,
-                        Some(v) => {
-                            above.map_or(true, |a| v > a) && below.map_or(true, |b| v < b)
-                        }
+                        Some(v) => above.map_or(true, |a| v > a) && below.map_or(true, |b| v < b),
                     }
                 }
                 Condition::Template { value_template } => {
@@ -181,13 +178,29 @@ mod tests {
     #[tokio::test]
     async fn and_combinator_all_true() {
         let sm = Arc::new(StateMachine::new());
-        sm.set(EntityId::parse("light.a").unwrap(), "on", serde_json::json!({}), Context::new());
-        sm.set(EntityId::parse("light.b").unwrap(), "on", serde_json::json!({}), Context::new());
+        sm.set(
+            EntityId::parse("light.a").unwrap(),
+            "on",
+            serde_json::json!({}),
+            Context::new(),
+        );
+        sm.set(
+            EntityId::parse("light.b").unwrap(),
+            "on",
+            serde_json::json!({}),
+            Context::new(),
+        );
         let ctx = EvalContext::new(sm);
         let cond = Condition::And {
             conditions: vec![
-                Condition::State { entity_id: EntityId::parse("light.a").unwrap(), state: "on".into() },
-                Condition::State { entity_id: EntityId::parse("light.b").unwrap(), state: "on".into() },
+                Condition::State {
+                    entity_id: EntityId::parse("light.a").unwrap(),
+                    state: "on".into(),
+                },
+                Condition::State {
+                    entity_id: EntityId::parse("light.b").unwrap(),
+                    state: "on".into(),
+                },
             ],
         };
         assert!(cond.evaluate(&ctx).await);
@@ -196,13 +209,29 @@ mod tests {
     #[tokio::test]
     async fn and_combinator_one_false() {
         let sm = Arc::new(StateMachine::new());
-        sm.set(EntityId::parse("light.a").unwrap(), "on", serde_json::json!({}), Context::new());
-        sm.set(EntityId::parse("light.b").unwrap(), "off", serde_json::json!({}), Context::new());
+        sm.set(
+            EntityId::parse("light.a").unwrap(),
+            "on",
+            serde_json::json!({}),
+            Context::new(),
+        );
+        sm.set(
+            EntityId::parse("light.b").unwrap(),
+            "off",
+            serde_json::json!({}),
+            Context::new(),
+        );
         let ctx = EvalContext::new(sm);
         let cond = Condition::And {
             conditions: vec![
-                Condition::State { entity_id: EntityId::parse("light.a").unwrap(), state: "on".into() },
-                Condition::State { entity_id: EntityId::parse("light.b").unwrap(), state: "on".into() },
+                Condition::State {
+                    entity_id: EntityId::parse("light.a").unwrap(),
+                    state: "on".into(),
+                },
+                Condition::State {
+                    entity_id: EntityId::parse("light.b").unwrap(),
+                    state: "on".into(),
+                },
             ],
         };
         assert!(!cond.evaluate(&ctx).await);
@@ -211,13 +240,29 @@ mod tests {
     #[tokio::test]
     async fn or_combinator_one_true() {
         let sm = Arc::new(StateMachine::new());
-        sm.set(EntityId::parse("light.a").unwrap(), "off", serde_json::json!({}), Context::new());
-        sm.set(EntityId::parse("light.b").unwrap(), "on", serde_json::json!({}), Context::new());
+        sm.set(
+            EntityId::parse("light.a").unwrap(),
+            "off",
+            serde_json::json!({}),
+            Context::new(),
+        );
+        sm.set(
+            EntityId::parse("light.b").unwrap(),
+            "on",
+            serde_json::json!({}),
+            Context::new(),
+        );
         let ctx = EvalContext::new(sm);
         let cond = Condition::Or {
             conditions: vec![
-                Condition::State { entity_id: EntityId::parse("light.a").unwrap(), state: "on".into() },
-                Condition::State { entity_id: EntityId::parse("light.b").unwrap(), state: "on".into() },
+                Condition::State {
+                    entity_id: EntityId::parse("light.a").unwrap(),
+                    state: "on".into(),
+                },
+                Condition::State {
+                    entity_id: EntityId::parse("light.b").unwrap(),
+                    state: "on".into(),
+                },
             ],
         };
         assert!(cond.evaluate(&ctx).await);
@@ -228,12 +273,10 @@ mod tests {
         let sm = sm_with("light.kitchen", "off");
         let ctx = EvalContext::new(sm);
         let cond = Condition::Not {
-            conditions: vec![
-                Condition::State {
-                    entity_id: EntityId::parse("light.kitchen").unwrap(),
-                    state: "on".into(),
-                },
-            ],
+            conditions: vec![Condition::State {
+                entity_id: EntityId::parse("light.kitchen").unwrap(),
+                state: "on".into(),
+            }],
         };
         assert!(cond.evaluate(&ctx).await);
     }

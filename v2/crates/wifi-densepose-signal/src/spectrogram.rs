@@ -117,7 +117,11 @@ fn compute_spectrogram_with_plan(
     fft: &Arc<dyn Fft<f64>>,
     window: &[f64],
 ) -> Spectrogram {
-    debug_assert_eq!(window.len(), config.window_size, "window/plan size mismatch");
+    debug_assert_eq!(
+        window.len(),
+        config.window_size,
+        "window/plan size mismatch"
+    );
     debug_assert_eq!(fft.len(), config.window_size, "FFT/window size mismatch");
 
     let n_frames = (signal.len() - config.window_size) / config.hop_size + 1;

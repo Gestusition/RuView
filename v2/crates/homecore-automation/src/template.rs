@@ -154,7 +154,12 @@ mod tests {
 
     fn sm_with(entity_id: &str, state: &str, attrs: serde_json::Value) -> Arc<StateMachine> {
         let sm = Arc::new(StateMachine::new());
-        sm.set(EntityId::parse(entity_id).unwrap(), state, attrs, Context::new());
+        sm.set(
+            EntityId::parse(entity_id).unwrap(),
+            state,
+            attrs,
+            Context::new(),
+        );
         sm
     }
 
@@ -182,7 +187,9 @@ mod tests {
             serde_json::json!({"brightness": 200}),
         );
         let env = TemplateEnvironment::new(sm);
-        let out = env.render("{{ state_attr('light.kitchen', 'brightness') }}").unwrap();
+        let out = env
+            .render("{{ state_attr('light.kitchen', 'brightness') }}")
+            .unwrap();
         assert_eq!(out.trim(), "200");
     }
 
@@ -269,7 +276,10 @@ mod tests {
         let malicious = "{% for a in range(9999) %}{% for b in range(9999) %}\
             {% for c in range(9999) %}z{% endfor %}{% endfor %}{% endfor %}";
         let result = env.render(malicious);
-        assert!(result.is_err(), "deeply nested loops must exhaust fuel and error");
+        assert!(
+            result.is_err(),
+            "deeply nested loops must exhaust fuel and error"
+        );
     }
 
     // ── HC-SEC-01: oversized template source is rejected pre-compile ───
@@ -280,7 +290,10 @@ mod tests {
         // 128 KiB of literal text — exceeds MAX_TEMPLATE_SOURCE_BYTES.
         let big = "x".repeat(128 * 1024);
         let result = env.render(&big);
-        assert!(result.is_err(), "oversized template source must be rejected");
+        assert!(
+            result.is_err(),
+            "oversized template source must be rejected"
+        );
     }
 
     // ── A legitimate small template still renders fine within budget ───

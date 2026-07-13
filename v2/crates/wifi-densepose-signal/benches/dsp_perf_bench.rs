@@ -155,27 +155,31 @@ fn bench_pose_kalman_update(c: &mut Criterion) {
     // 17 keypoints (COCO-17), N predict+update cycles — a realistic frame batch.
     for &n_updates in &[17usize, 170] {
         group.throughput(Throughput::Elements(n_updates as u64));
-        group.bench_with_input(BenchmarkId::new("cycles", n_updates), &n_updates, |b, &n| {
-            b.iter(|| {
-                let mut acc = 0.0_f32;
-                for k in 0..n {
-                    let mut state = KeypointState::new(
-                        (k as f32 * 0.1).sin(),
-                        (k as f32 * 0.2).cos(),
-                        1.0 + (k as f32 * 0.05),
-                    );
-                    state.predict(0.05, 0.5);
-                    let meas = [
-                        (k as f32 * 0.1).sin() + 0.01,
-                        (k as f32 * 0.2).cos() - 0.01,
-                        1.0 + (k as f32 * 0.05),
-                    ];
-                    state.update(&meas, 0.1, 1.0);
-                    acc += state.state[0];
-                }
-                black_box(acc)
-            });
-        });
+        group.bench_with_input(
+            BenchmarkId::new("cycles", n_updates),
+            &n_updates,
+            |b, &n| {
+                b.iter(|| {
+                    let mut acc = 0.0_f32;
+                    for k in 0..n {
+                        let mut state = KeypointState::new(
+                            (k as f32 * 0.1).sin(),
+                            (k as f32 * 0.2).cos(),
+                            1.0 + (k as f32 * 0.05),
+                        );
+                        state.predict(0.05, 0.5);
+                        let meas = [
+                            (k as f32 * 0.1).sin() + 0.01,
+                            (k as f32 * 0.2).cos() - 0.01,
+                            1.0 + (k as f32 * 0.05),
+                        ];
+                        state.update(&meas, 0.1, 1.0);
+                        acc += state.state[0];
+                    }
+                    black_box(acc)
+                });
+            },
+        );
     }
     group.finish();
 }
@@ -296,8 +300,7 @@ mod eig {
                 .map(|l| {
                     (0..n_sub)
                         .map(|s| {
-                            0.5 + 0.3
-                                * ((f as f64 * 0.1 + l as f64 * 0.2 + s as f64 * 0.05).sin())
+                            0.5 + 0.3 * ((f as f64 * 0.1 + l as f64 * 0.2 + s as f64 * 0.05).sin())
                         })
                         .collect()
                 })

@@ -73,9 +73,15 @@ impl SyncPacketFlags {
 
     pub fn to_byte(self) -> u8 {
         let mut b = 0u8;
-        if self.is_leader { b |= 0x01; }
-        if self.is_valid { b |= 0x02; }
-        if self.smoothed_used { b |= 0x04; }
+        if self.is_leader {
+            b |= 0x01;
+        }
+        if self.is_valid {
+            b |= 0x02;
+        }
+        if self.smoothed_used {
+            b |= 0x04;
+        }
         b
     }
 }
@@ -93,7 +99,10 @@ impl SyncPacket {
         }
         let magic = u32::from_le_bytes(buf[0..4].try_into().unwrap());
         if magic != SYNC_PACKET_MAGIC {
-            return Err(ParseError::InvalidMagic { expected: SYNC_PACKET_MAGIC, got: magic });
+            return Err(ParseError::InvalidMagic {
+                expected: SYNC_PACKET_MAGIC,
+                got: magic,
+            });
         }
         let node_id = buf[4];
         let proto_ver = buf[5];
@@ -208,7 +217,11 @@ mod tests {
         let pkt = SyncPacket {
             node_id: 9,
             proto_ver: 1,
-            flags: SyncPacketFlags { is_leader: false, is_valid: true, smoothed_used: true },
+            flags: SyncPacketFlags {
+                is_leader: false,
+                is_valid: true,
+                smoothed_used: true,
+            },
             local_us: 28_798_450,
             epoch_us: 27_634_885,
             sequence: 20,
@@ -227,7 +240,11 @@ mod tests {
         let pkt = SyncPacket {
             node_id: 12,
             proto_ver: 1,
-            flags: SyncPacketFlags { is_leader: true, is_valid: true, smoothed_used: false },
+            flags: SyncPacketFlags {
+                is_leader: true,
+                is_valid: true,
+                smoothed_used: false,
+            },
             local_us: 28_864_932,
             epoch_us: 28_864_939,
             sequence: 20,
@@ -235,7 +252,7 @@ mod tests {
         let wire = pkt.to_bytes();
         let decoded = SyncPacket::from_bytes(&wire).unwrap();
         assert_eq!(decoded.flags.to_byte(), 0x03);
-        assert_eq!(decoded.local_minus_epoch_us(), -7);  // leader has zero offset modulo call-stack
+        assert_eq!(decoded.local_minus_epoch_us(), -7); // leader has zero offset modulo call-stack
         assert!(decoded.flags.is_leader);
         assert!(decoded.flags.is_valid);
         assert!(!decoded.flags.smoothed_used);
@@ -244,10 +261,15 @@ mod tests {
     #[test]
     fn magic_mismatch_is_typed_error() {
         let mut wire = SyncPacket {
-            node_id: 1, proto_ver: 1, flags: SyncPacketFlags::default(),
-            local_us: 0, epoch_us: 0, sequence: 0,
-        }.to_bytes();
-        wire[0] = 0x01;  // corrupt magic low byte
+            node_id: 1,
+            proto_ver: 1,
+            flags: SyncPacketFlags::default(),
+            local_us: 0,
+            epoch_us: 0,
+            sequence: 0,
+        }
+        .to_bytes();
+        wire[0] = 0x01; // corrupt magic low byte
         let err = SyncPacket::from_bytes(&wire).unwrap_err();
         match err {
             ParseError::InvalidMagic { got, .. } => assert_ne!(got, SYNC_PACKET_MAGIC),
@@ -257,7 +279,7 @@ mod tests {
 
     #[test]
     fn short_packet_is_typed_error() {
-        let wire = [0u8; 16];  // half a packet
+        let wire = [0u8; 16]; // half a packet
         let err = SyncPacket::from_bytes(&wire).unwrap_err();
         match err {
             ParseError::InsufficientData { needed, got } => {
@@ -274,10 +296,18 @@ mod tests {
         for &is_leader in &[false, true] {
             for &is_valid in &[false, true] {
                 for &smoothed_used in &[false, true] {
-                    let flags = SyncPacketFlags { is_leader, is_valid, smoothed_used };
+                    let flags = SyncPacketFlags {
+                        is_leader,
+                        is_valid,
+                        smoothed_used,
+                    };
                     let pkt = SyncPacket {
-                        node_id: 1, proto_ver: 1, flags,
-                        local_us: 1234, epoch_us: 5678, sequence: 99,
+                        node_id: 1,
+                        proto_ver: 1,
+                        flags,
+                        local_us: 1234,
+                        epoch_us: 5678,
+                        sequence: 99,
                     };
                     let wire = pkt.to_bytes();
                     let decoded = SyncPacket::from_bytes(&wire).unwrap();
@@ -300,9 +330,16 @@ mod tests {
     #[test]
     fn apply_to_local_recovers_packet_epoch() {
         let pkt = SyncPacket {
-            node_id: 9, proto_ver: 1,
-            flags: SyncPacketFlags { is_leader: false, is_valid: true, smoothed_used: true },
-            local_us: 28_798_450, epoch_us: 27_634_885, sequence: 20,
+            node_id: 9,
+            proto_ver: 1,
+            flags: SyncPacketFlags {
+                is_leader: false,
+                is_valid: true,
+                smoothed_used: true,
+            },
+            local_us: 28_798_450,
+            epoch_us: 27_634_885,
+            sequence: 20,
         };
         assert_eq!(pkt.apply_to_local(pkt.local_us), pkt.epoch_us);
     }
@@ -313,9 +350,16 @@ mod tests {
     #[test]
     fn apply_to_local_preserves_inter_frame_delta() {
         let pkt = SyncPacket {
-            node_id: 9, proto_ver: 1,
-            flags: SyncPacketFlags { is_leader: false, is_valid: true, smoothed_used: true },
-            local_us: 28_798_450, epoch_us: 27_634_885, sequence: 20,
+            node_id: 9,
+            proto_ver: 1,
+            flags: SyncPacketFlags {
+                is_leader: false,
+                is_valid: true,
+                smoothed_used: true,
+            },
+            local_us: 28_798_450,
+            epoch_us: 27_634_885,
+            sequence: 20,
         };
         // Frame arrives 100 ms after the sync packet on the follower's local clock.
         let local_at_frame = pkt.local_us + 100_000;
@@ -331,15 +375,24 @@ mod tests {
     #[test]
     fn apply_to_local_on_leader_is_near_identity() {
         let pkt = SyncPacket {
-            node_id: 12, proto_ver: 1,
-            flags: SyncPacketFlags { is_leader: true, is_valid: true, smoothed_used: false },
-            local_us: 28_864_932, epoch_us: 28_864_939, sequence: 20,
+            node_id: 12,
+            proto_ver: 1,
+            flags: SyncPacketFlags {
+                is_leader: true,
+                is_valid: true,
+                smoothed_used: false,
+            },
+            local_us: 28_864_932,
+            epoch_us: 28_864_939,
+            sequence: 20,
         };
         let frame_local = 30_000_000u64;
         let mesh = pkt.apply_to_local(frame_local);
-        assert!((mesh as i64 - frame_local as i64).abs() <= 100,
-                "leader apply should be within 100 µs of identity, got {} delta",
-                mesh as i64 - frame_local as i64);
+        assert!(
+            (mesh as i64 - frame_local as i64).abs() <= 100,
+            "leader apply should be within 100 µs of identity, got {} delta",
+            mesh as i64 - frame_local as i64
+        );
     }
 
     /// At the sync packet's own sequence number, the interpolated mesh
@@ -347,9 +400,16 @@ mod tests {
     #[test]
     fn mesh_aligned_for_sequence_identity_at_sync_point() {
         let pkt = SyncPacket {
-            node_id: 9, proto_ver: 1,
-            flags: SyncPacketFlags { is_leader: false, is_valid: true, smoothed_used: true },
-            local_us: 28_798_450, epoch_us: 27_634_885, sequence: 20,
+            node_id: 9,
+            proto_ver: 1,
+            flags: SyncPacketFlags {
+                is_leader: false,
+                is_valid: true,
+                smoothed_used: true,
+            },
+            local_us: 28_798_450,
+            epoch_us: 27_634_885,
+            sequence: 20,
         };
         assert_eq!(pkt.mesh_aligned_us_for_sequence(20, 20.0), pkt.epoch_us);
     }
@@ -359,9 +419,16 @@ mod tests {
     #[test]
     fn mesh_aligned_for_sequence_extrapolates_forward() {
         let pkt = SyncPacket {
-            node_id: 9, proto_ver: 1,
-            flags: SyncPacketFlags { is_leader: false, is_valid: true, smoothed_used: true },
-            local_us: 28_798_450, epoch_us: 27_634_885, sequence: 20,
+            node_id: 9,
+            proto_ver: 1,
+            flags: SyncPacketFlags {
+                is_leader: false,
+                is_valid: true,
+                smoothed_used: true,
+            },
+            local_us: 28_798_450,
+            epoch_us: 27_634_885,
+            sequence: 20,
         };
         // 20 frames at 20 fps = 1 000 000 µs
         let mesh = pkt.mesh_aligned_us_for_sequence(40, 20.0);
@@ -374,13 +441,20 @@ mod tests {
     #[test]
     fn mesh_aligned_for_sequence_handles_seq_wraparound() {
         let pkt = SyncPacket {
-            node_id: 9, proto_ver: 1,
-            flags: SyncPacketFlags { is_leader: false, is_valid: true, smoothed_used: true },
-            local_us: 10_000, epoch_us: 10_000, sequence: u32::MAX,
+            node_id: 9,
+            proto_ver: 1,
+            flags: SyncPacketFlags {
+                is_leader: false,
+                is_valid: true,
+                smoothed_used: true,
+            },
+            local_us: 10_000,
+            epoch_us: 10_000,
+            sequence: u32::MAX,
         };
         // Next sequence after u32::MAX is 0 (wrap). Δframes = 1, not -2^32.
         let mesh = pkt.mesh_aligned_us_for_sequence(0, 20.0);
-        assert_eq!(mesh, pkt.epoch_us + 50_000);  // 1 frame at 20 fps = 50 ms
+        assert_eq!(mesh, pkt.epoch_us + 50_000); // 1 frame at 20 fps = 50 ms
     }
 
     /// End-to-end ADR-110 pipeline sanity:
@@ -396,7 +470,11 @@ mod tests {
         let pkt = SyncPacket {
             node_id: 9,
             proto_ver: 1,
-            flags: SyncPacketFlags { is_leader: false, is_valid: true, smoothed_used: true },
+            flags: SyncPacketFlags {
+                is_leader: false,
+                is_valid: true,
+                smoothed_used: true,
+            },
             local_us: 28_798_450,
             epoch_us: 27_634_885,
             sequence: 20,
@@ -419,8 +497,12 @@ mod tests {
     #[test]
     fn wire_size_constant_is_correct() {
         let pkt = SyncPacket {
-            node_id: 0, proto_ver: 1, flags: SyncPacketFlags::default(),
-            local_us: 0, epoch_us: 0, sequence: 0,
+            node_id: 0,
+            proto_ver: 1,
+            flags: SyncPacketFlags::default(),
+            local_us: 0,
+            epoch_us: 0,
+            sequence: 0,
         };
         assert_eq!(pkt.to_bytes().len(), SYNC_PACKET_SIZE);
         assert_eq!(SYNC_PACKET_SIZE, 32);
@@ -439,15 +521,15 @@ mod tests {
     fn canonical_wire_bytes_match_python_decoder() {
         // Exact bytes matching the Python pin (hex-decoded by hand to bytes).
         let canonical: [u8; 32] = [
-            0x10, 0xa1, 0x11, 0xc5,  // magic 0xC511A110 (LE u32)
-            0x09,                     // node_id = 9
-            0x01,                     // proto_ver = 1
-            0x06,                     // flags: bit1=is_valid, bit2=smoothed_used
-            0x00,                     // reserved
-            0xf2, 0x6d, 0xb7, 0x01, 0x00, 0x00, 0x00, 0x00,  // local_us = 28_798_450
-            0xc5, 0xac, 0xa5, 0x01, 0x00, 0x00, 0x00, 0x00,  // epoch_us = 27_634_885
-            0x14, 0x00, 0x00, 0x00,  // sequence = 20
-            0x00, 0x00, 0x00, 0x00,  // reserved
+            0x10, 0xa1, 0x11, 0xc5, // magic 0xC511A110 (LE u32)
+            0x09, // node_id = 9
+            0x01, // proto_ver = 1
+            0x06, // flags: bit1=is_valid, bit2=smoothed_used
+            0x00, // reserved
+            0xf2, 0x6d, 0xb7, 0x01, 0x00, 0x00, 0x00, 0x00, // local_us = 28_798_450
+            0xc5, 0xac, 0xa5, 0x01, 0x00, 0x00, 0x00, 0x00, // epoch_us = 27_634_885
+            0x14, 0x00, 0x00, 0x00, // sequence = 20
+            0x00, 0x00, 0x00, 0x00, // reserved
         ];
         let decoded = SyncPacket::from_bytes(&canonical).unwrap();
         assert_eq!(decoded.node_id, 9);
@@ -465,7 +547,9 @@ mod tests {
         // Round-trip: re-encoding the decoded struct must produce the same
         // canonical bytes — this is what catches any drift in to_bytes.
         let re_encoded = decoded.to_bytes();
-        assert_eq!(re_encoded, canonical,
-                   "Rust to_bytes drifted from the canonical pin — Python decoder will break");
+        assert_eq!(
+            re_encoded, canonical,
+            "Rust to_bytes drifted from the canonical pin — Python decoder will break"
+        );
     }
 }

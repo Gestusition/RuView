@@ -61,9 +61,21 @@ struct TapSpec {
 /// The three ground-truth taps used across all tiers.
 fn ground_truth_taps() -> [TapSpec; 3] {
     [
-        TapSpec { delay_s: 10e-9, amplitude: 1.0, phase: PI / 4.0 },
-        TapSpec { delay_s: 80e-9, amplitude: 0.6, phase: PI },
-        TapSpec { delay_s: 180e-9, amplitude: 0.3, phase: -PI / 3.0 },
+        TapSpec {
+            delay_s: 10e-9,
+            amplitude: 1.0,
+            phase: PI / 4.0,
+        },
+        TapSpec {
+            delay_s: 80e-9,
+            amplitude: 0.6,
+            phase: PI,
+        },
+        TapSpec {
+            delay_s: 180e-9,
+            amplitude: 0.3,
+            phase: -PI / 3.0,
+        },
     ]
 }
 
@@ -123,11 +135,7 @@ fn make_frame(bandwidth_mhz: u16, num_subcarriers: usize, csi: Vec<Complex64>) -
     for (k, &val) in csi.iter().enumerate() {
         data[(0, k)] = val;
     }
-    let mut meta = CsiMetadata::new(
-        DeviceId::new("test-device"),
-        FrequencyBand::Band2_4GHz,
-        6,
-    );
+    let mut meta = CsiMetadata::new(DeviceId::new("test-device"), FrequencyBand::Band2_4GHz, 6);
     meta.bandwidth_mhz = bandwidth_mhz;
     meta.antenna_config = AntennaConfig::new(1, 1);
     CsiFrame::new(meta, data)
@@ -155,28 +163,35 @@ fn save_fixture(path: &str, k_active: usize, csi: &[Complex64], expected_dominan
 
 // ---------------------------------------------------------------------------
 
-
 // Shared test logic: inject 3-tap channel, run estimator, assert
 // ---------------------------------------------------------------------------
 
-fn run_3tap_test(label: &str, cfg: CirConfig, bandwidth_mhz: u16, dominant_ratio_floor: f32, fixture_path: &str) {
+fn run_3tap_test(
+    label: &str,
+    cfg: CirConfig,
+    bandwidth_mhz: u16,
+    dominant_ratio_floor: f32,
+    fixture_path: &str,
+) {
     let taps_spec = ground_truth_taps();
     // Per-tier subcarrier spacing: BW / N. HT20/HT40 → 312.5 kHz; HE20 → 78.125 kHz.
     let delta_f_hz = cfg.bandwidth_hz / cfg.num_subcarriers as f64;
-    let k_active = cfg.pilot_indices.is_empty().then_some(64).unwrap_or_else(|| {
-        // Use the number implied by the config's delay_bins / 3
-        cfg.delay_bins / 3
-    });
+    let k_active = cfg
+        .pilot_indices
+        .is_empty()
+        .then_some(64)
+        .unwrap_or_else(|| {
+            // Use the number implied by the config's delay_bins / 3
+            cfg.delay_bins / 3
+        });
     // Derive k_active from the config: delay_bins = 3 * k_active per ADR-134
     let k_active = cfg.delay_bins / 3;
 
     let taps: Vec<(f64, num_complex::Complex<f32>)> = taps_spec
         .iter()
         .map(|t| {
-            let alpha = num_complex::Complex::new(
-                t.amplitude * t.phase.cos(),
-                t.amplitude * t.phase.sin(),
-            );
+            let alpha =
+                num_complex::Complex::new(t.amplitude * t.phase.cos(), t.amplitude * t.phase.sin());
             (t.delay_s, alpha)
         })
         .collect();
@@ -198,7 +213,8 @@ fn run_3tap_test(label: &str, cfg: CirConfig, bandwidth_mhz: u16, dominant_ratio
     let frame = make_frame(bandwidth_mhz, num_subcarriers, csi);
 
     let est = CirEstimator::new(cfg.clone());
-    let cir = est.estimate(&frame)
+    let cir = est
+        .estimate(&frame)
         .unwrap_or_else(|e| panic!("[{}] estimate() failed: {:?}", label, e));
 
     // 1. dominant_tap_idx corresponds to the direct path (smallest delay) within
@@ -208,7 +224,10 @@ fn run_3tap_test(label: &str, cfg: CirConfig, bandwidth_mhz: u16, dominant_ratio
     assert!(
         bin_err <= 2,
         "[{}] dominant_tap_idx={} expected={} (±2 bin tolerance, abs_diff={})",
-        label, cir.dominant_tap_idx, expected_dominant_bin, bin_err
+        label,
+        cir.dominant_tap_idx,
+        expected_dominant_bin,
+        bin_err
     );
 
     // 2. Taps vector has nonzero magnitude at the 3 ground-truth delay bins (±1 bin)
@@ -222,24 +241,29 @@ fn run_3tap_test(label: &str, cfg: CirConfig, bandwidth_mhz: u16, dominant_ratio
     assert!(
         peak_near(expected_dominant_bin),
         "[{}] no nonzero tap near bin {} (direct path)",
-        label, expected_dominant_bin
+        label,
+        expected_dominant_bin
     );
     assert!(
         peak_near(expected_bin_tau1),
         "[{}] no nonzero tap near bin {} (reflection 1)",
-        label, expected_bin_tau1
+        label,
+        expected_bin_tau1
     );
     assert!(
         peak_near(expected_bin_tau2),
         "[{}] no nonzero tap near bin {} (reflection 2)",
-        label, expected_bin_tau2
+        label,
+        expected_bin_tau2
     );
 
     // 3. dominant_tap_ratio meets per-tier floor
     assert!(
         cir.dominant_tap_ratio > dominant_ratio_floor,
         "[{}] dominant_tap_ratio={:.3} < floor={:.3}",
-        label, cir.dominant_tap_ratio, dominant_ratio_floor
+        label,
+        cir.dominant_tap_ratio,
+        dominant_ratio_floor
     );
 
     // 4. ISTA converged before hitting max_iter
@@ -327,10 +351,7 @@ fn should_return_tof_at_40mhz() {
     let frame = make_frame(40, k_active, csi);
     let est = CirEstimator::new(cfg);
     let cir = est.estimate(&frame).expect("estimate should succeed");
-    assert!(
-        cir.ranging_valid,
-        "ranging_valid should be true at 40 MHz"
-    );
+    assert!(cir.ranging_valid, "ranging_valid should be true at 40 MHz");
     assert!(
         cir.dominant_tap_tof_s().is_some(),
         "dominant_tap_tof_s() must return Some when ranging_valid=true"
@@ -349,10 +370,10 @@ fn should_produce_positive_rms_delay_spread() {
     let taps: Vec<(f64, num_complex::Complex<f32>)> = ground_truth_taps()
         .iter()
         .map(|t| {
-            (t.delay_s, num_complex::Complex::new(
-                t.amplitude * t.phase.cos(),
-                t.amplitude * t.phase.sin(),
-            ))
+            (
+                t.delay_s,
+                num_complex::Complex::new(t.amplitude * t.phase.cos(), t.amplitude * t.phase.sin()),
+            )
         })
         .collect();
     let mut rng = Rng::new(42);

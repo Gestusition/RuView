@@ -65,11 +65,7 @@ impl SignatureHasher {
     /// Convenience: compute from a unix-seconds timestamp instead of an
     /// explicit `day_epoch`.
     #[must_use]
-    pub fn compute_at(
-        &self,
-        unix_secs: u64,
-        features: &[u8],
-    ) -> [u8; RF_SIGNATURE_LEN] {
+    pub fn compute_at(&self, unix_secs: u64, features: &[u8]) -> [u8; RF_SIGNATURE_LEN] {
         self.compute(Self::day_epoch_from_unix_secs(unix_secs), features)
     }
 }

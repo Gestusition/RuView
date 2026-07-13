@@ -266,7 +266,10 @@ export class FigurePool {
    * @param {number} elapsed - Elapsed time in seconds
    */
   update(data, elapsed) {
-    const persons = data?.persons || [];
+    // `pose_available: false` means the hardware supplied real occupancy CSI
+    // but no measured keypoints. Keep occupancy/motion visualizations active
+    // elsewhere while refusing to invent a wireframe skeleton here.
+    const persons = data?.pose_available === false ? [] : (data?.persons || []);
     const vs = data?.vital_signs || {};
     const isPresent = data?.classification?.presence || false;
     const breathBpm = vs.breathing_rate_bpm || 0;

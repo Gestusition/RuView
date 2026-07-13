@@ -45,7 +45,11 @@ fn build_features(snap: &SensingSnapshot, range_m: Option<f32>) -> BTreeMap<Stri
     m.insert("transient".to_string(), squash(f.change_points as f64));
     m.insert(
         "presence".to_string(),
-        if snap.classification.presence { 1.0 } else { 0.0 },
+        if snap.classification.presence {
+            1.0
+        } else {
+            0.0
+        },
     );
     if let Some(r) = range_m {
         m.insert("range_m".to_string(), r);
@@ -148,9 +152,8 @@ pub fn snapshot_to_field_event(snap: &SensingSnapshot, signer: &Signer) -> Field
     };
 
     // ── 3. Provenance (real sha256 over the tensor bytes) ───────────────────
-    let raw_hash = sha256_hex(
-        &serde_json::to_vec(&tensor).expect("tensor serializes to JSON for hashing"),
-    );
+    let raw_hash =
+        sha256_hex(&serde_json::to_vec(&tensor).expect("tensor serializes to JSON for hashing"));
     let provenance = ProvenanceRef {
         raw_hash,
         firmware_hash: firmware_hash(),

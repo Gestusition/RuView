@@ -82,7 +82,11 @@ impl PoseLora {
     }
 
     /// `y + (x · A) · B` when an adapter for this layer is present, else `y` unchanged.
-    fn apply(slot: &Option<(Tensor, Tensor)>, x: &Tensor, y: Tensor) -> candle_core::Result<Tensor> {
+    fn apply(
+        slot: &Option<(Tensor, Tensor)>,
+        x: &Tensor,
+        y: Tensor,
+    ) -> candle_core::Result<Tensor> {
         match slot {
             Some((a, b)) => y + x.matmul(a)?.matmul(b)?,
             None => Ok(y),

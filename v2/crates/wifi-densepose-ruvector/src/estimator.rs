@@ -539,7 +539,9 @@ mod tests {
         // Bank topk is deterministic too.
         let mut bank = EstimatorBank::new(Rotation::new(7, dim));
         for id in 0..16u32 {
-            let v: Vec<f32> = (0..dim).map(|i| ((i + id as usize) as f32 * 0.07).sin()).collect();
+            let v: Vec<f32> = (0..dim)
+                .map(|i| ((i + id as usize) as f32 * 0.07).sin())
+                .collect();
             bank.insert_embedding(id, &v);
         }
         let a = bank.topk_estimated(&qv, 5);
@@ -556,8 +558,12 @@ mod tests {
         // product, average the estimator over many seeds and assert it lands
         // within a tolerance that a BIASED estimator would miss.
         let dim = 32;
-        let o: Vec<f32> = (0..dim).map(|i| ((i % 7) as f32 - 3.0) * 0.4 + 0.5).collect();
-        let qv: Vec<f32> = (0..dim).map(|i| ((i % 5) as f32 - 2.0) * 0.3 - 0.1).collect();
+        let o: Vec<f32> = (0..dim)
+            .map(|i| ((i % 7) as f32 - 3.0) * 0.4 + 0.5)
+            .collect();
+        let qv: Vec<f32> = (0..dim)
+            .map(|i| ((i % 5) as f32 - 2.0) * 0.3 - 0.1)
+            .collect();
         let truth = true_inner(&o, &qv);
 
         let n_seeds = 4000u64;
@@ -611,7 +617,9 @@ mod tests {
         let dim = 96;
         let rot = Rotation::new(0x1357_9BDF, dim);
         for s in 0..20u32 {
-            let v: Vec<f32> = (0..dim).map(|i| (((i + s as usize) * 13 % 23) as f32 - 11.0) * 0.2).collect();
+            let v: Vec<f32> = (0..dim)
+                .map(|i| (((i + s as usize) * 13 % 23) as f32 - 11.0) * 0.2)
+                .collect();
             let sk = EstimatorSketch::from_embedding(&v, &rot);
             let x = sk.side_info().x_dot_o;
             assert!(x > 0.0 && x <= 1.0 + 1e-5, "x_dot_o out of (0,1]: {x}");
@@ -647,7 +655,10 @@ mod tests {
         }
         let top = bank.topk_estimated_cosine(&target, 1);
         assert_eq!(top.len(), 1);
-        assert_eq!(top[0].0, 7, "centroid-path self-query should rank self first");
+        assert_eq!(
+            top[0].0, 7,
+            "centroid-path self-query should rank self first"
+        );
     }
 
     #[test]

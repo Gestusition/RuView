@@ -67,7 +67,10 @@ impl EntityToAccessoryMapper {
                 HapCharacteristicValue::UInt8(b.min(255) as u8),
             ));
         }
-        Ok(AccessoryMapping { accessory_type: HapAccessoryType::Lightbulb, characteristics: chars })
+        Ok(AccessoryMapping {
+            accessory_type: HapAccessoryType::Lightbulb,
+            characteristics: chars,
+        })
     }
 
     fn map_switch(state: &State) -> Result<AccessoryMapping, HapError> {
@@ -92,7 +95,8 @@ impl EntityToAccessoryMapper {
 
         // Also check name heuristics for device_class-less entities.
         let name = entity_id.name();
-        let is_occupancy = device_class == "occupancy" || name.contains("occupancy") || name.contains("presence");
+        let is_occupancy =
+            device_class == "occupancy" || name.contains("occupancy") || name.contains("presence");
         let is_motion = device_class == "motion" || name.contains("motion");
         let is_door = device_class == "door" || device_class == "window";
 
@@ -142,8 +146,12 @@ impl EntityToAccessoryMapper {
             .to_owned();
         let name = entity_id.name();
 
-        let is_temp = unit == "°C" || unit == "°F" || unit == "C" || unit == "F"
-            || name.contains("temp") || name.contains("temperature");
+        let is_temp = unit == "°C"
+            || unit == "°F"
+            || unit == "C"
+            || unit == "F"
+            || name.contains("temp")
+            || name.contains("temperature");
         let is_humidity = unit == "%" && (name.contains("humid") || name.contains("rh"));
 
         if is_temp {
@@ -225,10 +233,9 @@ mod tests {
         );
         let mapping = EntityToAccessoryMapper::map(&eid, &s).unwrap();
         assert_eq!(mapping.accessory_type, HapAccessoryType::Lightbulb);
-        assert!(mapping.characteristics.contains(&(
-            HapCharacteristic::On,
-            HapCharacteristicValue::Bool(true)
-        )));
+        assert!(mapping
+            .characteristics
+            .contains(&(HapCharacteristic::On, HapCharacteristicValue::Bool(true))));
         assert!(mapping.characteristics.contains(&(
             HapCharacteristic::Brightness,
             HapCharacteristicValue::UInt8(200)

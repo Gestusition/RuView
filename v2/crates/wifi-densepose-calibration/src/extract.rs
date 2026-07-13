@@ -281,13 +281,25 @@ mod tests {
     fn non_finite_samples_do_not_poison_features() {
         let f = Features::from_series(&[1.0, 2.0, f32::NAN, 4.0, f32::INFINITY, 6.0], 15.0);
         assert!(f.mean.is_finite(), "mean must stay finite, got {}", f.mean);
-        assert!(f.variance.is_finite(), "variance must stay finite, got {}", f.variance);
-        assert!(f.motion.is_finite(), "motion must stay finite, got {}", f.motion);
+        assert!(
+            f.variance.is_finite(),
+            "variance must stay finite, got {}",
+            f.variance
+        );
+        assert!(
+            f.motion.is_finite(),
+            "motion must stay finite, got {}",
+            f.motion
+        );
         for x in f.embedding() {
             assert!(x.is_finite(), "embedding slot non-finite: {x}");
         }
         // Mean is over the 4 finite samples {1,2,4,6} only.
-        assert!((f.mean - 3.25).abs() < 1e-5, "mean over finite samples, got {}", f.mean);
+        assert!(
+            (f.mean - 3.25).abs() < 1e-5,
+            "mean over finite samples, got {}",
+            f.mean
+        );
         // Equivalence: dropping the non-finite samples must equal feeding only
         // the finite ones — proves the filter, not just finiteness.
         let only_finite = Features::from_series(&[1.0, 2.0, 4.0, 6.0], 15.0);

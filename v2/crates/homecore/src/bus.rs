@@ -30,7 +30,10 @@ impl EventBus {
         let (system_tx, _) = broadcast::channel(EVENT_CHANNEL_CAPACITY);
         let (domain_tx, _) = broadcast::channel(EVENT_CHANNEL_CAPACITY);
         Self {
-            inner: Arc::new(EventBusInner { system_tx, domain_tx }),
+            inner: Arc::new(EventBusInner {
+                system_tx,
+                domain_tx,
+            }),
         }
     }
 
@@ -135,11 +138,18 @@ mod tests {
                 Err(TryRecvError::Closed) => panic!("bus closed — must stay live"),
             }
         }
-        assert!(saw_lagged, "slow subscriber should have lagged, not blocked the bus");
+        assert!(
+            saw_lagged,
+            "slow subscriber should have lagged, not blocked the bus"
+        );
 
         // The bus is still live: a fresh fast subscriber receives new events.
         let mut fast = bus.subscribe_domain();
-        bus.fire_domain(DomainEvent::new("live", serde_json::json!({"ok": true}), Context::new()));
+        bus.fire_domain(DomainEvent::new(
+            "live",
+            serde_json::json!({"ok": true}),
+            Context::new(),
+        ));
         let evt = fast.recv().await.unwrap();
         assert_eq!(evt.event_type, "live");
 

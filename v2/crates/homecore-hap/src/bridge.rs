@@ -51,7 +51,9 @@ impl HapBridge {
         advertiser: Arc<dyn MdnsAdvertiser>,
     ) -> Self {
         Self {
-            inner: Arc::new(RwLock::new(BridgeInner { accessories: HashMap::new() })),
+            inner: Arc::new(RwLock::new(BridgeInner {
+                accessories: HashMap::new(),
+            })),
             advertiser,
             service_record,
         }
@@ -99,7 +101,13 @@ impl HapBridge {
 
     /// Snapshot all currently registered accessories.
     pub fn running_accessories(&self) -> Vec<ExposedAccessory> {
-        self.inner.read().unwrap().accessories.values().cloned().collect()
+        self.inner
+            .read()
+            .unwrap()
+            .accessories
+            .values()
+            .cloned()
+            .collect()
     }
 
     /// Number of registered accessories.
@@ -125,7 +133,9 @@ impl HapBridge {
 
     /// Graceful shutdown — retracts mDNS advertisement.
     pub async fn stop(&self) -> Result<(), HapError> {
-        self.advertiser.retract(&self.service_record.instance_name).await?;
+        self.advertiser
+            .retract(&self.service_record.instance_name)
+            .await?;
         Ok(())
     }
 }
@@ -148,7 +158,12 @@ mod tests {
     fn light_state(name: &str, on: bool, brightness: u8) -> (EntityId, State) {
         let eid = EntityId::parse(&format!("light.{name}")).unwrap();
         let attrs = serde_json::json!({"brightness": brightness});
-        let s = State::new(eid.clone(), if on { "on" } else { "off" }, attrs, Context::default());
+        let s = State::new(
+            eid.clone(),
+            if on { "on" } else { "off" },
+            attrs,
+            Context::default(),
+        );
         (eid, s)
     }
 

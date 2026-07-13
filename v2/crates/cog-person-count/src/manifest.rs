@@ -11,8 +11,7 @@
 //! The matching manifest for the build's target arch is selected via `cfg!`.
 
 /// Real signed manifest for `x86_64-unknown-linux-gnu`.
-pub const MANIFEST_X86_64: &str =
-    include_str!("../cog/artifacts/manifests/x86_64/manifest.json");
+pub const MANIFEST_X86_64: &str = include_str!("../cog/artifacts/manifests/x86_64/manifest.json");
 
 /// Real signed manifest for `aarch64`/`arm` (the Seed appliance).
 pub const MANIFEST_ARM: &str = include_str!("../cog/artifacts/manifests/arm/manifest.json");
@@ -63,10 +62,7 @@ mod tests {
             v.get("binary_signature").and_then(|s| s.as_str()).is_some(),
             "embedded manifest must carry an Ed25519 binary_signature"
         );
-        assert_eq!(
-            v.get("sig_algo").and_then(|s| s.as_str()),
-            Some("Ed25519")
-        );
+        assert_eq!(v.get("sig_algo").and_then(|s| s.as_str()), Some("Ed25519"));
     }
 
     #[test]

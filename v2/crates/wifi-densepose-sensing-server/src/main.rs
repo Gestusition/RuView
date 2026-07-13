@@ -560,8 +560,10 @@ mod fps_ema_tests {
         for _ in 0..40 {
             fps = update_csi_fps_ema(fps, 0.100).unwrap();
         }
-        assert!((fps - 10.0).abs() < 0.1,
-                "expected ~10 Hz after 40 samples at 100 ms intervals, got {fps}");
+        assert!(
+            (fps - 10.0).abs() < 0.1,
+            "expected ~10 Hz after 40 samples at 100 ms intervals, got {fps}"
+        );
     }
 
     #[test]
@@ -615,6 +617,17 @@ mod fps_ema_tests {
 }
 
 impl NodeState {
+    /// Best available physical CSI sample rate for time-domain feature work.
+    /// Use the measured EMA after warm-up, otherwise the firmware's 20 Hz
+    /// nominal ceiling.
+    fn feature_sample_rate_hz(&self) -> f64 {
+        if self.csi_fps_samples >= 5 && self.csi_fps_ema.is_finite() {
+            self.csi_fps_ema.clamp(1.0, 100.0)
+        } else {
+            20.0
+        }
+    }
+
     /// ADR-110 §A0.12 timestamp recovery: given a CSI frame's node-local
     /// `esp_timer_get_time()` snapshot, return the mesh-aligned epoch
     /// computed from this node's most recent sync packet — or `None`
@@ -649,7 +662,7 @@ impl NodeState {
         // samples; until then fall back to the 20 Hz firmware ceiling. The
         // §A0.12 capture showed real bench fps ≈ 10, so the measured value
         // is significantly more accurate than the constant fallback.
-        let fps = if self.csi_fps_samples >= 5 { self.csi_fps_ema } else { 20.0 };
+        let fps = self.feature_sample_rate_hz();
         Some(sync.mesh_aligned_us_for_sequence(frame_sequence, fps))
     }
 
@@ -1418,23 +1431,23 @@ mod issue_928_magic_collision_tests {
     fn build_fused_vitals_packet() -> Vec<u8> {
         let mut buf = vec![0u8; 48];
         buf[0..4].copy_from_slice(&0xC511_0004u32.to_le_bytes());
-        buf[4] = 9;                                            // node_id
-        buf[5] = 0b0000_1001;                                   // flags: presence | mmwave_present
-        buf[6..8].copy_from_slice(&1600u16.to_le_bytes());      // breathing 16.00 BPM
-        buf[8..12].copy_from_slice(&720_000u32.to_le_bytes());  // heartrate 72.0 BPM
-        buf[12] = (-55i8) as u8;                                // rssi
-        buf[13] = 1;                                            // n_persons
-        buf[14] = 2;                                            // mmwave_type
-        buf[15] = 85;                                           // fusion_confidence
-        buf[16..20].copy_from_slice(&0.42f32.to_le_bytes());    // motion_energy
-        buf[20..24].copy_from_slice(&0.95f32.to_le_bytes());    // presence_score
+        buf[4] = 9; // node_id
+        buf[5] = 0b0000_1001; // flags: presence | mmwave_present
+        buf[6..8].copy_from_slice(&1600u16.to_le_bytes()); // breathing 16.00 BPM
+        buf[8..12].copy_from_slice(&720_000u32.to_le_bytes()); // heartrate 72.0 BPM
+        buf[12] = (-55i8) as u8; // rssi
+        buf[13] = 1; // n_persons
+        buf[14] = 2; // mmwave_type
+        buf[15] = 85; // fusion_confidence
+        buf[16..20].copy_from_slice(&0.42f32.to_le_bytes()); // motion_energy
+        buf[20..24].copy_from_slice(&0.95f32.to_le_bytes()); // presence_score
         buf[24..28].copy_from_slice(&1_234_567u32.to_le_bytes()); // timestamp_ms
-        buf[28..32].copy_from_slice(&71.5f32.to_le_bytes());    // mmwave_hr_bpm
-        buf[32..36].copy_from_slice(&15.8f32.to_le_bytes());    // mmwave_br_bpm
-        buf[36..40].copy_from_slice(&182.0f32.to_le_bytes());   // mmwave_distance_cm
-        buf[40] = 1;                                            // mmwave_targets
-        buf[41] = 90;                                           // mmwave_confidence
-        // bytes 42..48 — firmware reserved fields, left as zero
+        buf[28..32].copy_from_slice(&71.5f32.to_le_bytes()); // mmwave_hr_bpm
+        buf[32..36].copy_from_slice(&15.8f32.to_le_bytes()); // mmwave_br_bpm
+        buf[36..40].copy_from_slice(&182.0f32.to_le_bytes()); // mmwave_distance_cm
+        buf[40] = 1; // mmwave_targets
+        buf[41] = 90; // mmwave_confidence
+                      // bytes 42..48 — firmware reserved fields, left as zero
         buf
     }
 
@@ -1444,8 +1457,14 @@ mod issue_928_magic_collision_tests {
         let pkt = parse_edge_fused_vitals(&buf).expect("must parse a well-formed packet");
         assert_eq!(pkt.node_id, 9);
         assert_eq!(pkt.flags, 0b0000_1001);
-        assert!((pkt.breathing_rate_bpm - 16.0).abs() < 1e-3, "breathing scale 100");
-        assert!((pkt.heartrate_bpm - 72.0).abs() < 1e-3, "heartrate scale 10000");
+        assert!(
+            (pkt.breathing_rate_bpm - 16.0).abs() < 1e-3,
+            "breathing scale 100"
+        );
+        assert!(
+            (pkt.heartrate_bpm - 72.0).abs() < 1e-3,
+            "heartrate scale 10000"
+        );
         assert_eq!(pkt.rssi, -55);
         assert_eq!(pkt.n_persons, 1);
         assert_eq!(pkt.mmwave_type, 2);
@@ -1480,8 +1499,10 @@ mod issue_928_magic_collision_tests {
         // accepted. A real fused-vitals packet starts with 0xC511_0004 and
         // would have been misparsed before this fix.
         let buf = build_fused_vitals_packet();
-        assert!(parse_wasm_output(&buf).is_none(),
-                "issue #928: WASM parser must NOT accept 0xC511_0004");
+        assert!(
+            parse_wasm_output(&buf).is_none(),
+            "issue #928: WASM parser must NOT accept 0xC511_0004"
+        );
     }
 
     #[test]
@@ -1489,9 +1510,9 @@ mod issue_928_magic_collision_tests {
         // Build a tiny well-formed WASM output packet on the new magic.
         let mut buf = vec![0u8; 8];
         buf[0..4].copy_from_slice(&0xC511_0007u32.to_le_bytes());
-        buf[4] = 5;                                          // node_id
-        buf[5] = 1;                                          // module_id
-        buf[6..8].copy_from_slice(&0u16.to_le_bytes());      // event_count = 0
+        buf[4] = 5; // node_id
+        buf[5] = 1; // module_id
+        buf[6..8].copy_from_slice(&0u16.to_le_bytes()); // event_count = 0
         let pkt = parse_wasm_output(&buf).expect("0xC511_0007 must parse");
         assert_eq!(pkt.node_id, 5);
         assert_eq!(pkt.module_id, 1);
@@ -1972,17 +1993,16 @@ fn extract_features_from_frame(
     // ── Spectral power ──
     let spectral_power: f64 = frame.amplitudes.iter().map(|a| a * a).sum::<f64>() / n;
 
-    // ── Motion band power (upper half of subcarriers, high spatial frequency) ──
+    // ── Motion: robust temporal CSI-shape change ──
+    // This must compare consecutive frames. Splitting one frame into upper
+    // and lower subcarrier halves measures the room's frequency response and
+    // produced large false motion readings in stationary rooms.
     let half = frame.amplitudes.len() / 2;
-    let motion_band_power = if half > 0 {
-        frame.amplitudes[half..]
-            .iter()
-            .map(|a| (a - mean_amp).powi(2))
-            .sum::<f64>()
-            / (frame.amplitudes.len() - half) as f64
-    } else {
-        0.0
-    };
+    let temporal_motion_score = csi::robust_temporal_motion_score(
+        &frame.amplitudes,
+        csi::temporal_motion_reference(frame_history, sample_rate_hz),
+    );
+    let motion_band_power = temporal_motion_score * 100.0;
 
     // ── Breathing band power (lower half of subcarriers, low spatial frequency) ──
     let breathing_band_power = if half > 0 {
@@ -2013,39 +2033,9 @@ fn extract_features_from_frame(
         .filter(|w| (w[0] < threshold) != (w[1] < threshold))
         .count();
 
-    // ── Motion score: sliding-window temporal difference ──
-    // Compare current frame against the most recent historical frame.
-    // The difference is normalised by the mean amplitude to be scale-invariant.
-    let temporal_motion_score = if let Some(prev_frame) = frame_history.back() {
-        let n_cmp = n_sub.min(prev_frame.len());
-        if n_cmp > 0 {
-            let diff_energy: f64 = (0..n_cmp)
-                .map(|k| (frame.amplitudes[k] - prev_frame[k]).powi(2))
-                .sum::<f64>()
-                / n_cmp as f64;
-            // Normalise by mean squared amplitude to get a dimensionless ratio.
-            let ref_energy = mean_amp * mean_amp + 1e-9;
-            (diff_energy / ref_energy).sqrt().clamp(0.0, 1.0)
-        } else {
-            0.0
-        }
-    } else {
-        // No history yet — fall back to intra-frame variance-based estimate.
-        (intra_variance / (mean_amp * mean_amp + 1e-9))
-            .sqrt()
-            .clamp(0.0, 1.0)
-    };
-
-    // Blend temporal motion with variance-based motion for robustness.
-    // Also factor in motion_band_power and change_points for ESP32 real-world sensitivity.
-    let variance_motion = (temporal_variance / 10.0).clamp(0.0, 1.0);
-    let mbp_motion = (motion_band_power / 25.0).clamp(0.0, 1.0);
-    let cp_motion = (change_points as f64 / 15.0).clamp(0.0, 1.0);
-    let motion_score = (temporal_motion_score * 0.4
-        + variance_motion * 0.2
-        + mbp_motion * 0.25
-        + cp_motion * 0.15)
-        .clamp(0.0, 1.0);
+    // Static per-frame variance and threshold crossings are deliberately not
+    // motion inputs; they remain available as diagnostic features.
+    let motion_score = temporal_motion_score;
 
     // ── Signal quality metric ──
     // Based on estimated SNR (RSSI relative to noise floor) and subcarrier consistency.
@@ -2196,14 +2186,29 @@ fn smooth_and_classify_node(ns: &mut NodeState, raw: &mut ClassificationInfo, ra
     raw.confidence = (0.4 + sm * 0.6).clamp(0.0, 1.0);
 }
 
-/// If an adaptive model is loaded, override the classification with the
-/// model's prediction.  Uses the full 15-feature vector for higher accuracy.
+/// Minimum in-sample accuracy required before an adaptive model may override
+/// the deterministic signal classifier. This is a safety floor, not an
+/// accuracy claim; room-specific validation is still required.
+const MIN_ADAPTIVE_TRAINING_ACCURACY: f64 = 0.80;
+
+fn adaptive_model_is_usable(model: &adaptive_classifier::AdaptiveModel) -> bool {
+    model.version == adaptive_classifier::ADAPTIVE_FEATURE_SCHEMA_VERSION
+        && model.training_accuracy.is_finite()
+        && model.training_accuracy >= MIN_ADAPTIVE_TRAINING_ACCURACY
+}
+
+/// If a compatible, quality-gated adaptive model is loaded, override the
+/// classification with its prediction. Uses the full 15-feature vector.
 fn adaptive_override(
     state: &AppStateInner,
     features: &FeatureInfo,
     classification: &mut ClassificationInfo,
 ) {
-    if let Some(ref model) = state.adaptive_model {
+    if let Some(model) = state
+        .adaptive_model
+        .as_ref()
+        .filter(|model| adaptive_model_is_usable(model))
+    {
         // Get current frame amplitudes from the latest history entry.
         let amps = state
             .frame_history
@@ -2227,6 +2232,41 @@ fn adaptive_override(
         classification.presence = label != "absent";
         // Blend model confidence with existing smoothed confidence.
         classification.confidence = (conf * 0.7 + classification.confidence * 0.3).clamp(0.0, 1.0);
+    }
+}
+
+#[cfg(test)]
+mod adaptive_quality_gate_tests {
+    use super::*;
+
+    fn candidate(version: u32, accuracy: f64) -> adaptive_classifier::AdaptiveModel {
+        adaptive_classifier::AdaptiveModel {
+            version,
+            training_accuracy: accuracy,
+            trained_frames: 1_000,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn rejects_low_accuracy_model() {
+        assert!(!adaptive_model_is_usable(&candidate(
+            adaptive_classifier::ADAPTIVE_FEATURE_SCHEMA_VERSION,
+            0.415,
+        )));
+    }
+
+    #[test]
+    fn rejects_stale_feature_schema() {
+        assert!(!adaptive_model_is_usable(&candidate(1, 0.95)));
+    }
+
+    #[test]
+    fn accepts_current_high_accuracy_model() {
+        assert!(adaptive_model_is_usable(&candidate(
+            adaptive_classifier::ADAPTIVE_FEATURE_SCHEMA_VERSION,
+            MIN_ADAPTIVE_TRAINING_ACCURACY,
+        )));
     }
 }
 
@@ -2520,17 +2560,17 @@ async fn windows_wifi_task(state: SharedState, tick_ms: u64) {
             phases: multi_ap_frame.phases.clone(),
         };
 
-        // ── Step 4b: Update frame history and extract features ───────
+        // ── Step 4b: Extract against previous frames, then append current ──
         let mut s_write_pre = state.write().await;
+        let sample_rate_hz = 1000.0 / tick_ms as f64;
+        let (features, mut classification, breathing_rate_hz, sub_variances, raw_motion) =
+            extract_features_from_frame(&frame, &s_write_pre.frame_history, sample_rate_hz);
         s_write_pre
             .frame_history
             .push_back(frame.amplitudes.clone());
         if s_write_pre.frame_history.len() > FRAME_HISTORY_CAPACITY {
             s_write_pre.frame_history.pop_front();
         }
-        let sample_rate_hz = 1000.0 / tick_ms as f64;
-        let (features, mut classification, breathing_rate_hz, sub_variances, raw_motion) =
-            extract_features_from_frame(&frame, &s_write_pre.frame_history, sample_rate_hz);
         smooth_and_classify(&mut s_write_pre, &mut classification, raw_motion);
         adaptive_override(&s_write_pre, &features, &mut classification);
         drop(s_write_pre);
@@ -2610,7 +2650,7 @@ async fn windows_wifi_task(state: SharedState, tick_ms: u64) {
                 position: [0.0, 0.0, 0.0],
                 amplitude: multi_ap_frame.amplitudes,
                 subcarrier_count: obs_count,
-                sync: None,  // multi-BSSID scan path — no mesh peer
+                sync: None, // multi-BSSID scan path — no mesh peer
             }],
             features,
             classification,
@@ -2705,14 +2745,13 @@ async fn windows_wifi_fallback_tick(state: &SharedState, seq: u32) {
     };
 
     let mut s = state.write().await;
-    // Update frame history before extracting features.
+    let sample_rate_hz = 2.0_f64; // fallback tick ~ 500 ms => 2 Hz
+    let (features, mut classification, breathing_rate_hz, sub_variances, raw_motion) =
+        extract_features_from_frame(&frame, &s.frame_history, sample_rate_hz);
     s.frame_history.push_back(frame.amplitudes.clone());
     if s.frame_history.len() > FRAME_HISTORY_CAPACITY {
         s.frame_history.pop_front();
     }
-    let sample_rate_hz = 2.0_f64; // fallback tick ~ 500 ms => 2 Hz
-    let (features, mut classification, breathing_rate_hz, sub_variances, raw_motion) =
-        extract_features_from_frame(&frame, &s.frame_history, sample_rate_hz);
     smooth_and_classify(&mut s, &mut classification, raw_motion);
     adaptive_override(&s, &features, &mut classification);
 
@@ -2769,7 +2808,7 @@ async fn windows_wifi_fallback_tick(state: &SharedState, seq: u32) {
             position: [0.0, 0.0, 0.0],
             amplitude: vec![signal_pct],
             subcarrier_count: 1,
-            sync: None,  // synthetic-RSSI fallback path — no mesh peer
+            sync: None, // synthetic-RSSI fallback path — no mesh peer
         }],
         features,
         classification,
@@ -2968,8 +3007,14 @@ mod issue_1004_source_plan_tests {
     #[test]
     fn auto_with_no_boot_source_still_binds_udp_and_simulates() {
         let plan = plan_source("auto", false, false);
-        assert!(plan.bind_udp, "auto must bind UDP :5005 even with no boot source (#1004)");
-        assert!(plan.run_simulator, "auto must serve simulated data until real CSI arrives");
+        assert!(
+            plan.bind_udp,
+            "auto must bind UDP :5005 even with no boot source (#1004)"
+        );
+        assert!(
+            plan.run_simulator,
+            "auto must serve simulated data until real CSI arrives"
+        );
         assert!(!plan.run_wifi);
         assert_eq!(plan.initial_source, "simulated");
     }
@@ -2978,7 +3023,10 @@ mod issue_1004_source_plan_tests {
     fn auto_with_esp32_detected_binds_udp_no_simulator() {
         let plan = plan_source("auto", true, false);
         assert!(plan.bind_udp);
-        assert!(!plan.run_simulator, "real CSI present → no synthetic frames");
+        assert!(
+            !plan.run_simulator,
+            "real CSI present → no synthetic frames"
+        );
         assert_eq!(plan.initial_source, "esp32");
     }
 
@@ -2998,7 +3046,10 @@ mod issue_1004_source_plan_tests {
     fn explicit_simulated_is_offline_override_no_udp() {
         for s in ["simulated", "simulate"] {
             let plan = plan_source(s, false, false);
-            assert!(!plan.bind_udp, "{s}: explicit simulate must not bind UDP (offline demo)");
+            assert!(
+                !plan.bind_udp,
+                "{s}: explicit simulate must not bind UDP (offline demo)"
+            );
             assert!(plan.run_simulator);
             assert_eq!(plan.initial_source, "simulated");
         }
@@ -3026,7 +3077,11 @@ mod issue_1004_source_plan_tests {
         // First real frame arrives → udp_receiver_task sets source = "esp32".
         src = "esp32".to_string();
         let fresh = Some(std::time::Duration::from_millis(10));
-        assert_eq!(promote_view(&src, fresh), "esp32", "fresh esp32 frame ⇒ live");
+        assert_eq!(
+            promote_view(&src, fresh),
+            "esp32",
+            "fresh esp32 frame ⇒ live"
+        );
         // After a >5 s gap it reverts to offline (inverse machinery, #1004).
         let stale = Some(ESP32_OFFLINE_TIMEOUT + std::time::Duration::from_secs(1));
         assert_eq!(promote_view(&src, stale), "esp32:offline");
@@ -4898,6 +4953,26 @@ async fn adaptive_train(State(state): State<SharedState>) -> Json<serde_json::Va
                 })
                 .collect();
 
+            if !adaptive_model_is_usable(&model) {
+                warn!(
+                    "Rejected adaptive model: schema v{}, {:.1}% training accuracy (requires schema v{}, at least {:.1}%)",
+                    model.version,
+                    accuracy * 100.0,
+                    adaptive_classifier::ADAPTIVE_FEATURE_SCHEMA_VERSION,
+                    MIN_ADAPTIVE_TRAINING_ACCURACY * 100.0,
+                );
+                return Json(serde_json::json!({
+                    "success": false,
+                    "error": "trained model did not pass the runtime quality gate",
+                    "trained_frames": frames,
+                    "accuracy": accuracy,
+                    "required_accuracy": MIN_ADAPTIVE_TRAINING_ACCURACY,
+                    "version": model.version,
+                    "required_version": adaptive_classifier::ADAPTIVE_FEATURE_SCHEMA_VERSION,
+                    "class_stats": stats,
+                }));
+            }
+
             // Save to disk.
             if let Err(e) = model.save(&adaptive_classifier::model_path()) {
                 warn!("Failed to save adaptive model: {e}");
@@ -5242,15 +5317,21 @@ async fn node_sync_endpoint(
 ) -> Result<Json<NodeSyncSnapshot>, (StatusCode, Json<serde_json::Value>)> {
     let s = state.read().await;
     let ns = s.node_states.get(&id).ok_or_else(|| {
-        (StatusCode::NOT_FOUND, Json(serde_json::json!({
-            "error": "unknown_node", "node_id": id,
-        })))
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": "unknown_node", "node_id": id,
+            })),
+        )
     })?;
     ns.sync_snapshot().map(Json).ok_or_else(|| {
-        (StatusCode::NOT_FOUND, Json(serde_json::json!({
-            "error": "no_sync", "node_id": id,
-            "hint": "node hasn't emitted a sync packet yet (no mesh peer or not v0.6.9+)",
-        })))
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": "no_sync", "node_id": id,
+                "hint": "node hasn't emitted a sync packet yet (no mesh peer or not v0.6.9+)",
+            })),
+        )
     })
 }
 
@@ -5284,26 +5365,52 @@ async fn mesh_metrics_endpoint(State(state): State<SharedState>) -> impl IntoRes
 
     // Each metric: HELP + TYPE header + one line per node that has a snapshot.
     let metrics: &[(&str, &str, &str)] = &[
-        ("wifi_densepose_mesh_offset_us",
-         "Cross-board mesh-aligned offset, microseconds (signed)", "gauge"),
-        ("wifi_densepose_mesh_is_leader",
-         "1 if this node is the elected mesh leader, else 0", "gauge"),
-        ("wifi_densepose_mesh_is_valid",
-         "1 if this node has heard a fresh leader beacon, else 0", "gauge"),
-        ("wifi_densepose_mesh_smoothed",
-         "1 once the firmware-side EMA filter has seeded, else 0", "gauge"),
-        ("wifi_densepose_mesh_sequence",
-         "High-water CSI sequence at sync emit time", "gauge"),
-        ("wifi_densepose_mesh_csi_fps",
-         "Per-node measured CSI frame rate (Hz)", "gauge"),
-        ("wifi_densepose_mesh_csi_fps_samples",
-         "How many inter-frame deltas the fps EMA has seen", "gauge"),
-        ("wifi_densepose_mesh_staleness_ms",
-         "Milliseconds since the host last received this node's sync packet", "gauge"),
+        (
+            "wifi_densepose_mesh_offset_us",
+            "Cross-board mesh-aligned offset, microseconds (signed)",
+            "gauge",
+        ),
+        (
+            "wifi_densepose_mesh_is_leader",
+            "1 if this node is the elected mesh leader, else 0",
+            "gauge",
+        ),
+        (
+            "wifi_densepose_mesh_is_valid",
+            "1 if this node has heard a fresh leader beacon, else 0",
+            "gauge",
+        ),
+        (
+            "wifi_densepose_mesh_smoothed",
+            "1 once the firmware-side EMA filter has seeded, else 0",
+            "gauge",
+        ),
+        (
+            "wifi_densepose_mesh_sequence",
+            "High-water CSI sequence at sync emit time",
+            "gauge",
+        ),
+        (
+            "wifi_densepose_mesh_csi_fps",
+            "Per-node measured CSI frame rate (Hz)",
+            "gauge",
+        ),
+        (
+            "wifi_densepose_mesh_csi_fps_samples",
+            "How many inter-frame deltas the fps EMA has seen",
+            "gauge",
+        ),
+        (
+            "wifi_densepose_mesh_staleness_ms",
+            "Milliseconds since the host last received this node's sync packet",
+            "gauge",
+        ),
     ];
 
     // Collect (id, snapshot) pairs once so each metric loop reads the same set.
-    let snaps: Vec<(u8, NodeSyncSnapshot)> = s.node_states.iter()
+    let snaps: Vec<(u8, NodeSyncSnapshot)> = s
+        .node_states
+        .iter()
         .filter_map(|(&id, ns)| ns.sync_snapshot().map(|snap| (id, snap)))
         .collect();
 
@@ -5312,12 +5419,23 @@ async fn mesh_metrics_endpoint(State(state): State<SharedState>) -> impl IntoRes
     // without scraping every per-node series and counting.
     let (leaders, followers) = fleet_role_counts(&snaps);
     let no_sync = s.node_states.len().saturating_sub(snaps.len()) as u64;
-    let _ = writeln!(body,
-        "# HELP wifi_densepose_mesh_node_total Per-state node count across the fleet");
+    let _ = writeln!(
+        body,
+        "# HELP wifi_densepose_mesh_node_total Per-state node count across the fleet"
+    );
     let _ = writeln!(body, "# TYPE wifi_densepose_mesh_node_total gauge");
-    let _ = writeln!(body, "wifi_densepose_mesh_node_total{{state=\"leader\"}} {leaders}");
-    let _ = writeln!(body, "wifi_densepose_mesh_node_total{{state=\"follower\"}} {followers}");
-    let _ = writeln!(body, "wifi_densepose_mesh_node_total{{state=\"no_sync\"}} {no_sync}");
+    let _ = writeln!(
+        body,
+        "wifi_densepose_mesh_node_total{{state=\"leader\"}} {leaders}"
+    );
+    let _ = writeln!(
+        body,
+        "wifi_densepose_mesh_node_total{{state=\"follower\"}} {followers}"
+    );
+    let _ = writeln!(
+        body,
+        "wifi_densepose_mesh_node_total{{state=\"no_sync\"}} {no_sync}"
+    );
 
     for (name, help, kind) in metrics {
         let _ = writeln!(body, "# HELP {name} {help}");
@@ -5331,17 +5449,27 @@ async fn mesh_metrics_endpoint(State(state): State<SharedState>) -> impl IntoRes
                 "wifi_densepose_mesh_sequence" => snap.sequence.to_string(),
                 "wifi_densepose_mesh_csi_fps" => format!("{:.3}", snap.csi_fps_ema),
                 "wifi_densepose_mesh_csi_fps_samples" => snap.csi_fps_samples.to_string(),
-                "wifi_densepose_mesh_staleness_ms" =>
-                    snap.staleness_ms.map(|n| n.to_string()).unwrap_or_else(|| "0".into()),
+                "wifi_densepose_mesh_staleness_ms" => snap
+                    .staleness_ms
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| "0".into()),
                 _ => continue,
             };
             let _ = writeln!(body, "{name}{{node=\"{id}\"}} {value}");
         }
     }
-    ([(axum::http::header::CONTENT_TYPE, "text/plain; version=0.0.4")], body)
+    (
+        [(
+            axum::http::header::CONTENT_TYPE,
+            "text/plain; version=0.0.4",
+        )],
+        body,
+    )
 }
 
-fn bool_metric(b: bool) -> String { (if b { 1 } else { 0 }).to_string() }
+fn bool_metric(b: bool) -> String {
+    (if b { 1 } else { 0 }).to_string()
+}
 
 /// ADR-110 iter 37 — count (leaders, followers) in a populated snapshot set.
 /// Free function for testability — same pattern as iter 18's `update_csi_fps_ema`.
@@ -5714,8 +5842,8 @@ async fn udp_receiver_task(state: SharedState, udp_port: u16) {
                                        sync.local_minus_epoch_us());
                                 let mut s = state.write().await;
                                 let node_id = sync.node_id;
-                                let ns = s.node_states.entry(node_id)
-                                    .or_insert_with(NodeState::new);
+                                let ns =
+                                    s.node_states.entry(node_id).or_insert_with(NodeState::new);
                                 ns.apply_sync_packet(sync, std::time::Instant::now());
                                 continue;
                             }
@@ -5738,8 +5866,11 @@ async fn udp_receiver_task(state: SharedState, udp_port: u16) {
                     debug!(
                         "Edge fused vitals from {src}: node={} br={:.1} hr={:.1} \
                          mmwave_targets={} fusion_conf={}",
-                        fused.node_id, fused.breathing_rate_bpm, fused.heartrate_bpm,
-                        fused.mmwave_targets, fused.fusion_confidence,
+                        fused.node_id,
+                        fused.breathing_rate_bpm,
+                        fused.heartrate_bpm,
+                        fused.mmwave_targets,
+                        fused.fusion_confidence,
                     );
                     let s = state.write().await;
                     if let Ok(json) = serde_json::to_string(&serde_json::json!({
@@ -5818,7 +5949,9 @@ async fn udp_receiver_task(state: SharedState, udp_port: u16) {
                             frame.node_id,
                             frame.n_subcarriers,
                             frame.ppdu_type,
-                            s.node_states.get(&frame.node_id).and_then(|ns| ns.active_grid),
+                            s.node_states
+                                .get(&frame.node_id)
+                                .and_then(|ns| ns.active_grid),
                         );
                         if let Some(ns) = s.node_states.get_mut(&frame.node_id) {
                             ns.observe_csi_frame_arrival(std::time::Instant::now());
@@ -5880,12 +6013,7 @@ async fn udp_receiver_task(state: SharedState, udp_port: u16) {
                     // for downstream model-wake gating.
                     ns.update_novelty(&frame.amplitudes);
 
-                    ns.frame_history.push_back(frame.amplitudes.clone());
-                    if ns.frame_history.len() > FRAME_HISTORY_CAPACITY {
-                        ns.frame_history.pop_front();
-                    }
-
-                    let sample_rate_hz = 1000.0 / 500.0_f64;
+                    let sample_rate_hz = ns.feature_sample_rate_hz();
                     let (
                         features,
                         mut classification,
@@ -5893,6 +6021,10 @@ async fn udp_receiver_task(state: SharedState, udp_port: u16) {
                         sub_variances,
                         raw_motion,
                     ) = extract_features_from_frame(&frame, &ns.frame_history, sample_rate_hz);
+                    ns.frame_history.push_back(frame.amplitudes.clone());
+                    if ns.frame_history.len() > FRAME_HISTORY_CAPACITY {
+                        ns.frame_history.pop_front();
+                    }
                     smooth_and_classify_node(ns, &mut classification, raw_motion);
 
                     // Adaptive override using cloned model (safe, no raw pointers).
@@ -6192,15 +6324,13 @@ async fn simulated_data_task(state: SharedState, tick_ms: u64) {
 
         let frame = generate_simulated_frame(tick);
 
-        // Append current amplitudes to history before feature extraction.
+        let sample_rate_hz = 1000.0 / tick_ms as f64;
+        let (features, mut classification, breathing_rate_hz, sub_variances, raw_motion) =
+            extract_features_from_frame(&frame, &s.frame_history, sample_rate_hz);
         s.frame_history.push_back(frame.amplitudes.clone());
         if s.frame_history.len() > FRAME_HISTORY_CAPACITY {
             s.frame_history.pop_front();
         }
-
-        let sample_rate_hz = 1000.0 / tick_ms as f64;
-        let (features, mut classification, breathing_rate_hz, sub_variances, raw_motion) =
-            extract_features_from_frame(&frame, &s.frame_history, sample_rate_hz);
         smooth_and_classify(&mut s, &mut classification, raw_motion);
         adaptive_override(&s, &features, &mut classification);
 
@@ -6254,7 +6384,7 @@ async fn simulated_data_task(state: SharedState, tick_ms: u64) {
                 position: [2.0, 0.0, 1.5],
                 amplitude: frame_amplitudes,
                 subcarrier_count: frame_n_sub as usize,
-                sync: None,  // simulated frame path — no mesh peer
+                sync: None, // simulated frame path — no mesh peer
             }],
             features: features.clone(),
             classification,
@@ -6539,8 +6669,7 @@ fn diagnose_model_load_error(path: &std::path::Path, data: &[u8], err: &str) -> 
     // safetensors: 8-byte LE header length, then a JSON object starting with '{'.
     let looks_safetensors = ext == "safetensors" || (data.len() > 9 && data[8] == b'{');
     // JSONL manifest: starts with '{' (or the well-known suffix).
-    let looks_jsonl =
-        ext == "jsonl" || name.ends_with(".rvf.jsonl") || data.first() == Some(&b'{');
+    let looks_jsonl = ext == "jsonl" || name.ends_with(".rvf.jsonl") || data.first() == Some(&b'{');
     // Quantized weight blob shipped on HF (model-q2/q4/q8.bin).
     let looks_quant_bin = ext == "bin" || name.contains("-q");
 
@@ -6577,10 +6706,7 @@ fn diagnose_model_load_error(path: &std::path::Path, data: &[u8], err: &str) -> 
 ///    opaque "invalid magic …" string.
 ///
 /// Returns the loaded `ProgressiveLoader` or a human-actionable error string.
-fn load_or_convert_model(
-    path: &std::path::Path,
-    data: &[u8],
-) -> Result<ProgressiveLoader, String> {
+fn load_or_convert_model(path: &std::path::Path, data: &[u8]) -> Result<ProgressiveLoader, String> {
     use model_format::{convert_to_rvf, detect_format, ModelFormat};
 
     // 1. Native RVF.
@@ -6619,12 +6745,10 @@ fn load_or_convert_model(
             }
         }
         // 3. Non-convertible: typed actionable error.
-        _ => Err(model_format::classify_load_failure(
-            data,
-            &name,
-            "RVF container parse failed",
-        )
-        .to_string()),
+        _ => Err(
+            model_format::classify_load_failure(data, &name, "RVF container parse failed")
+                .to_string(),
+        ),
     }
 }
 
@@ -7292,11 +7416,22 @@ async fn main() {
     // `auto` always bind the UDP :5005 receiver; serve simulated until the first
     // real frame; then `udp_receiver_task` promotes `source` → "esp32". Explicit
     // `--source simulated` stays a hard, UDP-free override for offline demos.
-    let normalized = if args.source == "simulate" { "simulated" } else { args.source.as_str() };
+    let normalized = if args.source == "simulate" {
+        "simulated"
+    } else {
+        args.source.as_str()
+    };
     let plan = if normalized == "auto" {
-        info!("Auto-detecting data source (UDP :{} bound either way)...", args.udp_port);
+        info!(
+            "Auto-detecting data source (UDP :{} bound either way)...",
+            args.udp_port
+        );
         let esp32 = probe_esp32(args.udp_port).await;
-        let wifi = if esp32 { false } else { probe_windows_wifi().await };
+        let wifi = if esp32 {
+            false
+        } else {
+            probe_windows_wifi().await
+        };
         if esp32 {
             info!("  ESP32 CSI detected on UDP :{}", args.udp_port);
         } else if wifi {
@@ -7514,6 +7649,31 @@ async fn main() {
     let field_surface: rufield_surface::FieldState =
         Arc::new(RwLock::new(rufield_surface::FieldSurface::from_env()));
 
+    let adaptive_model = match adaptive_classifier::AdaptiveModel::load(
+        &adaptive_classifier::model_path(),
+    ) {
+        Ok(model) if adaptive_model_is_usable(&model) => {
+            info!(
+                "Loaded adaptive classifier: schema v{}, {} frames, {:.1}% training accuracy",
+                model.version,
+                model.trained_frames,
+                model.training_accuracy * 100.0,
+            );
+            Some(model)
+        }
+        Ok(model) => {
+            warn!(
+                "Ignoring adaptive classifier: schema v{}, {:.1}% training accuracy; requires schema v{}, at least {:.1}%",
+                model.version,
+                model.training_accuracy * 100.0,
+                adaptive_classifier::ADAPTIVE_FEATURE_SCHEMA_VERSION,
+                MIN_ADAPTIVE_TRAINING_ACCURACY * 100.0,
+            );
+            None
+        }
+        Err(_) => None,
+    };
+
     let state: SharedState = Arc::new(RwLock::new(AppStateInner {
         latest_update: None,
         rssi_history: VecDeque::new(),
@@ -7561,16 +7721,7 @@ async fn main() {
         // Training
         training_status: "idle".to_string(),
         training_config: None,
-        adaptive_model:
-            adaptive_classifier::AdaptiveModel::load(&adaptive_classifier::model_path())
-                .ok()
-                .inspect(|m| {
-                    info!(
-                        "Loaded adaptive classifier: {} frames, {:.1}% accuracy",
-                        m.trained_frames,
-                        m.training_accuracy * 100.0
-                    );
-                }),
+        adaptive_model,
         node_states: HashMap::new(),
         // Accuracy sprint
         pose_tracker: PoseTracker::new(),
@@ -7903,8 +8054,14 @@ mod multistatic_guard_config_tests {
     #[test]
     fn default_guard_when_nothing_set() {
         let cfg = multistatic_guard_config_from(None, None, None, None);
-        assert_eq!(cfg.guard_interval_us, MultistaticConfig::default().guard_interval_us);
-        assert_eq!(cfg.soft_guard_us, MultistaticConfig::default().soft_guard_us);
+        assert_eq!(
+            cfg.guard_interval_us,
+            MultistaticConfig::default().guard_interval_us
+        );
+        assert_eq!(
+            cfg.soft_guard_us,
+            MultistaticConfig::default().soft_guard_us
+        );
     }
 
     #[test]
@@ -7995,11 +8152,21 @@ mod node_sync_snapshot_serialization_tests {
         let v = serde_json::to_value(sample_node(Some(sample_sync()))).unwrap();
         let s = v.get("sync").expect("sync key must be present");
         // All eight contract fields named exactly as iter 23/34 documented.
-        for key in ["offset_us", "is_leader", "is_valid", "smoothed",
-                    "sequence", "csi_fps_ema", "csi_fps_samples",
-                    "staleness_ms"] {
-            assert!(s.get(key).is_some(),
-                    "sync object missing field `{}` — UI contract broken", key);
+        for key in [
+            "offset_us",
+            "is_leader",
+            "is_valid",
+            "smoothed",
+            "sequence",
+            "csi_fps_ema",
+            "csi_fps_samples",
+            "staleness_ms",
+        ] {
+            assert!(
+                s.get(key).is_some(),
+                "sync object missing field `{}` — UI contract broken",
+                key
+            );
         }
         // Spot-check values round-trip.
         assert_eq!(s["offset_us"], 1_163_565);
@@ -8014,8 +8181,11 @@ mod node_sync_snapshot_serialization_tests {
         // emit `"sync": null`. The non-mesh paths rely on this for
         // backwards compatibility with pre-iter-23 UI clients.
         let v = serde_json::to_value(sample_node(None)).unwrap();
-        assert!(v.get("sync").is_none(),
-                "expected `sync` key omitted when None, got {:?}", v.get("sync"));
+        assert!(
+            v.get("sync").is_none(),
+            "expected `sync` key omitted when None, got {:?}",
+            v.get("sync")
+        );
         // The base NodeInfo fields are still there.
         assert_eq!(v["node_id"], 9);
         assert_eq!(v["rssi_dbm"], -38.0);
@@ -8054,7 +8224,11 @@ mod sync_snapshot_helper_tests {
         SyncPacket {
             node_id,
             proto_ver: 1,
-            flags: SyncPacketFlags { is_leader: false, is_valid: true, smoothed_used: true },
+            flags: SyncPacketFlags {
+                is_leader: false,
+                is_valid: true,
+                smoothed_used: true,
+            },
             local_us: 28_798_450,
             epoch_us: 27_634_885,
             sequence: 20,
@@ -8078,8 +8252,10 @@ mod sync_snapshot_helper_tests {
         ns.csi_fps_ema = 10.5;
         ns.csi_fps_samples = 42;
 
-        let snap = ns.sync_snapshot().expect("populated state must produce a snapshot");
-        assert_eq!(snap.offset_us, 1_163_565);  // §A0.10 measured boot delta
+        let snap = ns
+            .sync_snapshot()
+            .expect("populated state must produce a snapshot");
+        assert_eq!(snap.offset_us, 1_163_565); // §A0.10 measured boot delta
         assert!(!snap.is_leader);
         assert!(snap.is_valid);
         assert!(snap.smoothed);
@@ -8155,8 +8331,8 @@ mod sync_snapshot_helper_tests {
         ns.apply_sync_packet(second, t1);
 
         let cur = ns.latest_sync.as_ref().unwrap();
-        assert_eq!(cur.sequence, 40);            // newer sequence persisted
-        assert_eq!(cur.local_us, 30_000_000);    // newer local persisted
+        assert_eq!(cur.sequence, 40); // newer sequence persisted
+        assert_eq!(cur.local_us, 30_000_000); // newer local persisted
         assert_eq!(ns.latest_sync_at, Some(t1)); // staleness clock reset
     }
 
@@ -8168,16 +8344,19 @@ mod sync_snapshot_helper_tests {
         // in a plausible window.
         let mut ns = NodeState::new();
         ns.latest_sync = Some(populated_sync(9));
-        ns.latest_sync_at = std::time::Instant::now()
-            .checked_sub(std::time::Duration::from_millis(750));
+        ns.latest_sync_at =
+            std::time::Instant::now().checked_sub(std::time::Duration::from_millis(750));
 
         let snap = ns.sync_snapshot().unwrap();
         let st = snap.staleness_ms.expect("staleness_ms must be present");
         // Should be approximately 750 ms — give a generous ±500 ms tolerance
         // for any test-runner scheduling delay between checked_sub() and
         // elapsed() within sync_snapshot.
-        assert!(st >= 740 && st < 1250,
-                "expected ~750 ms staleness, got {} ms", st);
+        assert!(
+            st >= 740 && st < 1250,
+            "expected ~750 ms staleness, got {} ms",
+            st
+        );
     }
 
     #[test]
@@ -8187,8 +8366,13 @@ mod sync_snapshot_helper_tests {
         // Local fixture rather than reaching across test modules.
         fn snap(is_leader: bool) -> NodeSyncSnapshot {
             NodeSyncSnapshot {
-                offset_us: 0, is_leader, is_valid: true, smoothed: true,
-                sequence: 0, csi_fps_ema: 10.0, csi_fps_samples: 10,
+                offset_us: 0,
+                is_leader,
+                is_valid: true,
+                smoothed: true,
+                sequence: 0,
+                csi_fps_ema: 10.0,
+                csi_fps_samples: 10,
                 staleness_ms: Some(0),
             }
         }
@@ -8196,7 +8380,10 @@ mod sync_snapshot_helper_tests {
         let snaps = vec![(12u8, snap(true)), (9, snap(false)), (3, snap(false))];
         assert_eq!(super::fleet_role_counts(&snaps), (1, 2));
         // Edge: all leaders (election would prevent this but gauge math must hold).
-        assert_eq!(super::fleet_role_counts(&[(1u8, snap(true)), (2, snap(true))]), (2, 0));
+        assert_eq!(
+            super::fleet_role_counts(&[(1u8, snap(true)), (2, snap(true))]),
+            (2, 0)
+        );
     }
 
     #[test]
@@ -8222,18 +8409,24 @@ mod sync_snapshot_helper_tests {
 
         // Fresh: 1 s old → should return Some.
         ns.latest_sync_at = now.checked_sub(std::time::Duration::from_secs(1));
-        assert!(ns.mesh_aligned_us_for_csi_frame(20).is_some(),
-                "1 s old sync must produce a mesh-aligned timestamp");
+        assert!(
+            ns.mesh_aligned_us_for_csi_frame(20).is_some(),
+            "1 s old sync must produce a mesh-aligned timestamp"
+        );
 
         // Just inside the gate: 8 s old → should still return Some.
         ns.latest_sync_at = now.checked_sub(std::time::Duration::from_secs(8));
-        assert!(ns.mesh_aligned_us_for_csi_frame(20).is_some(),
-                "8 s old sync must still be inside the 9 s gate");
+        assert!(
+            ns.mesh_aligned_us_for_csi_frame(20).is_some(),
+            "8 s old sync must still be inside the 9 s gate"
+        );
 
         // Just outside the gate: 10 s old → must return None.
         ns.latest_sync_at = now.checked_sub(std::time::Duration::from_secs(10));
-        assert!(ns.mesh_aligned_us_for_csi_frame(20).is_none(),
-                "10 s old sync must trigger the 9 s staleness gate");
+        assert!(
+            ns.mesh_aligned_us_for_csi_frame(20).is_none(),
+            "10 s old sync must trigger the 9 s staleness gate"
+        );
     }
 
     #[test]
@@ -8241,15 +8434,19 @@ mod sync_snapshot_helper_tests {
         // Same data shape that /api/v1/mesh emits for a leader node.
         let mut ns = NodeState::new();
         let mut s = populated_sync(12);
-        s.flags = SyncPacketFlags { is_leader: true, is_valid: true, smoothed_used: false };
+        s.flags = SyncPacketFlags {
+            is_leader: true,
+            is_valid: true,
+            smoothed_used: false,
+        };
         s.local_us = 28_864_932;
-        s.epoch_us = 28_864_939;  // -7 µs delta on the leader
+        s.epoch_us = 28_864_939; // -7 µs delta on the leader
         ns.latest_sync = Some(s);
         ns.latest_sync_at = Some(std::time::Instant::now());
 
         let snap = ns.sync_snapshot().unwrap();
         assert!(snap.is_leader);
-        assert_eq!(snap.offset_us, -7);  // call-stack µs only
+        assert_eq!(snap.offset_us, -7); // call-stack µs only
         assert!(!snap.smoothed);
     }
 }
@@ -8648,7 +8845,11 @@ mod observatory_persons_field_position_tests {
         }
     }
 
-    fn base_update(signal_field: SignalField, presence: bool, motion_band_power: f64) -> SensingUpdate {
+    fn base_update(
+        signal_field: SignalField,
+        presence: bool,
+        motion_band_power: f64,
+    ) -> SensingUpdate {
         SensingUpdate {
             msg_type: "sensing_update".to_string(),
             timestamp: 1.0,
@@ -8665,7 +8866,11 @@ mod observatory_persons_field_position_tests {
                 spectral_power: 0.0,
             },
             classification: ClassificationInfo {
-                motion_level: if presence { "present_moving".to_string() } else { "absent".to_string() },
+                motion_level: if presence {
+                    "present_moving".to_string()
+                } else {
+                    "absent".to_string()
+                },
                 presence,
                 confidence: 0.8,
             },
@@ -8704,19 +8909,35 @@ mod observatory_persons_field_position_tests {
         let p0 = &persons[0];
         assert!((p0.position[0] - 3.0).abs() < 1e-6, "x={}", p0.position[0]);
         assert!((p0.position[1] - 0.0).abs() < 1e-9);
-        assert!((p0.position[2] - (-3.0)).abs() < 1e-6, "z={}", p0.position[2]);
+        assert!(
+            (p0.position[2] - (-3.0)).abs() < 1e-6,
+            "z={}",
+            p0.position[2]
+        );
 
         // motion_score is the measured motion_band_power passed through (≤100).
-        assert!((p0.motion_score - 63.3).abs() < 1e-6, "motion_score={}", p0.motion_score);
+        assert!(
+            (p0.motion_score - 63.3).abs() < 1e-6,
+            "motion_score={}",
+            p0.motion_score
+        );
 
         // The serialized WS frame must carry the new fields by their exact
         // contract names the Observatory UI reads.
         let v = serde_json::to_value(&update).unwrap();
-        let arr = v["persons"].as_array().expect("persons must be a JSON array");
+        let arr = v["persons"]
+            .as_array()
+            .expect("persons must be a JSON array");
         assert_eq!(arr.len(), persons.len());
         let pj = &arr[0];
-        assert!(pj.get("position").is_some(), "person.position missing from WS frame");
-        assert!(pj.get("motion_score").is_some(), "person.motion_score missing from WS frame");
+        assert!(
+            pj.get("position").is_some(),
+            "person.position missing from WS frame"
+        );
+        assert!(
+            pj.get("motion_score").is_some(),
+            "person.motion_score missing from WS frame"
+        );
         assert!((pj["position"][0].as_f64().unwrap() - 3.0).abs() < 1e-6);
         assert!((pj["position"][2].as_f64().unwrap() - (-3.0)).abs() < 1e-6);
         assert!((pj["motion_score"].as_f64().unwrap() - 63.3).abs() < 1e-6);
@@ -8729,7 +8950,10 @@ mod observatory_persons_field_position_tests {
         no_posture.persons = Some(derive_pose_from_sensing(&no_posture));
         attach_field_positions(&mut no_posture);
         let p = &no_posture.persons.as_ref().unwrap()[0];
-        assert!(p.pose.is_none(), "pose must stay None when no real posture exists");
+        assert!(
+            p.pose.is_none(),
+            "pose must stay None when no real posture exists"
+        );
         // skip_serializing_if drops the key entirely (UI defaults to 'standing').
         let v = serde_json::to_value(&no_posture).unwrap();
         assert!(v["persons"][0].get("pose").is_none());
@@ -8775,7 +8999,14 @@ mod observatory_persons_field_position_tests {
         attach_field_positions(&mut update);
 
         let p = &update.persons.as_ref().unwrap()[0];
-        assert_eq!(p.position, [0.0, 0.0, 0.0], "no peak → default origin, not fabricated coords");
-        assert!((p.motion_score - 55.0).abs() < 1e-6, "motion_score stays real");
+        assert_eq!(
+            p.position,
+            [0.0, 0.0, 0.0],
+            "no peak → default origin, not fabricated coords"
+        );
+        assert!(
+            (p.motion_score - 55.0).abs() < 1e-6,
+            "motion_score stays real"
+        );
     }
 }

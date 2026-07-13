@@ -116,10 +116,7 @@ impl OccWorldCandle {
     ///
     /// Returns `Err` if the checkpoint does not exist, so callers can
     /// gracefully fall back to the Python bridge (`wifi-densepose-worldmodel`).
-    pub fn load(
-        checkpoint_path: &Path,
-        config: OccWorldConfig,
-    ) -> Result<Self, OccWorldError> {
+    pub fn load(checkpoint_path: &Path, config: OccWorldConfig) -> Result<Self, OccWorldError> {
         if !checkpoint_path.exists() {
             return Err(OccWorldError::CheckpointNotFound(
                 checkpoint_path.display().to_string(),
@@ -157,8 +154,7 @@ impl OccWorldCandle {
     /// input-dependent; no checkpoint is required. Predictions are flagged
     /// `weights_trained: false` so consumers know accuracy is data-gated.
     pub fn dummy(config: OccWorldConfig, device: Device) -> Result<Self, OccWorldError> {
-        let vqvae =
-            VQVAEComponents::dummy(&config, &device).map_err(OccWorldError::Candle)?;
+        let vqvae = VQVAEComponents::dummy(&config, &device).map_err(OccWorldError::Candle)?;
         let transformer =
             OccWorldTransformer::dummy(config.clone(), &device).map_err(OccWorldError::Candle)?;
         Ok(Self {
@@ -247,8 +243,7 @@ impl OccWorldCandle {
 
         // Real conv encoder → (B*F, z_channels, token_h, token_w).
         // Deterministic and input-dependent — no randn.
-        let z = encode_occupancy(&self.vqvae.encoder, &embedded)
-            .map_err(OccWorldError::Candle)?;
+        let z = encode_occupancy(&self.vqvae.encoder, &embedded).map_err(OccWorldError::Candle)?;
 
         // quant_conv → (B*F, embed_dim, token_h, token_w)
         let z_e = self
@@ -294,9 +289,7 @@ impl OccWorldCandle {
 
         // ── Step 4: Decode token indices → z_q values ────────────────────
         // Flatten to (B*F_out * th * tw,) for codebook lookup
-        let idx_flat = pred_indices
-            .flatten_all()
-            .map_err(OccWorldError::Candle)?;
+        let idx_flat = pred_indices.flatten_all().map_err(OccWorldError::Candle)?;
         let z_decoded = self
             .vqvae
             .codebook
@@ -315,8 +308,8 @@ impl OccWorldCandle {
             .map_err(OccWorldError::Candle)?;
 
         // ── Step 5: Real conv decoder → class logits → class predictions ──
-        let class_logits = decode_to_logits(&self.vqvae.decoder, &z_post)
-            .map_err(OccWorldError::Candle)?;
+        let class_logits =
+            decode_to_logits(&self.vqvae.decoder, &z_post).map_err(OccWorldError::Candle)?;
         // class_logits: (B*F_out, num_classes, H, W, D)
         // Argmax over class dim → (B*F_out, H, W, D)
         let sem_flat = class_logits

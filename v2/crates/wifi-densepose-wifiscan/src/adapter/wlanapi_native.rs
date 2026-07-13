@@ -148,9 +148,10 @@ pub(crate) fn scan_native() -> Result<Vec<BssidObservation>, WifiScanError> {
         // WLAN_INTERFACE_INFO_LIST; `dwNumberOfItems` bounds the trailing
         // flexible array `InterfaceInfo`.
         let n_ifaces = unsafe { (*iface_list).dwNumberOfItems } as usize;
-        let iface_base = unsafe { ptr::addr_of!((*iface_list).InterfaceInfo).cast::<
-            windows_sys::Win32::NetworkManagement::WiFi::WLAN_INTERFACE_INFO,
-        >() };
+        let iface_base = unsafe {
+            ptr::addr_of!((*iface_list).InterfaceInfo)
+                .cast::<windows_sys::Win32::NetworkManagement::WiFi::WLAN_INTERFACE_INFO>()
+        };
 
         for i in 0..n_ifaces {
             // SAFETY: `i < dwNumberOfItems`, so this element is in-bounds.
@@ -183,9 +184,8 @@ pub(crate) fn scan_native() -> Result<Vec<BssidObservation>, WifiScanError> {
             // bounds the trailing `wlanBssEntries` flexible array.
             let n_bss = unsafe { (*bss_list).dwNumberOfItems } as usize;
             let bss_base = unsafe {
-                ptr::addr_of!((*bss_list).wlanBssEntries).cast::<
-                    windows_sys::Win32::NetworkManagement::WiFi::WLAN_BSS_ENTRY,
-                >()
+                ptr::addr_of!((*bss_list).wlanBssEntries)
+                    .cast::<windows_sys::Win32::NetworkManagement::WiFi::WLAN_BSS_ENTRY>()
             };
 
             for b in 0..n_bss {

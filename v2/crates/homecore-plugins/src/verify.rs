@@ -85,9 +85,7 @@ impl PluginPolicy {
     fn allows(&self, key: &VerifyingKey) -> bool {
         match self {
             PluginPolicy::AllowUnsigned => true,
-            PluginPolicy::Trusted { allowlist } => {
-                allowlist.iter().any(|k| k == &key.to_bytes())
-            }
+            PluginPolicy::Trusted { allowlist } => allowlist.iter().any(|k| k == &key.to_bytes()),
         }
     }
 }
@@ -204,9 +202,8 @@ fn parse_sha256(s: &str) -> Result<[u8; 32], PluginError> {
             "wasm_module_hash must be `sha256:<hex>`, got {s:?}"
         ))
     })?;
-    let raw = hex::decode(hex_part).map_err(|e| {
-        PluginError::InvalidManifest(format!("wasm_module_hash hex decode: {e}"))
-    })?;
+    let raw = hex::decode(hex_part)
+        .map_err(|e| PluginError::InvalidManifest(format!("wasm_module_hash hex decode: {e}")))?;
     raw.try_into().map_err(|v: Vec<u8>| {
         PluginError::InvalidManifest(format!(
             "wasm_module_hash must decode to 32 bytes, got {}",
@@ -231,8 +228,9 @@ fn decode_verifying_key(s: &str) -> Result<VerifyingKey, PluginError> {
             v.len()
         ))
     })?;
-    VerifyingKey::from_bytes(&bytes)
-        .map_err(|e| PluginError::InvalidManifest(format!("publisher_key not a valid Ed25519 point: {e}")))
+    VerifyingKey::from_bytes(&bytes).map_err(|e| {
+        PluginError::InvalidManifest(format!("publisher_key not a valid Ed25519 point: {e}"))
+    })
 }
 
 /// Decode an `ed25519:<base64>` 64-byte signature.
@@ -322,8 +320,7 @@ mod tests {
         let wasm = b"\0asm\x01\0\0\0fake module bytes";
         let key = publisher();
         let manifest = signed_manifest(wasm, &key);
-        let policy =
-            PluginPolicy::trusted(&[&encode_verifying_key(&key.verifying_key())]).unwrap();
+        let policy = PluginPolicy::trusted(&[&encode_verifying_key(&key.verifying_key())]).unwrap();
         verify_module(&manifest, wasm, &policy).expect("trusted signed module should load");
     }
 
@@ -332,12 +329,14 @@ mod tests {
         let wasm = b"\0asm\x01\0\0\0fake module bytes";
         let key = publisher();
         let manifest = signed_manifest(wasm, &key);
-        let policy =
-            PluginPolicy::trusted(&[&encode_verifying_key(&key.verifying_key())]).unwrap();
+        let policy = PluginPolicy::trusted(&[&encode_verifying_key(&key.verifying_key())]).unwrap();
         // Flip a byte: hash no longer matches.
         let tampered = b"\0asm\x01\0\0\0FAKE module bytes";
         let err = verify_module(&manifest, tampered, &policy).unwrap_err();
-        assert!(matches!(err, PluginError::SignatureRejected(_)), "got {err:?}");
+        assert!(
+            matches!(err, PluginError::SignatureRejected(_)),
+            "got {err:?}"
+        );
     }
 
     #[test]
@@ -348,7 +347,10 @@ mod tests {
         let policy =
             PluginPolicy::trusted(&[&encode_verifying_key(&publisher().verifying_key())]).unwrap();
         let err = verify_module(&manifest, wasm, &policy).unwrap_err();
-        assert!(matches!(err, PluginError::SignatureRejected(_)), "got {err:?}");
+        assert!(
+            matches!(err, PluginError::SignatureRejected(_)),
+            "got {err:?}"
+        );
     }
 
     #[test]
@@ -363,7 +365,10 @@ mod tests {
         let policy =
             PluginPolicy::trusted(&[&encode_verifying_key(&publisher().verifying_key())]).unwrap();
         let err = verify_module(&manifest, wasm, &policy).unwrap_err();
-        assert!(matches!(err, PluginError::SignatureRejected(_)), "got {err:?}");
+        assert!(
+            matches!(err, PluginError::SignatureRejected(_)),
+            "got {err:?}"
+        );
     }
 
     #[test]
@@ -389,7 +394,10 @@ mod tests {
             cog_id: None,
         };
         let err = verify_module(&manifest, wasm, &PluginPolicy::deny_all()).unwrap_err();
-        assert!(matches!(err, PluginError::SignatureRejected(_)), "got {err:?}");
+        assert!(
+            matches!(err, PluginError::SignatureRejected(_)),
+            "got {err:?}"
+        );
         // ...but AllowUnsigned loads it (with a warn).
         verify_module(&manifest, wasm, &PluginPolicy::AllowUnsigned)
             .expect("AllowUnsigned should load an unsigned module");

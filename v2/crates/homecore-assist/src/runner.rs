@@ -94,10 +94,7 @@ pub trait RufloRunner: Send + Sync + 'static {
     ///
     /// `payload` is an arbitrary JSON object; at minimum it should include
     /// `{ "utterance": "...", "language": "..." }`.
-    async fn send_request(
-        &self,
-        payload: serde_json::Value,
-    ) -> Result<RufloResponse, AssistError>;
+    async fn send_request(&self, payload: serde_json::Value) -> Result<RufloResponse, AssistError>;
 
     /// Gracefully shut down the subprocess.
     ///
@@ -220,10 +217,7 @@ impl<R: IntentRecognizer> RufloRunner for LocalRunner<R> {
         Ok(())
     }
 
-    async fn send_request(
-        &self,
-        payload: serde_json::Value,
-    ) -> Result<RufloResponse, AssistError> {
+    async fn send_request(&self, payload: serde_json::Value) -> Result<RufloResponse, AssistError> {
         if !self.started {
             return Err(AssistError::NotStarted);
         }
@@ -362,7 +356,9 @@ mod tests {
         let mut runner = LocalRunner::new(turn_on_recognizer().await);
         runner.spawn(RufloRunnerOpts::default()).await.unwrap();
         let resp = runner
-            .send_request(serde_json::json!({"utterance": "turn on light.kitchen", "language": "en"}))
+            .send_request(
+                serde_json::json!({"utterance": "turn on light.kitchen", "language": "en"}),
+            )
             .await
             .unwrap();
         let intent = resp.intent.expect("must resolve");
@@ -407,7 +403,9 @@ mod tests {
         // can never carry a metachar into a (future) argv.
         let mut runner = LocalRunner::new(turn_on_recognizer().await);
         runner.spawn(RufloRunnerOpts::default()).await.unwrap();
-        const METACHARS: &[char] = &[';', '|', '&', '$', '`', '/', '\\', '>', '<', '\n', '"', '\''];
+        const METACHARS: &[char] = &[
+            ';', '|', '&', '$', '`', '/', '\\', '>', '<', '\n', '"', '\'',
+        ];
         for evil in [
             "turn on the light; rm -rf /",
             "turn on the light && shutdown -h now",

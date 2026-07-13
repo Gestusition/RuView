@@ -32,7 +32,10 @@ impl RangeConstraint {
     /// Euclidean distance from a candidate position to the anchor.
     #[must_use]
     pub fn predicted_range(&self, p: [f64; 3]) -> f64 {
-        (0..3).map(|a| (p[a] - self.anchor_pos[a]).powi(2)).sum::<f64>().sqrt()
+        (0..3)
+            .map(|a| (p[a] - self.anchor_pos[a]).powi(2))
+            .sum::<f64>()
+            .sqrt()
     }
 
     /// Signed range residual `predicted - measured` (m).
@@ -88,7 +91,12 @@ pub struct RangeConstraintFusion {
 
 impl Default for RangeConstraintFusion {
     fn default() -> Self {
-        Self { gate_sigma: 3.0, step: 1.0, max_iters: 200, tol_m: 1e-4 }
+        Self {
+            gate_sigma: 3.0,
+            step: 1.0,
+            max_iters: 200,
+            tol_m: 1e-4,
+        }
     }
 }
 
@@ -151,7 +159,12 @@ impl RangeConstraintFusion {
             (ss / admitted.len() as f64).sqrt()
         };
 
-        RefineResult { position: p, rms_residual_sigma, rejected_anchors, iterations }
+        RefineResult {
+            position: p,
+            rms_residual_sigma,
+            rejected_anchors,
+            iterations,
+        }
     }
 
     /// Associate a constraint to the most consistent of several candidate track
@@ -196,8 +209,14 @@ mod tests {
             .iter()
             .enumerate()
             .map(|(i, &a)| {
-                let r = ((truth[0] - a[0]).powi(2) + (truth[1] - a[1]).powi(2) + (truth[2] - a[2]).powi(2)).sqrt();
-                RangeConstraint { uncertainty_m: 0.3, ..rc(i as u32, a, r) }
+                let r = ((truth[0] - a[0]).powi(2)
+                    + (truth[1] - a[1]).powi(2)
+                    + (truth[2] - a[2]).powi(2))
+                .sqrt();
+                RangeConstraint {
+                    uncertainty_m: 0.3,
+                    ..rc(i as u32, a, r)
+                }
             })
             .collect();
 
@@ -213,10 +232,7 @@ mod tests {
     #[test]
     fn inconsistent_constraint_is_gated_out() {
         // Prior near truth (2,2); a bogus 100 m range from anchor 9 is rejected.
-        let mut constraints = vec![
-            rc(0, [0.0, 0.0, 0.0], 2.83),
-            rc(1, [4.0, 0.0, 0.0], 2.83),
-        ];
+        let mut constraints = vec![rc(0, [0.0, 0.0, 0.0], 2.83), rc(1, [4.0, 0.0, 0.0], 2.83)];
         constraints.push(rc(9, [0.0, 4.0, 0.0], 100.0)); // absurd
         let fusion = RangeConstraintFusion::default();
         let res = fusion.refine([2.0, 2.0, 0.0], &constraints);

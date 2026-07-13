@@ -42,8 +42,7 @@ fn minimal_example_flow_produces_valid_json_with_documented_fields() {
     // works end-to-end without needing `cargo run --example`.
     let site_salt: [u8; SITE_SALT_LEN] = [0xAB; SITE_SALT_LEN];
     let mut pipeline = BfldPipeline::new(
-        BfldConfig::new("seed-example")
-            .with_signature_hasher(SignatureHasher::new(site_salt)),
+        BfldConfig::new("seed-example").with_signature_hasher(SignatureHasher::new(site_salt)),
     );
     let inputs = SensingInputs {
         timestamp_ns: 1_700_000_000_000_000_000,
@@ -92,7 +91,5 @@ fn example_returns_box_dyn_error_for_main_signature() {
     // `main() -> Result<(), Box<dyn std::error::Error>>` is the standard
     // Rust-example pattern. Confirm the file uses it so future copy-paste
     // doesn't drop error propagation.
-    assert!(
-        MINIMAL_EXAMPLE.contains("fn main() -> Result<(), Box<dyn std::error::Error>>"),
-    );
+    assert!(MINIMAL_EXAMPLE.contains("fn main() -> Result<(), Box<dyn std::error::Error>>"),);
 }

@@ -5,9 +5,7 @@
 
 #![cfg(feature = "std")]
 
-const WORKFLOW: &str = include_str!(
-    "../../../../.github/workflows/bfld-mqtt-integration.yml"
-);
+const WORKFLOW: &str = include_str!("../../../../.github/workflows/bfld-mqtt-integration.yml");
 
 #[test]
 fn workflow_declares_mosquitto_service_container() {

@@ -70,7 +70,10 @@ fn user_guide_bfld_section_documents_mqtt_topic_tree() {
         "ruview/<node_id>/bfld/presence/state",
         "ruview/<node_id>/bfld/identity_risk/state",
     ] {
-        assert!(USER_GUIDE.contains(topic), "user-guide missing topic {topic}");
+        assert!(
+            USER_GUIDE.contains(topic),
+            "user-guide missing topic {topic}"
+        );
     }
 }
 

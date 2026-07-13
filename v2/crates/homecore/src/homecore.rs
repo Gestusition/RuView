@@ -67,7 +67,12 @@ mod tests {
     async fn end_to_end_set_then_get() {
         let hc = HomeCore::new();
         let id = EntityId::parse("light.kitchen").unwrap();
-        hc.states().set(id.clone(), "on", serde_json::json!({"brightness": 200}), Context::new());
+        hc.states().set(
+            id.clone(),
+            "on",
+            serde_json::json!({"brightness": 200}),
+            Context::new(),
+        );
         let snap = hc.states().get(&id).unwrap();
         assert_eq!(snap.state, "on");
         assert_eq!(snap.attributes["brightness"], 200);

@@ -151,9 +151,7 @@ fn round_trip_through_bytes_remains_constant_time_per_byte() {
     };
 
     let ratio = t_big / t_small;
-    eprintln!(
-        "parse-cost ratio (1024B / 512B payload): {ratio:.2}× (expect ~2× for O(n))",
-    );
+    eprintln!("parse-cost ratio (1024B / 512B payload): {ratio:.2}× (expect ~2× for O(n))",);
     // O(n) parser → ratio ≈ 2.0. Allow generous bounds (1.0 .. 4.0) to absorb
     // timer noise + CRC32 quadratic-ish behavior on small inputs.
     assert!(

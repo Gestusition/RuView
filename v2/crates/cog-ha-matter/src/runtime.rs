@@ -244,7 +244,10 @@ mod tests {
         // bridge — fires a named test instead of silently breaking
         // the device-registry shape.
         let out = build_publisher_inputs("h", 1883, false, id());
-        assert_eq!(out.discovery.via_device.as_deref(), Some(super::super::COG_ID));
+        assert_eq!(
+            out.discovery.via_device.as_deref(),
+            Some(super::super::COG_ID)
+        );
     }
 
     #[test]
@@ -315,10 +318,7 @@ mod tests {
         // mdns-sd may URL-escape special chars (— in instance name) so
         // we only assert on the service-type segment which is stable.
         let fullname = handle.fullname().to_string();
-        assert!(
-            !fullname.is_empty(),
-            "fullname empty after register"
-        );
+        assert!(!fullname.is_empty(), "fullname empty after register");
         assert!(
             fullname.contains("_ruview-ha._tcp"),
             "fullname `{fullname}` missing service type"

@@ -26,7 +26,10 @@ fn known_flags_mask_covers_exactly_three_named_flags() {
 
 #[test]
 fn reserved_and_known_masks_are_complementary() {
-    assert_eq!(flags::KNOWN_FLAGS_MASK | flags::RESERVED_FLAGS_MASK, u16::MAX);
+    assert_eq!(
+        flags::KNOWN_FLAGS_MASK | flags::RESERVED_FLAGS_MASK,
+        u16::MAX
+    );
     assert_eq!(flags::KNOWN_FLAGS_MASK & flags::RESERVED_FLAGS_MASK, 0);
 }
 
@@ -73,7 +76,10 @@ fn header_preserves_mixed_known_and_reserved_bits() {
 fn reserved_bits_do_not_collide_with_self_only_bit_3() {
     // SELF_ONLY uses bit 3 — bit 2 is the only unused bit in the 0..=3 range
     // and IS part of the reserved mask.
-    assert_ne!(flags::SELF_ONLY & flags::RESERVED_FLAGS_MASK, flags::SELF_ONLY);
+    assert_ne!(
+        flags::SELF_ONLY & flags::RESERVED_FLAGS_MASK,
+        flags::SELF_ONLY
+    );
     assert_eq!(flags::RESERVED_FLAGS_MASK & (1 << 2), 1 << 2);
     assert_eq!(flags::RESERVED_FLAGS_MASK & (1 << 3), 0);
 }

@@ -32,7 +32,10 @@ fn demote_to_same_class_is_identity() {
 fn demote_derived_to_anonymous_strips_compressed_angle_matrix() {
     let f = frame_at_class(PrivacyClass::Derived, true);
     let out = PrivacyGate::demote(f, PrivacyClass::Anonymous).expect("demote");
-    assert_eq!({ out.header.privacy_class }, PrivacyClass::Anonymous.as_u8());
+    assert_eq!(
+        { out.header.privacy_class },
+        PrivacyClass::Anonymous.as_u8()
+    );
 
     let payload = out.parse_payload().expect("payload still parses");
     assert!(
@@ -50,11 +53,17 @@ fn demote_derived_to_anonymous_strips_compressed_angle_matrix() {
 fn demote_derived_to_restricted_strips_amplitude_and_phase_too() {
     let f = frame_at_class(PrivacyClass::Derived, true);
     let out = PrivacyGate::demote(f, PrivacyClass::Restricted).expect("demote");
-    assert_eq!({ out.header.privacy_class }, PrivacyClass::Restricted.as_u8());
+    assert_eq!(
+        { out.header.privacy_class },
+        PrivacyClass::Restricted.as_u8()
+    );
 
     let payload = out.parse_payload().expect("payload parses");
     assert!(payload.compressed_angle_matrix.is_empty());
-    assert!(payload.amplitude_proxy.is_empty(), "amplitude stripped at class 3");
+    assert!(
+        payload.amplitude_proxy.is_empty(),
+        "amplitude stripped at class 3"
+    );
     assert!(payload.phase_proxy.is_empty(), "phase stripped at class 3");
     // SNR + vendor still survive.
     assert_eq!(payload.snr_vector.len(), 8);
@@ -96,7 +105,10 @@ fn demote_preserves_frame_crc_consistency_through_wire_roundtrip() {
     let demoted = PrivacyGate::demote(f, PrivacyClass::Anonymous).expect("demote");
     let bytes = demoted.to_bytes();
     let parsed = BfldFrame::from_bytes(&bytes).expect("post-demote frame must round-trip");
-    assert_eq!({ parsed.header.privacy_class }, PrivacyClass::Anonymous.as_u8());
+    assert_eq!(
+        { parsed.header.privacy_class },
+        PrivacyClass::Anonymous.as_u8()
+    );
 }
 
 #[test]

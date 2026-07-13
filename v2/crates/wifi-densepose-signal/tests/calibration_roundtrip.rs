@@ -70,8 +70,11 @@ fn build_ht20_baseline() -> BaselineCalibration {
             let im = amp[k] * phase[k].sin() + noise_std * rng.next_normal();
             data[(0, k)] = Complex64::new(re as f64, im as f64);
         }
-        let mut meta =
-            CsiMetadata::new(DeviceId::new("roundtrip-test"), FrequencyBand::Band2_4GHz, 6);
+        let mut meta = CsiMetadata::new(
+            DeviceId::new("roundtrip-test"),
+            FrequencyBand::Band2_4GHz,
+            6,
+        );
         meta.bandwidth_mhz = 20;
         meta.antenna_config = AntennaConfig::new(1, 1);
         let frame = CsiFrame::new(meta, data);
@@ -101,8 +104,8 @@ fn should_produce_identical_bytes_on_two_calls_to_same_baseline() {
 fn should_deserialise_and_reserialise_to_identical_bytes() {
     let baseline = build_ht20_baseline();
     let bytes = baseline.to_bytes();
-    let recovered = BaselineCalibration::from_bytes(&bytes)
-        .expect("from_bytes should succeed on valid bytes");
+    let recovered =
+        BaselineCalibration::from_bytes(&bytes).expect("from_bytes should succeed on valid bytes");
     let bytes_recovered = recovered.to_bytes();
     assert_eq!(
         bytes, bytes_recovered,
@@ -149,7 +152,10 @@ fn should_preserve_amp_mean_per_subcarrier_after_round_trip() {
 fn should_embed_magic_word_0xca1b0001_at_offset_0() {
     let baseline = build_ht20_baseline();
     let bytes = baseline.to_bytes();
-    assert!(bytes.len() >= 4, "serialised bytes must be at least 4 bytes long");
+    assert!(
+        bytes.len() >= 4,
+        "serialised bytes must be at least 4 bytes long"
+    );
     let magic = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
     assert_eq!(
         magic, 0xCA1B_0001_u32,
@@ -165,7 +171,11 @@ fn should_embed_schema_version_1_at_offset_4() {
     let bytes = baseline.to_bytes();
     assert!(bytes.len() >= 6, "bytes too short");
     let version = bytes[4];
-    assert_eq!(version, 1, "schema version at offset 4 must be 1, got {}", version);
+    assert_eq!(
+        version, 1,
+        "schema version at offset 4 must be 1, got {}",
+        version
+    );
 }
 
 // ---------------------------------------------------------------------------
