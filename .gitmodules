@@ -20,12 +20,12 @@
 	branch = main
 [submodule "vendor/rufield"]
 	path = vendor/rufield
-	url = https://github.com/ruvnet/rufield
+	url = https://github.com/Gestusition/rufield.git
 [submodule "v2/crates/ruview-swarm"]
 	path = v2/crates/ruview-swarm
-	url = https://github.com/ruvnet/ruv-drone.git
+	url = https://github.com/Gestusition/ruv-drone.git
 	branch = main
 [submodule "v2/crates/worldgraph"]
 	path = v2/crates/worldgraph
-	url = https://github.com/ruvnet/worldgraph.git
+	url = https://github.com/Gestusition/worldgraph.git
 	branch = main
