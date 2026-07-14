@@ -67,9 +67,11 @@ static uint32_t s_rate_skip = 0;
  * Minimum interval between UDP sends in microseconds.
  * CSI callbacks can fire hundreds of times per second in promiscuous mode.
  * We cap the send rate to avoid exhausting lwIP packet buffers (ENOMEM).
- * Default: 20 ms = 50 Hz max send rate.
+ * Performance fix: reduced from 20 ms (50 Hz) to 50 ms (20 Hz). 20 Hz
+ * still far exceeds Nyquist for breathing (0.5 Hz) and HR (2.0 Hz),
+ * and the lower rate dramatically reduces ENOMEM pressure.
  */
-#define CSI_MIN_SEND_INTERVAL_US  (20 * 1000)
+#define CSI_MIN_SEND_INTERVAL_US  (50 * 1000)
 static int64_t s_last_send_us = 0;
 
 /**
@@ -79,14 +81,15 @@ static int64_t s_last_send_us = 0;
  * causing Core 0 LoadProhibited panics in cache_ll_l1_resume_icache.
  *
  * This early gate drops excess callbacks BEFORE any processing (serialization,
- * UDP, edge enqueue), keeping the effective callback rate at ~50 Hz while
+ * UDP, edge enqueue), keeping the effective callback rate at ~20 Hz while
  * preserving the full MGMT+DATA promiscuous filter and HT-LTF/STBC CSI quality.
  *
+ * Performance fix: reduced from 50 Hz to 20 Hz (matched to send interval).
  * The WiFi hardware still captures all frames and the CSI data is generated,
  * but we simply discard the excess in software. This reduces the time spent
  * in callback context per second, giving the WiFi ISR more headroom.
  */
-#define CSI_MIN_PROCESS_INTERVAL_US  (20 * 1000)  /* 50 Hz */
+#define CSI_MIN_PROCESS_INTERVAL_US  (50 * 1000)  /* 20 Hz */
 static int64_t s_last_process_us = 0;
 static uint32_t s_early_drop = 0;
 
@@ -411,7 +414,7 @@ static void csi_start_self_ping(void)
     esp_ping_config_t cfg = ESP_PING_DEFAULT_CONFIG();
     cfg.target_addr     = target;
     cfg.count           = ESP_PING_COUNT_INFINITE;
-    cfg.interval_ms     = 20;     /* 50 Hz -> ~50 received OFDM replies/sec */
+    cfg.interval_ms     = 50;     /* 20 Hz -> ~20 received OFDM replies/sec (perf fix: less ENOMEM) */
     cfg.data_size       = 1;
     cfg.task_stack_size = 4096;
 

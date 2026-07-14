@@ -32,7 +32,7 @@
 #define EDGE_RING_SLOTS       16    /**< SPSC ring buffer slots (power of 2). */
 #define EDGE_MAX_IQ_BYTES     1024  /**< Max I/Q payload per slot. */
 #define EDGE_PHASE_HISTORY_LEN 256  /**< Phase history buffer depth. */
-#define EDGE_TOP_K            8     /**< Top-K subcarriers to track. */
+#define EDGE_TOP_K            12    /**< Top-K subcarriers to track (perf: 8→12 for richer signal). */
 #define EDGE_MAX_SUBCARRIERS  128   /**< Max subcarriers per frame. */
 
 /* ---- Multi-person ---- */
@@ -63,8 +63,8 @@
 #define EDGE_PERSON_PERSIST_FRAMES   3     /**< Consecutive decisions a count must hold before emit. */
 
 /* ---- Calibration ---- */
-#define EDGE_CALIB_FRAMES     1200  /**< Frames for adaptive calibration (~60s at 20 Hz). */
-#define EDGE_CALIB_SIGMA_MULT 3.0f  /**< Threshold = mean + 3*sigma of ambient. */
+#define EDGE_CALIB_FRAMES     400   /**< Frames for adaptive calibration (~20s at 20 Hz, perf fix). */
+#define EDGE_CALIB_SIGMA_MULT 4.5f  /**< Threshold = mean + 4.5*sigma of ambient (perf: less false pos). */
 
 /* ---- Fall detection ---- */
 #define EDGE_FALL_COOLDOWN_MS 5000  /**< Minimum ms between fall alerts (debounce). */

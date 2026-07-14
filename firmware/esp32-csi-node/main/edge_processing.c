@@ -167,6 +167,16 @@ static inline void welford_update(edge_welford_t *w, double x)
     w->mean += delta / (double)w->count;
     double delta2 = x - w->mean;
     w->m2 += delta * delta2;
+
+    /* FIX: Prevent Welford from becoming insensitive over time.
+     * After 600 frames (~30s at 20 Hz), cap the count so new frames
+     * have at least 1/600 = 0.17% weight. Without this, after 10000
+     * frames a new event has 0.01% weight and is invisible. */
+    if (w->count > 600) {
+        double ratio = 600.0 / (double)w->count;
+        w->m2 *= ratio;
+        w->count = 600;
+    }
 }
 
 static inline double welford_variance(const edge_welford_t *w)
@@ -708,8 +718,10 @@ static uint8_t count_distinct_persons(const float *energy, const uint8_t *sc_idx
         counted_sc[count++] = sc_idx[best];
     }
 
-    /* The strongest group always represents at least one body. */
-    if (count == 0) count = 1;
+    /* FIX: Previously forced count=1 even in empty rooms. Now returns 0
+     * when no group passes the energy gate — the presence flag (from
+     * motion_energy threshold) is the correct signal for 'someone is here',
+     * not n_persons. An empty room should report 0 persons. */
     return count;
 }
 
@@ -1046,7 +1058,7 @@ static void process_frame(const edge_ring_slot_t *slot)
         float dt = (float)(slot->timestamp_us - s_last_frame_ts_us) * 1e-6f;
         if (dt > 0.02f && dt < 0.5f) {            /* 2-50 Hz plausible; reject gaps/hops */
             float inst = 1.0f / dt;
-            s_sample_rate_hz += 0.05f * (inst - s_sample_rate_hz);
+            s_sample_rate_hz += 0.15f * (inst - s_sample_rate_hz);  /* perf: 0.05→0.15 for faster adaptation */
             if (s_sample_rate_hz < 8.0f)  s_sample_rate_hz = 8.0f;
             if (s_sample_rate_hz > 30.0f) s_sample_rate_hz = 30.0f;
         }
@@ -1089,7 +1101,7 @@ static void process_frame(const edge_ring_slot_t *slot)
     }
 
     /* --- Step 4: Top-K selection (every 100 frames to amortize cost) --- */
-    if ((s_frame_count % 100) == 1 || s_top_k_count == 0) {
+    if ((s_frame_count % 30) == 1 || s_top_k_count == 0) {  /* perf: 100→30 frames for faster room adaptation */
         update_top_k(n_subcarriers);
     }
 
@@ -1134,20 +1146,32 @@ static void process_frame(const edge_ring_slot_t *slot)
         if (hr_bpm >= 40.0f && hr_bpm <= 180.0f) s_heartrate_bpm = hr_smooth_push(hr_bpm);
     }
 
-    /* --- Step 8: Motion energy (variance of recent phases) --- */
+    /* --- Step 8: Motion energy (variance of inter-frame phase CHANGES) ---
+     *
+     * FIX: Previously used raw unwrapped phase values, which drift monotonically
+     * from LO offset → non-zero variance even in empty rooms → false positives.
+     * Now computes the CHANGE (delta) between consecutive phase samples and
+     * measures its variance. A stationary environment produces near-zero deltas;
+     * a moving person produces large, varying deltas. */
     if (s_history_len >= 10) {
         float sum = 0.0f, sum2 = 0.0f;
         uint16_t window = (s_history_len < 20) ? s_history_len : 20;
-        for (uint16_t i = 0; i < window; i++) {
-            uint16_t ri = (s_history_idx + EDGE_PHASE_HISTORY_LEN
-                           - window + i) % EDGE_PHASE_HISTORY_LEN;
-            float v = s_phase_history[ri];
-            sum += v;
-            sum2 += v * v;
+        uint16_t n_deltas = 0;
+        for (uint16_t i = 1; i < window; i++) {
+            uint16_t ri_curr = (s_history_idx + EDGE_PHASE_HISTORY_LEN
+                               - window + i) % EDGE_PHASE_HISTORY_LEN;
+            uint16_t ri_prev = (s_history_idx + EDGE_PHASE_HISTORY_LEN
+                               - window + i - 1) % EDGE_PHASE_HISTORY_LEN;
+            float delta = s_phase_history[ri_curr] - s_phase_history[ri_prev];
+            sum += delta;
+            sum2 += delta * delta;
+            n_deltas++;
         }
-        float mean = sum / (float)window;
-        s_motion_energy = (sum2 / (float)window) - (mean * mean);
-        if (s_motion_energy < 0.0f) s_motion_energy = 0.0f;
+        if (n_deltas > 0) {
+            float mean_d = sum / (float)n_deltas;
+            s_motion_energy = (sum2 / (float)n_deltas) - (mean_d * mean_d);
+            if (s_motion_energy < 0.0f) s_motion_energy = 0.0f;
+        }
     }
 
     /* --- Step 9: Presence detection --- */

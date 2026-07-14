@@ -61,7 +61,7 @@ menu "Edge Intelligence (ADR-039)"
 
     config EDGE_TOP_K
         int "Top-K subcarriers to track"
-        default 8
+        default 12
         range 1 32
         help
             Number of highest-variance subcarriers to use for DSP.
