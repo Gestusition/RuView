@@ -244,6 +244,17 @@ testRunner.test('buildSensingWsUrl maps Docker UI port to sensing WebSocket port
   testRunner.assertEqual(url, 'ws://192.168.28.147:3001/ws/sensing');
 });
 
+testRunner.test('buildSensingWsUrl maps local UI port to sensing WebSocket port', 'apiConfig', () => {
+  const url = buildSensingWsUrl({
+    protocol: 'http:',
+    host: '127.0.0.1:8080',
+    hostname: '127.0.0.1',
+    port: '8080',
+  });
+
+  testRunner.assertEqual(url, 'ws://127.0.0.1:8765/ws/sensing');
+});
+
 // API Service Tests
 testRunner.test('apiService has required methods', 'apiService', () => {
   testRunner.assert(typeof apiService.get === 'function', 'get method should exist');
