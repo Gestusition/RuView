@@ -67,7 +67,8 @@ members = [
     "crates/homecore-hap",         # ADR-125 — Apple Home HomeKit Accessory Protocol bridge
     "crates/homecore-assist",      # ADR-133 — HOMECORE voice assistant + ruflo bridge
     "crates/homecore-server",      # iter-9 — HOMECORE integration binary (all 8 crates wired together)
-    "crates/ruview-swarm",                         # ADR-148 — drone swarm control system
+    # ruv-drone is vendored at crates/ruview-swarm as its own nested workspace.
+    # Depend on its published crates or build it from that workspace directly.
     # ADR-262 P1 — anti-corruption bridge converting RuView WiFi-CSI sensing
     # output into signed RuField FieldEvents. Path-deps the `vendor/rufield`
     # submodule crates (rufield-core/-provenance/-privacy/-fusion); single
@@ -85,6 +86,7 @@ exclude = [
     "crates/wifi-densepose-wasm-edge",
     "crates/homecore-plugin-example",
     "crates/worldgraph",   # ruvnet/worldgraph submodule — its own workspace (geo/worldgraph/worldmodel)
+    "crates/ruview-swarm", # ruvnet/ruv-drone submodule — its own workspace (ruview-swarm/ruv-jellyfish)
 ]
 
 [workspace.package]
