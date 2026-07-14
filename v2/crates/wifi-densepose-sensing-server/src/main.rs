@@ -5731,7 +5731,7 @@ async fn udp_receiver_task(state: SharedState, udp_port: u16) {
                     let mut classification = ClassificationInfo {
                         motion_level: motion_level.to_string(),
                         presence: vitals.presence,
-                        confidence: vitals.presence_score as f64,
+                        confidence: (vitals.presence_score as f64).clamp(0.0, 1.0),
                     };
 
                     // Boost classification confidence with multi-node coverage.
